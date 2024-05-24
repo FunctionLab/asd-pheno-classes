@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 
 
 def get_main_spark_data_for_GFMM():
