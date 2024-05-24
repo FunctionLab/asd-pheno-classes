@@ -14,7 +14,7 @@ from scipy.stats import binomtest
 
 
 def run_mixture_model_on_phenotypes(ncomp=4, summarize=False):
-    datadf = pd.read_csv('/mnt/home/alitman/ceph/SPARK_Phenotype_Dataset/spark_5280_unimputed_cohort.txt', sep='\t', index_col=0)  # 5279 individuals, RBSR+CBCL, no vineland, no ADI, no BMS
+    datadf = pd.read_csv('../spark_5280_unimputed_cohort.txt', sep='\t', index_col=0)  # 5279 individuals, RBSR+CBCL, no vineland, no ADI, no BMS
     datadf = datadf.round()
     age = datadf['age_at_eval_years']
 
@@ -55,7 +55,7 @@ def run_mixture_model_on_phenotypes(ncomp=4, summarize=False):
     plt.rcParams.update({'font.size': 24})
     plt.setp(ax.texts, size=22)
     plt.ylabel('')
-    plt.savefig(f'GFMM_all_figures/GFMM_pie_chart_5392_{ncomp}comp.png', bbox_inches='tight')
+    plt.savefig(f'figures/GFMM_pie_chart_5392_{ncomp}comp.png', bbox_inches='tight')
     plt.close()
 
 
@@ -251,7 +251,7 @@ def get_age_distributions_for_classes(mixed_data):
     ax[1, 1].set_title('Class 3', fontsize=14) 
     ax[1, 1].set_ylabel('Density', fontsize=14)
     fig.tight_layout()
-    plt.savefig('GFMM_all_figures/GFMM_4class_age_density.png', bbox_inches='tight')
+    plt.savefig('figures/GFMM_4class_age_density.png', bbox_inches='tight')
     plt.close()
 
     # sex breakdown by class
@@ -263,7 +263,7 @@ def get_age_distributions_for_classes(mixed_data):
     plt.xlabel('Class', fontsize=14)
     plt.title('Sex distribution by class', fontsize=14)
     plt.legend(loc='upper right', bbox_to_anchor=(1.3, 1), fontsize=14)
-    plt.savefig('GFMM_all_figures/GFMM_4class_sex_distribution_normalized.png', bbox_inches='tight')
+    plt.savefig('figures/GFMM_4class_sex_distribution_normalized.png', bbox_inches='tight')
     plt.close()
     
 
