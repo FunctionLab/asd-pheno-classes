@@ -1,23 +1,13 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
 import seaborn as sns
-import scipy.stats as stats
 from stepmix.stepmix import StepMix
-from sklearn.metrics import rand_score
-from sklearn.model_selection import GridSearchCV, ParameterGrid
 from stepmix.utils import get_mixed_descriptor
 from collections import defaultdict
 from scipy import stats
-from scipy.stats import hypergeom, pearsonr, spearmanr
-import pickle as rick
-import plotly.express as px
-from statsmodels.stats.multitest import multipletests
-from sklearn.impute import KNNImputer
 
 from ../PhenotypeClasses/GFMM import get_feature_enrichments
-from GFMM_model_validation import scramble_column
 
 
 def generate_ssc_data(impute=False):
@@ -347,7 +337,7 @@ def get_SSC_data(ncomp=4):
     x = np.linspace(-1, 1, 100)
     y = x
     ax.plot(x, y, color='gray', linestyle='--')
-    r, p = pearsonr(polar['ssc_value'], polar['spark_value'])
+    r, p = stats.pearsonr(polar['ssc_value'], polar['spark_value'])
     r2 = r**2
     ax.text(0.3, 0.11, f'R^2: {r2:.2f}', fontsize=16)
     ax.text(0.3, 0.01, f'p < 1e-5', fontsize=16)
