@@ -3,7 +3,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from stepmix.stepmix import StepMix
-from stepmix.bootstrap import bootstrap
 from sklearn.model_selection import GridSearchCV, ParameterGrid
 from stepmix.utils import get_mixed_descriptor
 from collections import defaultdict
