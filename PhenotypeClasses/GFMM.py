@@ -594,3 +594,4 @@ def split_columns(feature_subset):
 if __name__ == '__main__':
     df_enriched_depleted, fold_enrichments = run_mixture_model_on_phenotypes(ncomp=4, summarize=True)
     generate_summary_table(df_enriched_depleted, fold_enrichments)
+    

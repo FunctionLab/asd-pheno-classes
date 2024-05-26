@@ -92,3 +92,4 @@ def load_and_label_DNVs():
 if __name__ == "__main__":
     
     variant_to_label = load_and_label_DNVs()
+    
