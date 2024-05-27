@@ -11,10 +11,11 @@ import pickle as rick
 from statsmodels.stats.multitest import multipletests
 
 from ../PhenotypeClasses/GFMM import get_feature_enrichments, split_columns
+from utils import sabic, c_aic, awe, scramble_column
 
 
 def compute_LL(ncomp=4, num_iter=200):
-    datadf = pd.read_csv('/mnt/home/alitman/ceph/SPARK_Phenotype_Dataset/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  
+    datadf = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  
     Z_p = datadf[['sex', 'age_at_eval_years']] # covariates
     X = datadf.drop(['sex', 'age_at_eval_years'], axis=1) 
     continuous_columns, binary_columns, categorical_columns = split_columns(list(X.columns))
@@ -40,73 +41,12 @@ def compute_LL(ncomp=4, num_iter=200):
         for n_components, vll in zip(results['param_n_components'], results['Val_Log_Likelihood']): # zipping two values
             val_log_likelihood[n_components].append(vll) # add one value from one iteration, and keep adding values from each iteration
         
-    with open(f'GFMM_validation_pickles/GFMM_val_log_likelihood_{num_iter}_iterations.pkl', 'wb') as f:
+    with open(f'pickles/GFMM_val_log_likelihood_{num_iter}_iterations.pkl', 'wb') as f:
         rick.dump(val_log_likelihood, f)
 
 
-def sabic(model, X, Y=None):
-    """Sample-Sized Adjusted BIC.
-
-    References
-    ----------
-    Sclove SL. Application of model-selection criteria to some problems in multivariate analysis. Psychometrika. 1987;52(3):333–343.
-
-    Parameters
-    ----------
-    X : array-like of shape (n_samples, n_features)
-    Y : array-like of shape (n_samples, n_features_structural), default=None
-
-    Returns
-    -------
-    ssa_bic : float
-    """
-    n = X.shape[0]
-
-    return -2 * model.score(X, Y) * n + model.n_parameters * np.log(
-        n * ((n + 2) / 24)
-    )
-
-
-def c_aic(model, X, Y=None):
-    """Consistent AIC.
-
-    References
-    ----------
-    Bozdogan, H. 1987. Model selection and Akaike’s information criterion (AIC):
-    The general theory and its analytical extensions. Psychometrika 52: 345–370.
-
-    Parameters
-    ----------
-    X : array-like of shape (n_samples, n_features)
-    Y : array-like of shape (n_samples, n_features_structural), default=None
-
-    Returns
-    -------
-    caic : float
-        The lower the better.
-    """
-    n = X.shape[0]
-    return -2 * model.score(X, Y) * n + model.n_parameters * (np.log(n) + 1)
-
-
-def awe(model, X, Y=None):
-        """Approximate weight of evidence. (Banfield & Raftery (1993))
-
-        Parameters
-        ----------
-        X : array-like of shape (n_samples, n_features)
-        Y : array-like of shape (n_samples, n_features_structural), default=None
-
-        Returns
-        -------
-        awe : float
-        """
-        n = X.shape[0]
-        return -2 * model.score(X, Y) * n + model.n_parameters * (np.log(n) + 1.5)
-
-
 def get_AWE(num_iter=50):
-    datadf = pd.read_csv('/mnt/home/alitman/ceph/SPARK_Phenotype_Dataset/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  
+    datadf = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  
     Z_p = datadf[['sex', 'age_at_eval_years']] # covariates
     X = datadf.drop(['sex', 'age_at_eval_years'], axis=1) 
     continuous_columns, binary_columns, categorical_columns = split_columns(list(X.columns))
@@ -128,7 +68,7 @@ def get_AWE(num_iter=50):
             model.fit(mixed_data, Z_p)
             awe_dict[g['n_components']].append(awe(model, mixed_data, Z_p))
     
-    with open(f'GFMM_all_figures/LCA_AWE_{num_iter}_iterations.pkl', 'wb') as f:
+    with open(f'figures/LCA_AWE_{num_iter}_iterations.pkl', 'wb') as f:
         rick.dump(awe_dict, f)
     
     for n_components in grid['n_components']:
@@ -141,12 +81,12 @@ def get_AWE(num_iter=50):
     plt.errorbar(grid['n_components'], awe_mean, yerr=awe_std, fmt='o', color='yellow')
     plt.xlabel('Number of Components', fontsize=20)
     plt.ylabel('AWE', fontsize=20)
-    plt.savefig(f'GFMM_all_figures/LCA_AWE_{num_iter}_iterations.png')
+    plt.savefig(f'figures/LCA_AWE_{num_iter}_iterations.png')
     plt.close()
         
 
 def get_class_sizes(num_iter=50):
-    datadf = pd.read_csv('/mnt/home/alitman/ceph/SPARK_Phenotype_Dataset/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  
+    datadf = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  
     Z_p = datadf[['sex', 'age_at_eval_years']] # covariates
     X = datadf.drop(['sex', 'age_at_eval_years'], axis=1) 
     continuous_columns, binary_columns, categorical_columns = split_columns(list(X.columns))
@@ -176,11 +116,11 @@ def get_class_sizes(num_iter=50):
                 smallest_n[g['n_components']].append(class_size)
                 smallest_prop[g['n_components']].append(class_size / len(pred))
           
-    with open(f'GFMM_all_figures/LCA_smallest_n_{num_iter}_iterations.pkl', 'wb') as f:
+    with open(f'pickles/LCA_smallest_n_{num_iter}_iterations.pkl', 'wb') as f:
         rick.dump(smallest_n, f)
-    with open(f'GFMM_all_figures/LCA_smallest_prop_{num_iter}_iterations.pkl', 'wb') as f:
+    with open(f'pickles/LCA_smallest_prop_{num_iter}_iterations.pkl', 'wb') as f:
         rick.dump(smallest_prop, f)
-    with open(f'GFMM_all_figures/LCA_alcpp_{num_iter}_iterations.pkl', 'wb') as f:
+    with open(f'pickles/LCA_alcpp_{num_iter}_iterations.pkl', 'wb') as f:
         rick.dump(alcpp, f)
     
     for n_components in grid['n_components']:
@@ -190,7 +130,7 @@ def get_class_sizes(num_iter=50):
 
 
 def compute_main_indicators(num_iter=200):
-        datadf = pd.read_csv('/mnt/home/alitman/ceph/SPARK_Phenotype_Dataset/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  
+        datadf = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  
     Z_p = datadf[['sex', 'age_at_eval_years']] # covariates
     X = datadf.drop(['sex', 'age_at_eval_years'], axis=1) 
     continuous_columns, binary_columns, categorical_columns = split_columns(list(X.columns))
@@ -222,31 +162,31 @@ def compute_main_indicators(num_iter=200):
             caic[g['n_components']].append(c_aic(model, mixed_data, Z_p))
         
     # save the val log likelihood, AIC, BIC, and entropy dicts to pkl
-    with open(f'GFMM_validation_pickles/GFMM_AIC_{num_iter}_iterations.pkl', 'wb') as f:
+    with open(f'pickles/GFMM_AIC_{num_iter}_iterations.pkl', 'wb') as f:
         rick.dump(aic, f)
-    with open(f'GFMM_validation_pickles/GFMM_BIC_{num_iter}_iterations.pkl', 'wb') as f:
+    with open(f'pickles/GFMM_BIC_{num_iter}_iterations.pkl', 'wb') as f:
         rick.dump(bic, f)
-    with open(f'GFMM_validation_pickles/GFMM_entropy_{num_iter}_iterations.pkl', 'wb') as f:
+    with open(f'pickles/GFMM_entropy_{num_iter}_iterations.pkl', 'wb') as f:
         rick.dump(entropy, f)
-    with open(f'GFMM_validation_pickles/GFMM_sabic_{num_iter}_iterations.pkl', 'wb') as f:
+    with open(f'pickles/GFMM_sabic_{num_iter}_iterations.pkl', 'wb') as f:
         rick.dump(ssabic, f)
-    with open(f'GFMM_validation_pickles/GFMM_caic_{num_iter}_iterations.pkl', 'wb') as f:
+    with open(f'pickles/GFMM_caic_{num_iter}_iterations.pkl', 'wb') as f:
         rick.dump(caic, f)
 
 
 def plot_main_indicators(num_iter=200):
     
-    with open(f'GFMM_validation_pickles/GFMM_AIC_{num_iter}_iterations.pkl', 'rb') as f:
+    with open(f'pickles/GFMM_AIC_{num_iter}_iterations.pkl', 'rb') as f:
         aic = rick.load(f)
-    with open(f'GFMM_validation_pickles/GFMM_BIC_{num_iter}_iterations.pkl', 'rb') as f:
+    with open(f'pickles/GFMM_BIC_{num_iter}_iterations.pkl', 'rb') as f:
         bic = rick.load(f)
-    with open(f'GFMM_validation_pickles/LCA_entropy_50_iterations.pkl', 'rb') as f:
+    with open(f'pickles/LCA_entropy_50_iterations.pkl', 'rb') as f:
         entropy = rick.load(f)
-    with open(f'GFMM_validation_pickles/GFMM_sabic_{num_iter}_iterations.pkl', 'rb') as f:
+    with open(f'pickles/GFMM_sabic_{num_iter}_iterations.pkl', 'rb') as f:
         ssabic = rick.load(f)
-    with open(f'GFMM_validation_pickles/GFMM_caic_{num_iter}_iterations.pkl', 'rb') as f:
+    with open(f'pickles/GFMM_caic_{num_iter}_iterations.pkl', 'rb') as f:
         caic = rick.load(f)
-    with open(f'GFMM_validation_pickles/GFMM_val_log_likelihood_{num_iter}_iterations.pkl', 'rb') as f:
+    with open(f'pickles/GFMM_val_log_likelihood_{num_iter}_iterations.pkl', 'rb') as f:
         val_log_likelihood = rick.load(f)
 
     grid = {'n_components': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
@@ -342,7 +282,7 @@ def plot_main_indicators(num_iter=200):
 
 
 def lmr_likelihood_ratio_test(n_iter=50):
-    datadf = pd.read_csv('/mnt/home/alitman/ceph/SPARK_Phenotype_Dataset/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  
+    datadf = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  
     Z_p = datadf[['sex', 'age_at_eval_years']] # covariates
     X = datadf.drop(['sex', 'age_at_eval_years'], axis=1) 
     continuous_columns, binary_columns, categorical_columns = split_columns(list(X.columns))
@@ -388,7 +328,7 @@ def lmr_likelihood_ratio_test(n_iter=50):
         p_vals[5].append(p4)
         p_vals[6].append(p5)
     
-    with open(f'GFMM_validation_pickles/GFMM_LMR_LRT_{n_iter}_iterations.pkl', 'wb') as f:
+    with open(f'pickles/GFMM_LMR_LRT_{n_iter}_iterations.pkl', 'wb') as f:
         rick.dump(p_vals, f)
     
     # compute average p_val for each n_components value
@@ -413,7 +353,7 @@ def lmr_likelihood_ratio_test(n_iter=50):
 
 
 def posterior_prob_validation():
-    datadf = pd.read_csv('/mnt/home/alitman/ceph/SPARK_Phenotype_Dataset/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  # 5279 individuals, RBSR+CBCL, no vineland, no ADI, no BMS
+    datadf = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  # 5279 individuals, RBSR+CBCL, no vineland, no ADI, no BMS
     datadf = datadf.round()
     age = datadf['age_at_eval_years']
     Z_p = datadf[['sex', 'age_at_eval_years']]
@@ -438,7 +378,7 @@ def posterior_prob_validation():
     posterior_probs = np.max(posterior_probs, axis=1)
     mixed_data['mixed_pred'] = model.predict(mixed_data)
     labels = mixed_data['mixed_pred']
-    labels.to_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/SPARK_5392_labels.csv')
+    labels.to_csv('data/SPARK_5392_labels.csv')
     mixed_data['age'] = age
     copydf = datadf.copy()
     scrambled_data = copydf.apply(scramble_column)
@@ -461,17 +401,17 @@ def posterior_prob_validation():
     posterior_probs_scram = np.max(posterior_probs_scram, axis=1)
     scrambled['mixed_pred'] = model_scram.predict(scrambled)
     labels_scram = scrambled['mixed_pred']
-    labels_scram.to_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/SPARK_5392_scrambled_labels.csv') 
+    labels_scram.to_csv('data/SPARK_5392_scrambled_labels.csv') 
 
-    with open(f'GFMM_validation_pickles/posterior_probs.pkl', 'wb') as f:
+    with open(f'pickles/posterior_probs.pkl', 'wb') as f:
         rick.dump(posterior_probs, f)
-    with open(f'GFMM_validation_pickles/posterior_probs_scram.pkl', 'wb') as f:
+    with open(f'pickles/posterior_probs_scram.pkl', 'wb') as f:
         rick.dump(posterior_probs_scram, f) 
     
     plot_posterior_probs(posterior_probs, posterior_probs_scram, labels, labels_scram, ncomp=4)
 
 
-def plot_posterior_probs(posterior_probs, posterior_probs_scram, labels, labels_scram, ncomp, cohort='SPARK_5392_ninit'):
+def plot_posterior_probs(posterior_probs, posterior_probs_scram, labels, labels_scram, ncomp, cohort='SPARK_5392'):
     posterior_probs_df = pd.DataFrame()
     posterior_probs_df['posterior_prob'] = posterior_probs
     posterior_probs_df['scrambled'] = False
@@ -498,12 +438,8 @@ def plot_posterior_probs(posterior_probs, posterior_probs_scram, labels, labels_
         plt.gca().spines[axis].set_color('black')
     plt.legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize=16)
     plt.legend(title='Scrambled', title_fontsize='16', fontsize='14')
-    plt.savefig(f'GFMM_all_figures/GFMM_{cohort}_posterior_probs_boxplot_{ncomp}comp.png', bbox_inches='tight')
+    plt.savefig(f'figures/GFMM_{cohort}_posterior_probs_boxplot_{ncomp}comp.png', bbox_inches='tight')
     plt.clf()
-
-
-def scramble_column(column):
-    return np.random.permutation(column)
 
 
 if __name__ == "__main__":
