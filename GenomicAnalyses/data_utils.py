@@ -5,21 +5,20 @@ import numpy as np
 import pickle as rick
 
 
-with open('/mnt/home/alitman/ceph/Genome_Annotation_Files_hg38/gene_ensembl_ID_to_name.pkl', 'rb') as f:
+with open('gene_sets/gene_ensembl_ID_to_name.pkl', 'rb') as f:
         ENSEMBL_TO_GENE_NAME = rick.load(f)
 
 
 def get_WES_trios():
-    wes_spids = '/mnt/home/nsauerwald/ceph/SPARK/Mastertables/SPARK.iWES_v2.mastertable.2023_01.tsv'
+    wes_spids = '../Mastertables/SPARK.iWES_v2.mastertable.2023_01.tsv'
     wes_spids = pd.read_csv(wes_spids, sep='\t')
     wes_spids = wes_spids[['father', 'mother', 'spid']]
     wes_spids = wes_spids[(wes_spids['father'] != '0') & (wes_spids['mother'] != '0')]
 
-    deepvar_dir = '/mnt/ceph/SFARI/SPARK/pub/iWES_v2/variants/deepvariant/gvcf/'
-    gatk_dir = '/mnt/ceph/SFARI/SPARK/pub/iWES_v2/variants/gatk/gvcf/'
-    ids = '/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/thorough_spark_trios_WES2_cleaned_tab.txt'
-    ids = pd.read_csv(ids, sep='\t')
-    ids.columns = ['FID', 'MID', 'SPID']
+    deepvar_dir = 'SFARI/SPARK/pub/iWES_v2/variants/deepvariant/gvcf/'
+    gatk_dir = 'SFARI/SPARK/pub/iWES_v2/variants/gatk/gvcf/'
+    wes_spids.columns = ['FID', 'MID', 'SPID']
+    ids = wes_spids
     # check if all SPIDs are in the deepvar dir in the form of {SPID}.gvcf.gz
     for fid, mid, spid in zip(ids['FID'], ids['MID'], ids['SPID']):
         # if spid is not in any of the deepvar dirs, remove it from ids
@@ -57,14 +56,14 @@ def get_WES_trios():
             elif i == 10:
                 ids = ids[ids['SPID'] != spid]
         
-    ids.to_csv('/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/spark_trios_WES2.txt', sep='\t', header=False, index=False)
+    ids.to_csv('data/processed_spark_trios_WES2.txt', sep='\t', header=False, index=False)
 
 
 def get_paired_sibs():
-    file = '/mnt/home/nsauerwald/ceph/SPARK/Mastertables/SPARK.iWES_v2.mastertable.2023_01.tsv'
+    file = '../Mastertables/SPARK.iWES_v2.mastertable.2023_01.tsv'
     wes = pd.read_csv(file, sep='\t')
     sibs = wes[wes['asd'] == 1]
-    spids_for_model = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0) # 5280 PROBANDS
+    spids_for_model = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0) # 5280 PROBANDS
     probands = spids_for_model.index.tolist()
     sibling_spids = []
     for i, row in wes.iterrows():
@@ -82,23 +81,23 @@ def get_paired_sibs():
                 siblings = sibs[(sibs['father'] == fid) & (sibs['mother'] == mid)]['spid'].tolist()
             sibling_spids.extend(siblings)
     sibling_spids = list(set(sibling_spids))
-    with open('/mnt/home/alitman/ceph/WES_V2_data/WES_5392_siblings_spids.txt', 'w') as f:
+    with open('asd-pheno-classes/PhenotypeClasses/data/WES_5392_siblings_spids.txt', 'w') as f:
         for item in sibling_spids:
             f.write("%s\n" % item)
 
 
 def process_DNVs():
-    dir = '/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/output/'
-    subdirs = os.listdir(dir)
+    data_dir = 'WES_V2_data/calling_denovos_data/output/'
+    subdirs = os.listdir(data_dir)
     var_to_spid = defaultdict(list) # dictionary with variant ID as key and list of SPIDs as value
     SPID_to_vars = defaultdict(list) # dictionary with SPID as key and list of variant IDs as value
     spid_to_count = defaultdict(int) # dictionary with SPID as key and number of DNVs as value
     spids = []
     missing = 0
     for subdir in subdirs:
-        if os.path.exists(f'{dir}{subdir}/{subdir}.glnexus.family.combined_intersection_filtered_gq_20_depth_10.vcf'):
+        if os.path.exists(f'{data_dir}{subdir}/{subdir}.glnexus.family.combined_intersection_filtered_gq_20_depth_10.vcf'):
             try:
-                dnv = pd.read_csv(f'{dir}{subdir}/{subdir}.glnexus.family.combined_intersection_filtered_gq_20_depth_10.vcf', sep='\t', comment='#', header=None)
+                dnv = pd.read_csv(f'{data_dir}{subdir}/{subdir}.glnexus.family.combined_intersection_filtered_gq_20_depth_10.vcf', sep='\t', comment='#', header=None)
                 for i, row in dnv.iterrows():
                     var_id = row[2]
                     spid = str(subdir)
@@ -144,16 +143,16 @@ def process_DNVs():
     spid_to_count.columns = ['count']
     spid_to_count.index.name = 'SPID'
     spid_to_count = spid_to_count.reset_index()
-    spid_to_count.to_csv('/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/SPID_to_DNV_count.txt', sep='\t', index=False)
+    spid_to_count.to_csv('data/SPID_to_DNV_count.txt', sep='\t', index=False)
 
-    with open('/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/var_to_spid.pkl', 'wb') as handle:
-        rick.dump(var_to_spid, handle, protocol=rick.HIGHEST_PROTOCOL)
-    with open('/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/SPID_to_vars.pkl', 'wb') as f:
-        rick.dump(SPID_to_vars, f, rick.HIGHEST_PROTOCOL)
+    with open('data/var_to_spid.pkl', 'wb') as f:
+        rick.dump(var_to_spid, f)
+    with open('data/SPID_to_vars.pkl', 'wb') as f2:
+        rick.dump(SPID_to_vars, f2)
 
 
 def combine_inherited_vep_files():
-    data_dir = '/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/inherited_vep_predictions_plugins_filtered/' # filtered repeats + centromeres
+    data_dir = 'inherited_vep_predictions_plugins_filtered/' # filtered repeats + centromeres
     files = [f for f in os.listdir(data_dir) if f.endswith('.vcf')]
     spids = [f.split('.')[0] for f in files]
 
@@ -167,7 +166,7 @@ def combine_inherited_vep_files():
     gfmm_labels = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=False, header=0)
     gfmm_ids = gfmm_labels['subject_sp_id'].tolist()
 
-    sibling_list = '/mnt/home/alitman/ceph/WES_V2_data/WES_5392_siblings_spids.txt'
+    sibling_list = 'asd-pheno-classes/PhenotypeClasses/data/WES_5392_siblings_spids.txt'
     sibling_list = pd.read_csv(sibling_list, sep='\t', header=None)
     sibling_list.columns = ['spid']
     sibling_list = sibling_list['spid'].tolist()
@@ -215,7 +214,7 @@ def combine_inherited_vep_files():
         spid_to_num_ptvs[spids[i]] = ptv_counts
         spid_to_num_missense[spids[i]] = missense_counts
         
-    with open('spid_to_num_lof_rare_inherited.pkl', 'wb') as f:
+    with open('data/spid_to_num_lof_rare_inherited.pkl', 'wb') as f:
         rick.dump(spid_to_num_ptvs, f)
-    with open('spid_to_num_missense_rare_inherited.pkl', 'wb') as f:
+    with open('data/spid_to_num_missense_rare_inherited.pkl', 'wb') as f:
         rick.dump(spid_to_num_missense, f)

@@ -10,7 +10,7 @@ def gene_constraint_analysis():
     dnvs_pro, dnvs_sibs, zero_pro, zero_sibs = load_dnvs()
     
     # get gene sets
-    pli = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/pLI_table.txt', sep='\t')
+    pli = pd.read_csv('gene_sets/pLI_table.txt', sep='\t')
     pli = pli[['gene', 'pLI']]
     pli_higer = pli[pli['pLI'] >= 0.995]['gene'].tolist()
     pli_lower = pli[(pli['pLI'] >= 0.5) & (pli['pLI'] < 0.995)]['gene'].tolist()

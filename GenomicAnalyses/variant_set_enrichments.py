@@ -116,13 +116,13 @@ def compute_variant_set_proportions():
             ax[0].annotate('*', xy=(x_position, ypos), ha='center', size=20)
     
     # inhLoF + inhMis
-    with open('/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/spid_to_num_ptvs_LOFTEE_rare_inherited.pkl', 'rb') as f:
+    with open('data/spid_to_num_lof_rare_inherited.pkl', 'rb') as f:
         spid_to_num_ptvs = rick.load(f)
-    with open('/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/spid_to_num_missense_ALPHAMISSENSE_rare_inherited.pkl', 'rb') as f: # _90patho
+    with open('data/spid_to_num_missense_rare_inherited.pkl', 'rb') as f:
         spid_to_num_missense = rick.load(f)
 
-    gfmm_labels = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=False, header=0) # 5391 probands
-    sibling_list = '/mnt/home/alitman/ceph/WES_V2_data/WES_5392_siblings_spids.txt' 
+    gfmm_labels = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=False, header=0) # 5391 probands
+    sibling_list = 'asd-pheno-classes/PhenotypeClasses/data/WES_5392_siblings_spids.txt' 
 
     gfmm_labels = gfmm_labels.rename(columns={'subject_sp_id': 'spid'})
     spid_to_class = dict(zip(gfmm_labels['spid'], gfmm_labels['mixed_pred']))
