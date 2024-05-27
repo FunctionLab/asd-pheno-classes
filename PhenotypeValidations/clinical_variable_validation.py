@@ -18,10 +18,10 @@ from scipy.stats import binomtest, ttest_ind
 
 
 def main_clinical_validation(only_sibs=False):
-    mixed_data = pd.read_csv('../SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
+    mixed_data = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
 
     # retrieve BMS data
-    BASE_PHENO_DIR = '/mnt/home/alitman/ceph/SPARK_Phenotype_Dataset/SPARK_collection_v9_2022-12-12'
+    BASE_PHENO_DIR = '../SPARK_collection_v9_2022-12-12'
     bmsdf = pd.read_csv(f'{BASE_PHENO_DIR}/basic_medical_screening_2022-12-12.csv')
     bms_data = bmsdf.set_index('subject_sp_id',drop=True)
     bms_data = bms_data.replace(np.nan, 0)
@@ -44,8 +44,8 @@ def main_clinical_validation(only_sibs=False):
     mental_health_labels = ['OCD', 'Depression', 'Anxiety', 'ADHD']
     daily_living_labels = ['Feeding Disorder', 'Sleep Disorder', 'Motor Disorder', 'Language Delay']
     
-    sibs = pd.read_csv('/mnt/home/alitman/ceph/SPARK_Phenotype_Dataset/spark_siblings_bms_validation.txt', sep='\t', index_col=0)
-    sibling_list = '/mnt/home/alitman/ceph/WES_V2_data/WES_5392_siblings_spids.txt'
+    sibs = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/spark_siblings_bms_validation.txt', sep='\t', index_col=0)
+    sibling_list = 'asd-pheno-classes/PhenotypeClasses/data/WES_5392_siblings_spids.txt'
     paired_sibs = pd.read_csv(sibling_list, sep='\t', header=None, index_col=0)
     sibs = pd.merge(sibs, paired_sibs, left_index=True, right_index=True) # subset to 1293 paired siblings who have BMS information
     sibs['birth_defect'] = np.where(sibs[birth_defect_features].sum(axis=1) > 0, 1, 0) # add birth defect feature to sibs
@@ -65,25 +65,20 @@ def main_clinical_validation(only_sibs=False):
         fold_enrichments = get_fold_enrichment(mixed_data[category+['mixed_pred']], only_sibs)
         fold_enrichments = pd.melt(fold_enrichments, id_vars=['cluster'])
         validation_subset['Fold Enrichment'] = fold_enrichments['value']
-        make_bubble_plot(validation_subset, category, label, name, impute=impute, ax=ax[i])
+        make_bubble_plot(validation_subset, category, label, name, ax=ax[i])
     
     fig.tight_layout()
     plt.subplots_adjust(hspace=0.12, wspace=0.12)
-    plt.savefig('GFMM_all_figures/GFMM_clinical_bubble_plots_validation.png', bbox_inches='tight')
+    plt.savefig('figures/GFMM_clinical_bubble_plots_validation.png', bbox_inches='tight')
     plt.close()
 
 
-def make_bubble_plot(validation_subset, category, y_labels, category_name, enrichment=True, impute=False, ax=None):
+def make_bubble_plot(validation_subset, category, y_labels, category_name, enrichment=True, ax=None):
     
-    validation_subset = validation_subset[validation_subset['cluster'] != -1] # exclude siblings (-1) from plot
-    if impute:
-        colors = ['violet', 'red', 'limegreen', 'blue']
-        validation_subset['color'] = validation_subset['cluster'].map({0: 'violet', 1: 'red', 2: 'limegreen', 3: 'blue'})
-        validation_subset['Cluster'] = validation_subset['cluster'].map({0: 'Low-ASD/Low-Delays', 1: 'High-ASD/High-Delays', 2: 'High-ASD/Low-Delays', 3: 'Low-ASD/High-Delays'})
-    else:
-        colors = ['violet', 'red', 'limegreen', 'blue']
-        validation_subset['color'] = validation_subset['cluster'].map({0: 'violet', 1: 'red', 2: 'limegreen', 3: 'blue'})
-        validation_subset['Cluster'] = validation_subset['cluster'].map({0: 'ASD-Lower Support Needs', 1: 'ASD-Higher Support Needs', 2: 'ASD-Social/RRB', 3: 'ASD-Developmentally Delayed'})
+    validation_subset = validation_subset[validation_subset['cluster'] != -1]
+    colors = ['violet', 'red', 'limegreen', 'blue']
+    validation_subset['color'] = validation_subset['cluster'].map({0: 'violet', 1: 'red', 2: 'limegreen', 3: 'blue'})
+    validation_subset['Cluster'] = validation_subset['cluster'].map({0: 'ASD-Lower Support Needs', 1: 'ASD-Higher Support Needs', 2: 'ASD-Social/RRB', 3: 'ASD-Developmentally Delayed'})
     markers = ['o', 'o', 'o', 'o']
     validation_subset['marker'] = validation_subset['cluster'].map({0: 'o', 1: 'o', 2: 'o', 3: 'o'})
     
@@ -126,7 +121,7 @@ def make_bubble_plot(validation_subset, category, y_labels, category_name, enric
         for axis in ['top','bottom','left','right']:
             ax.spines[axis].set_linewidth(1.5)
             ax.spines[axis].set_color('black')
-        plt.savefig(f'GFMM_all_figures/GFMM_clinical_bubble_plot_{category_name}_validation.png', bbox_inches='tight')
+        plt.savefig(f'figures/GFMM_clinical_bubble_plot_{category_name}_validation.png', bbox_inches='tight')
         plt.close()
 
 
@@ -254,10 +249,10 @@ def get_feature_enrichments_with_sibs(mixed_data, name, only_sibs=False):
 
 
 def vineland_validation():
-    mixed_data = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
+    mixed_data = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
     
-    vineland = pd.read_csv('/mnt/home/alitman/ceph/SPARK_Phenotype_Dataset/spark_data_vineland_validation.txt', sep='\t', index_col=0)
-    motor = pd.read_csv('/mnt/home/alitman/ceph/SPARK_Phenotype_Dataset/spark_data_motor_validation.txt', sep='\t', index_col=0)
+    vineland = pd.read_csv('data/spark_data_vineland_validation.txt', sep='\t', index_col=0)
+    motor = pd.read_csv('data/spark_data_motor_validation.txt', sep='\t', index_col=0)
     vineland = vineland.dropna()
     motor = motor.dropna()
 
@@ -273,20 +268,17 @@ def vineland_validation():
     plt.ylabel('Vineland Scores', fontsize=24)
     plt.xticks([0,1,2,3,4], ['ABC', 'DLS', 'Comm', 'Soc', 'Motor'], fontsize=24)
     handles, labels = plt.gca().get_legend_handles_labels()
-    if impute:
-        labels = ['Low-ASD/Low-Delays', 'High-ASD/High-Delays', 'High-ASD/Low-Delays', 'Low-ASD/High-Delays']
-    else:
-        labels = ['High-ASD/High-Delays', 'Low-ASD/Low-Delays', 'High-ASD/Low-Delays', 'Low-ASD/High-Delays']
     for axis in ['top','bottom','left','right']:
         plt.gca().spines[axis].set_linewidth(1.5)
         plt.gca().spines[axis].set_color('black')
+    labels = ['High-ASD/High-Delays', 'Low-ASD/Low-Delays', 'High-ASD/Low-Delays', 'Low-ASD/High-Delays']
     plt.legend(handles, labels, fontsize=16, loc='upper left', bbox_to_anchor=(1, 1))
-    plt.savefig('GFMM_all_figures/GFMM_motor_vineland_validation_boxplot.png', bbox_inches='tight')   
+    plt.savefig('figures/GFMM_motor_vineland_validation_boxplot.png', bbox_inches='tight')   
     plt.close()
     
 
 def individual_registration_validation():
-    file = '/mnt/home/alitman/ceph/SPARK_Phenotype_Dataset/SPARK_collection_v9_2022-12-12/individuals_registration_2022-12-12.csv'
+    file = '../SPARK_collection_v9_2022-12-12/individuals_registration_2022-12-12.csv'
     data = pd.read_csv(file, index_col=0)
     vars_for_val = ['num_asd_parents', 'num_asd_siblings', 'diagnosis_age', 'iep_asd', 'cognitive_impairment_at_enrollment', 'language_level_at_enrollment'] #
     
@@ -297,8 +289,8 @@ def individual_registration_validation():
     data['language_level_at_enrollment'] = data['language_level_at_enrollment'].replace('Uses single words meaningfully (for example, to request)', 1)
     data['language_level_at_enrollment'] = data['language_level_at_enrollment'].replace('No words/does not speak', 0)
 
-    gfmm_labels = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
-    sibling_list = '/mnt/home/alitman/ceph/WES_V2_data/WES_5392_siblings_spids.txt'
+    gfmm_labels = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
+    sibling_list = 'asd-pheno-classes/PhenotypeClasses/data/WES_5392_siblings_spids.txt'
     paired_sibs = pd.read_csv(sibling_list, sep='\t', header=None, index_col=0)
 
     pro_data = pd.merge(data, gfmm_labels[['mixed_pred']], left_index=True, right_index=True)
@@ -328,8 +320,6 @@ def individual_registration_validation():
             pvals.append(binomtest(np.sum(group1), n=len(group1), p=np.sum(group3)/len(group3)).pvalue)
             pvals.append(binomtest(np.sum(group2), n=len(group2), p=np.sum(group3)/len(group3)).pvalue)
             pvals = multipletests(pvals, method='fdr_bh')[1]
-            print(var)
-            print(pvals)
         else:
             group0 = var_data[var_data['mixed_pred'] == 0][var]
             group1 = var_data[var_data['mixed_pred'] == 1][var]
@@ -340,8 +330,6 @@ def individual_registration_validation():
             pvals.append(ttest_ind(group1, group3, equal_var=False, alternative='greater').pvalue)
             pvals.append(ttest_ind(group2, group3, equal_var=False, alternative='greater').pvalue)
             pvals = multipletests(pvals, method='fdr_bh')[1]
-            print(var)
-            print(pvals)
             
         sns.barplot(x='mixed_pred', y=var, data=var_data, ax=ax[i], palette=['violet','red','limegreen','blue','dimgray'], linewidth = 1.5, edgecolor='black', alpha=0.85, dodge=False)
         
@@ -357,7 +345,7 @@ def individual_registration_validation():
         plt.tight_layout()
 
     plt.tight_layout()
-    plt.savefig('GFMM_all_figures/GFMM_individual_registration_validation.png', bbox_inches='tight')
+    plt.savefig('figures/GFMM_individual_registration_validation.png', bbox_inches='tight')
     plt.close()
 
     # plot age_at_registration_years
@@ -372,19 +360,19 @@ def individual_registration_validation():
         ax.spines[axis].set_linewidth(1)
         ax.spines[axis].set_color('black')
     plt.tight_layout()
-    plt.savefig('GFMM_all_figures/GFMM_age_at_registration.png', bbox_inches='tight')
+    plt.savefig('figures/GFMM_age_at_registration.png', bbox_inches='tight')
     plt.close()
 
 
 def scq_validation():
-    gfmm_labels = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
-    BASE_PHENO_DIR = '/mnt/home/alitman/ceph/SPARK_Phenotype_Dataset/SPARK_collection_v9_2022-12-12'
+    gfmm_labels = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
+    BASE_PHENO_DIR = '../SPARK_collection_v9_2022-12-12'
     scqdf = pd.read_csv(f'{BASE_PHENO_DIR}/scq_2022-12-12.csv')
     scqdf = scqdf.loc[(scqdf['age_at_eval_years'] <= 18) & (scqdf['missing_values'] < 1) & (scqdf['age_at_eval_years'] >= 4)]
     scqdf = scqdf.set_index('subject_sp_id',drop=True).drop(['respondent_sp_id', 'family_sf_id', 'biomother_sp_id', 'biofather_sp_id','current_depend_adult','age_at_eval_months','scq_measure_validity_flag','eval_year','missing_values','summary_score'],axis=1)
     scqdf = scqdf[scqdf['asd'] == 0]
     
-    sibling_list = '/mnt/home/alitman/ceph/WES_V2_data/WES_5392_siblings_spids.txt'
+    sibling_list = 'asd-pheno-classes/PhenotypeClasses/data/WES_5392_siblings_spids.txt'
     paired_sibs = pd.read_csv(sibling_list, sep='\t', header=None, index_col=0)
     sib_data = pd.merge(scqdf, paired_sibs, left_index=True, right_index=True)
     sib_scq_data = sib_data['final_score'].dropna().astype(int).to_list()
@@ -407,7 +395,6 @@ def scq_validation():
     print(f"Low-ASD/High-Delays: {stats.ttest_ind(class3, sib_scq_data, equal_var=False, alternative='greater').pvalue}")
     p_vals.append(stats.ttest_ind(class3, sib_scq_data, equal_var=False, alternative='greater').pvalue)
     print(p_vals)
-    # FDR correction
     p_vals = multipletests(p_vals, method='fdr_bh')[1]
     print(p_vals)
 
@@ -425,7 +412,7 @@ def scq_validation():
         plt.gca().spines[axis].set_color('black')
     plt.legend(handles, labels, fontsize=16)
     plt.text(0.5, 0.9, f'***', ha='center', va='center', transform=ax.transAxes, fontsize=20)
-    plt.savefig('GFMM_all_figures/GFMM_scq_validation_all_pros_vs_sibs.png', bbox_inches='tight')
+    plt.savefig('figures/GFMM_scq_validation_all_pros_vs_sibs.png', bbox_inches='tight')
     plt.close()
 
     plt.style.use('seaborn-v0_8-whitegrid')
@@ -443,14 +430,14 @@ def scq_validation():
         plt.gca().spines[axis].set_linewidth(1.5)
         plt.gca().spines[axis].set_color('black')
     plt.legend(handles, labels, fontsize=16)
-    plt.savefig('GFMM_all_figures/GFMM_scq_validation_classes_vs_sibs.png', bbox_inches='tight')
+    plt.savefig('figures/GFMM_scq_validation_classes_vs_sibs.png', bbox_inches='tight')
     plt.close()
 
 
 def developmental_milestones_validation():
-    gfmm_labels = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
+    gfmm_labels = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
     
-    BASE_PHENO_DIR = '/mnt/home/alitman/ceph/SPARK_Phenotype_Dataset/SPARK_collection_v9_2022-12-12'
+    BASE_PHENO_DIR = '../SPARK_collection_v9_2022-12-12'
     bhdf = pd.read_csv(f'{BASE_PHENO_DIR}/background_history_sibling_2022-12-12.csv')
     bhdf = bhdf.loc[(bhdf['age_at_eval_years'] <= 18) & (bhdf['age_at_eval_years'] >= 4)]
     dev_milestones = ['smiled_age_mos', 'sat_wo_support_age_mos', 'crawled_age_mos', 'walked_age_mos',
@@ -458,10 +445,7 @@ def developmental_milestones_validation():
                                                         'bladder_trained_age_mos', 'bowel_trained_age_mos']
     bhdf = bhdf.set_index('subject_sp_id',drop=True)[dev_milestones]
 
-    if impute:
-        sibling_list = '/mnt/home/alitman/ceph/WES_V2_data/WES_6400_siblings_spids.txt'
-    else:
-        sibling_list = '/mnt/home/alitman/ceph/WES_V2_data/WES_5392_siblings_spids.txt'
+    sibling_list = 'asd-pheno-classes/PhenotypeClasses/data/WES_5392_siblings_spids.txt'
     paired_sibs = pd.read_csv(sibling_list, sep='\t', header=None, index_col=0)
     sib_data = pd.merge(bhdf, paired_sibs, left_index=True, right_index=True)
     sib_bh_data = sib_data[dev_milestones].dropna().astype(float)
@@ -517,7 +501,7 @@ def developmental_milestones_validation():
         for axis in ['top','bottom','left','right']:
             plt.gca().spines[axis].set_linewidth(1.5)
             plt.gca().spines[axis].set_color('black')
-        plt.savefig(f'GFMM_all_figures/GFMM_milestone_validation_{milestone}.png', bbox_inches='tight')
+        plt.savefig(f'figures/GFMM_milestone_validation_{milestone}.png', bbox_inches='tight')
         plt.close()
         
         # plot distributions for classes and sibs on one boxplot
@@ -537,7 +521,7 @@ def developmental_milestones_validation():
             ax[i//5, i%5].spines[axis].set_color('black')
         plt.tight_layout()
     
-    plt.savefig(f'GFMM_all_figures/GFMM_milestone_validation_classes_vs_sibs.png', bbox_inches='tight')
+    plt.savefig(f'figures/GFMM_milestone_validation_classes_vs_sibs.png', bbox_inches='tight')
     plt.close()
 
 

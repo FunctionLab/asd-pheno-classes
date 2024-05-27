@@ -31,10 +31,10 @@ def remove_indels(variants):
 
 
 def load_and_label_DNVs():
-    pro_vars = pd.read_csv('/mnt/home/nsauerwald/ceph/SPARK/hareResults/out/HAT_DNVcalldataframe_positionfiles.txt',
+    pro_vars = pd.read_csv('HAT_DNVcalldataframe_positionfiles.txt',
                             sep='\t', header=0, index_col=0,
                             names=['spid', 'chr', 'pos', 'id', 'ref', 'alt', 'qual', 'filter', 'info'])
-    sib_vars = pd.read_csv('/mnt/home/nsauerwald/ceph/SPARK/hareSiblings/out/HareSibling_DNVcalldataframe_positionfiles.txt', 
+    sib_vars = pd.read_csv('HareSibling_DNVcalldataframe_positionfiles.txt', 
                             sep='\t', header=0, index_col=0,
                             names=['spid', 'chr', 'pos', 'id', 'ref', 'alt', 'qual', 'filter', 'info'])
     
