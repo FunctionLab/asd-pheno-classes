@@ -5,6 +5,10 @@ import numpy as np
 import pickle as rick
 
 
+with open('/mnt/home/alitman/ceph/Genome_Annotation_Files_hg38/gene_ensembl_ID_to_name.pkl', 'rb') as f:
+        ENSEMBL_TO_GENE_NAME = rick.load(f)
+
+
 def get_WES_trios():
     wes_spids = '/mnt/home/nsauerwald/ceph/SPARK/Mastertables/SPARK.iWES_v2.mastertable.2023_01.tsv'
     wes_spids = pd.read_csv(wes_spids, sep='\t')
