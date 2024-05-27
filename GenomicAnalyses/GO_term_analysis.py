@@ -136,3 +136,8 @@ def GO_term_analysis(num_top_terms=3):
     fig.tight_layout()
     plt.savefig('figures/WES_GO_term_enrichment.png', bbox_inches='tight')
     plt.close()
+
+
+if __name__ == '__main__':
+    GO_term_analysis()
+    
