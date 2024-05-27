@@ -1,3 +1,5 @@
+import pandas as pd
+import pickle as rick
 
 
 def load_AF():
@@ -106,3 +108,57 @@ def get_gene_sets():
     gene_list_names = ['all_genes', 'lof_genes', 'fmrp_genes', 'asd_risk_genes','brain_expressed_genes', 'asd_coexpression_networks', 'psd_genes', 'satterstrom', 'sfari_genes', 'sfari_genes1', 'sfari_genes2', 'sfari_syndromic', 'pli_genes_highest', 'pli_genes_medium', 'ddg2p', 'liver_genes']
 
     return gene_list, gene_list_names
+
+
+def get_trend_celltype_gene_sets():
+    sheets = pd.ExcelFile('/mnt/home/alitman/ceph/Marker_Genes/cell_markers_developmental_stages.xlsx')
+    
+    cell_to_category = {'Astro': 'Glia', 'ID2': 'Inhibitory_interneuron_CGE', 'L2-3_CUX2': 'Principal_excitatory_neuron', 'L4_RORB': 'Principal_excitatory_neuron',
+                        'L5-6_THEMIS': 'Principal_excitatory_neuron', 'L5-6_TLE4': 'Principal_excitatory_neuron', 'LAMP5_NOS1': 'Inhibitory_interneuron_CGE',
+                        'Micro': 'Glia', 'Oligo': 'Glia', 'OPC': 'Glia', 'PV': 'Inhibitory_interneuron_MGE', 'PV_SCUBE3': 'Inhibitory_interneuron_MGE',
+                        'SST': 'Inhibitory_interneuron_MGE', 'VIP': 'Inhibitory_interneuron_CGE'}
+
+    gene_sets = []
+    gene_set_names = []
+    gene_trends = ['down', 'trans_down', 'trans_up', 'up']
+    trends = []
+    cell_type_categories = []
+    for trend in gene_trends:
+        for sheet in sheets.sheet_names:
+            if sheet == 'O Number of nuclei':
+                break
+            df = pd.read_excel(sheets, sheet)
+            sheet = sheet[2:]
+            
+            df = df[df['trend_class'] == trend]
+            name = sheet + '_' + trend
+            gene_sets.append(df['gene_name'].tolist())
+            gene_set_names.append(name)
+            trends.append(trend)
+            cell_type_categories.append(cell_to_category[sheet])
+    
+    # combine gene sets by cell type category (4 major cell types: PN, IN-MGE, IN-CGE, GLIA)
+    new_gene_sets = []
+    new_gene_set_names = []
+    new_cell_type_categories = []
+    new_trends = []
+    for category in list(set(cell_type_categories)):
+        for trend in list(set(trends)):
+            gene_set = []
+            for i in range(len(gene_sets)):
+                if (cell_type_categories[i] == category) and (trends[i] == trend):
+                    gene_set += gene_sets[i]
+            new_gene_sets.append(list(set(gene_set)))
+            new_gene_set_names.append(category + '_' + trend)
+            new_cell_type_categories.append(category)
+            new_trends.append(trend)
+    gene_sets = new_gene_sets
+    gene_set_names = new_gene_set_names
+    cell_type_categories = new_cell_type_categories
+    trends = new_trends
+
+    return gene_sets, gene_set_names, trends, cell_type_categories
+
+
+def sort_and_select_top(df, num_top_terms):
+    return df.sort_values(by='Fold Enrichment', ascending=False).iloc[:num_top_terms, :]

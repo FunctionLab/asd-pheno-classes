@@ -5,6 +5,7 @@ import seaborn as sns
 
 from utils import sort_and_select_top
 
+
 def GO_term_analysis(num_top_terms=3):
     class0_biol_processes = pd.read_csv('/mnt/home/alitman/ceph/GO_enrichment_analysis/class0_top_pathways.csv')
     class0_mol_functions = pd.read_csv('/mnt/home/alitman/ceph/GO_enrichment_analysis/class0_top_mol_functions.csv')
