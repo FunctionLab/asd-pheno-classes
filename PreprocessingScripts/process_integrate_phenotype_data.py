@@ -2,7 +2,7 @@ import pandas as pd
 
 
 def get_main_spark_data_for_GFMM():
-    BASE_PHENO_DIR = 'SPARK_collection_v9_2022-12-12'
+    BASE_PHENO_DIR = '../SPARK_collection_v9_2022-12-12'
 
     ### SCQ
     scqdf = pd.read_csv(f'{BASE_PHENO_DIR}/scq_2022-12-12.csv', header=0, index_col=None)
@@ -79,7 +79,7 @@ def get_main_spark_data_for_GFMM():
     print(clean_df.shape)
     print(clean_df['age_at_eval_years'].value_counts())
     print(clean_df['sex'].value_counts())
-    clean_df.to_csv('asd-pheno-classes/PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t')
+    clean_df.to_csv('../PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t')
     
 
 if __name__ == '__main__':

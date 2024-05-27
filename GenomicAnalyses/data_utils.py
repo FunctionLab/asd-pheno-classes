@@ -63,7 +63,7 @@ def get_paired_sibs():
     file = '../Mastertables/SPARK.iWES_v2.mastertable.2023_01.tsv'
     wes = pd.read_csv(file, sep='\t')
     sibs = wes[wes['asd'] == 1]
-    spids_for_model = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0) # 5280 PROBANDS
+    spids_for_model = pd.read_csv('../PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0) # 5280 PROBANDS
     probands = spids_for_model.index.tolist()
     sibling_spids = []
     for i, row in wes.iterrows():
@@ -81,13 +81,13 @@ def get_paired_sibs():
                 siblings = sibs[(sibs['father'] == fid) & (sibs['mother'] == mid)]['spid'].tolist()
             sibling_spids.extend(siblings)
     sibling_spids = list(set(sibling_spids))
-    with open('asd-pheno-classes/PhenotypeClasses/data/WES_5392_siblings_spids.txt', 'w') as f:
+    with open('../PhenotypeClasses/data/WES_5392_siblings_spids.txt', 'w') as f:
         for item in sibling_spids:
             f.write("%s\n" % item)
 
 
 def process_DNVs():
-    data_dir = 'WES_V2_data/calling_denovos_data/output/'
+    data_dir = 'data/WES_V2_data/calling_denovos_data/output/'
     subdirs = os.listdir(data_dir)
     var_to_spid = defaultdict(list) # dictionary with variant ID as key and list of SPIDs as value
     SPID_to_vars = defaultdict(list) # dictionary with SPID as key and list of variant IDs as value
@@ -152,7 +152,7 @@ def process_DNVs():
 
 
 def combine_inherited_vep_files():
-    data_dir = 'inherited_vep_predictions_plugins_filtered/' # filtered repeats + centromeres
+    data_dir = 'data/inherited_vep_predictions_plugins_filtered/' # filtered repeats + centromeres
     files = [f for f in os.listdir(data_dir) if f.endswith('.vcf')]
     spids = [f.split('.')[0] for f in files]
 
@@ -163,10 +163,10 @@ def combine_inherited_vep_files():
     consequences_lof = ['stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost', 'transcript_ablation']
     consequences_missense = ['missense_variant', 'inframe_deletion', 'inframe_insertion', 'protein_altering_variant']
 
-    gfmm_labels = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=False, header=0)
+    gfmm_labels = pd.read_csv('../PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=False, header=0)
     gfmm_ids = gfmm_labels['subject_sp_id'].tolist()
 
-    sibling_list = 'asd-pheno-classes/PhenotypeClasses/data/WES_5392_siblings_spids.txt'
+    sibling_list = '../PhenotypeClasses/data/WES_5392_siblings_spids.txt'
     sibling_list = pd.read_csv(sibling_list, sep='\t', header=None)
     sibling_list.columns = ['spid']
     sibling_list = sibling_list['spid'].tolist()

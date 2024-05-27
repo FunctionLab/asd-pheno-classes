@@ -18,7 +18,7 @@ from scipy.stats import binomtest, ttest_ind
 
 
 def main_clinical_validation(only_sibs=False):
-    mixed_data = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
+    mixed_data = pd.read_csv('../PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
 
     # retrieve BMS data
     BASE_PHENO_DIR = '../SPARK_collection_v9_2022-12-12'
@@ -44,8 +44,8 @@ def main_clinical_validation(only_sibs=False):
     mental_health_labels = ['OCD', 'Depression', 'Anxiety', 'ADHD']
     daily_living_labels = ['Feeding Disorder', 'Sleep Disorder', 'Motor Disorder', 'Language Delay']
     
-    sibs = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/spark_siblings_bms_validation.txt', sep='\t', index_col=0)
-    sibling_list = 'asd-pheno-classes/PhenotypeClasses/data/WES_5392_siblings_spids.txt'
+    sibs = pd.read_csv('../PhenotypeClasses/data/spark_siblings_bms_validation.txt', sep='\t', index_col=0)
+    sibling_list = '../PhenotypeClasses/data/WES_5392_siblings_spids.txt'
     paired_sibs = pd.read_csv(sibling_list, sep='\t', header=None, index_col=0)
     sibs = pd.merge(sibs, paired_sibs, left_index=True, right_index=True) # subset to 1293 paired siblings who have BMS information
     sibs['birth_defect'] = np.where(sibs[birth_defect_features].sum(axis=1) > 0, 1, 0) # add birth defect feature to sibs
@@ -249,7 +249,7 @@ def get_feature_enrichments_with_sibs(mixed_data, name, only_sibs=False):
 
 
 def vineland_validation():
-    mixed_data = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
+    mixed_data = pd.read_csv('../PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
     
     vineland = pd.read_csv('data/spark_data_vineland_validation.txt', sep='\t', index_col=0)
     motor = pd.read_csv('data/spark_data_motor_validation.txt', sep='\t', index_col=0)
@@ -289,8 +289,8 @@ def individual_registration_validation():
     data['language_level_at_enrollment'] = data['language_level_at_enrollment'].replace('Uses single words meaningfully (for example, to request)', 1)
     data['language_level_at_enrollment'] = data['language_level_at_enrollment'].replace('No words/does not speak', 0)
 
-    gfmm_labels = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
-    sibling_list = 'asd-pheno-classes/PhenotypeClasses/data/WES_5392_siblings_spids.txt'
+    gfmm_labels = pd.read_csv('../PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
+    sibling_list = '../PhenotypeClasses/data/WES_5392_siblings_spids.txt'
     paired_sibs = pd.read_csv(sibling_list, sep='\t', header=None, index_col=0)
 
     pro_data = pd.merge(data, gfmm_labels[['mixed_pred']], left_index=True, right_index=True)
@@ -365,14 +365,14 @@ def individual_registration_validation():
 
 
 def scq_validation():
-    gfmm_labels = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
+    gfmm_labels = pd.read_csv('../PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
     BASE_PHENO_DIR = '../SPARK_collection_v9_2022-12-12'
     scqdf = pd.read_csv(f'{BASE_PHENO_DIR}/scq_2022-12-12.csv')
     scqdf = scqdf.loc[(scqdf['age_at_eval_years'] <= 18) & (scqdf['missing_values'] < 1) & (scqdf['age_at_eval_years'] >= 4)]
     scqdf = scqdf.set_index('subject_sp_id',drop=True).drop(['respondent_sp_id', 'family_sf_id', 'biomother_sp_id', 'biofather_sp_id','current_depend_adult','age_at_eval_months','scq_measure_validity_flag','eval_year','missing_values','summary_score'],axis=1)
     scqdf = scqdf[scqdf['asd'] == 0]
     
-    sibling_list = 'asd-pheno-classes/PhenotypeClasses/data/WES_5392_siblings_spids.txt'
+    sibling_list = '../PhenotypeClasses/data/WES_5392_siblings_spids.txt'
     paired_sibs = pd.read_csv(sibling_list, sep='\t', header=None, index_col=0)
     sib_data = pd.merge(scqdf, paired_sibs, left_index=True, right_index=True)
     sib_scq_data = sib_data['final_score'].dropna().astype(int).to_list()
@@ -435,7 +435,7 @@ def scq_validation():
 
 
 def developmental_milestones_validation():
-    gfmm_labels = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
+    gfmm_labels = pd.read_csv('../PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
     
     BASE_PHENO_DIR = '../SPARK_collection_v9_2022-12-12'
     bhdf = pd.read_csv(f'{BASE_PHENO_DIR}/background_history_sibling_2022-12-12.csv')
@@ -445,7 +445,7 @@ def developmental_milestones_validation():
                                                         'bladder_trained_age_mos', 'bowel_trained_age_mos']
     bhdf = bhdf.set_index('subject_sp_id',drop=True)[dev_milestones]
 
-    sibling_list = 'asd-pheno-classes/PhenotypeClasses/data/WES_5392_siblings_spids.txt'
+    sibling_list = '../PhenotypeClasses/data/WES_5392_siblings_spids.txt'
     paired_sibs = pd.read_csv(sibling_list, sep='\t', header=None, index_col=0)
     sib_data = pd.merge(bhdf, paired_sibs, left_index=True, right_index=True)
     sib_bh_data = sib_data[dev_milestones].dropna().astype(float)

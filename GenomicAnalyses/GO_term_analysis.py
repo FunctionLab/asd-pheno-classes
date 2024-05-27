@@ -17,14 +17,14 @@ def GO_term_analysis(num_top_terms=3):
     class3_mol_functions = pd.read_csv('data/class3_top_mol_functions.csv')
     
     dataframes = {
-    'class0_biol_processes': class0_biol_processes,
-    'class0_mol_functions': class0_mol_functions,
-    'class1_biol_processes': class1_biol_processes,
-    'class1_mol_functions': class1_mol_functions,
-    'class2_biol_processes': class2_biol_processes,
-    'class2_mol_functions': class2_mol_functions,
-    'class3_biol_processes': class3_biol_processes,
-    'class3_mol_functions': class3_mol_functions
+        'class0_biol_processes': class0_biol_processes,
+        'class0_mol_functions': class0_mol_functions,
+        'class1_biol_processes': class1_biol_processes,
+        'class1_mol_functions': class1_mol_functions,
+        'class2_biol_processes': class2_biol_processes,
+        'class2_mol_functions': class2_mol_functions,
+        'class3_biol_processes': class3_biol_processes,
+        'class3_mol_functions': class3_mol_functions
     }
 
     for name, df in dataframes.items():

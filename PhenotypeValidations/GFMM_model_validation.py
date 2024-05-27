@@ -15,7 +15,7 @@ from utils import sabic, c_aic, awe, scramble_column
 
 
 def compute_LL(ncomp=4, num_iter=200):
-    datadf = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  
+    datadf = pd.read_csv('../PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  
     Z_p = datadf[['sex', 'age_at_eval_years']] # covariates
     X = datadf.drop(['sex', 'age_at_eval_years'], axis=1) 
     continuous_columns, binary_columns, categorical_columns = split_columns(list(X.columns))
@@ -46,7 +46,7 @@ def compute_LL(ncomp=4, num_iter=200):
 
 
 def get_AWE(num_iter=50):
-    datadf = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  
+    datadf = pd.read_csv('../PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  
     Z_p = datadf[['sex', 'age_at_eval_years']] # covariates
     X = datadf.drop(['sex', 'age_at_eval_years'], axis=1) 
     continuous_columns, binary_columns, categorical_columns = split_columns(list(X.columns))
@@ -86,7 +86,7 @@ def get_AWE(num_iter=50):
         
 
 def get_class_sizes(num_iter=50):
-    datadf = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  
+    datadf = pd.read_csv('../PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  
     Z_p = datadf[['sex', 'age_at_eval_years']] # covariates
     X = datadf.drop(['sex', 'age_at_eval_years'], axis=1) 
     continuous_columns, binary_columns, categorical_columns = split_columns(list(X.columns))
@@ -130,7 +130,7 @@ def get_class_sizes(num_iter=50):
 
 
 def compute_main_indicators(num_iter=200):
-        datadf = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  
+        datadf = pd.read_csv('../PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  
     Z_p = datadf[['sex', 'age_at_eval_years']] # covariates
     X = datadf.drop(['sex', 'age_at_eval_years'], axis=1) 
     continuous_columns, binary_columns, categorical_columns = split_columns(list(X.columns))
@@ -256,7 +256,7 @@ def plot_main_indicators(num_iter=200):
     ax[1, 1].set_title('CAIC', fontsize=20)
 
     # LMR-LRT
-    with open(f'GFMM_validation_pickles/LCA_LMR_50_iterations_no_cv.pkl', 'rb') as f:
+    with open(f'pickles/LCA_LMR_50_iterations_no_cv.pkl', 'rb') as f:
         p_vals = rick.load(f)
     grid = {'n_components': [1, 2, 3, 4, 5, 6]}
     lrm_p_vals = []
@@ -282,7 +282,7 @@ def plot_main_indicators(num_iter=200):
 
 
 def lmr_likelihood_ratio_test(n_iter=50):
-    datadf = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  
+    datadf = pd.read_csv('../PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  
     Z_p = datadf[['sex', 'age_at_eval_years']] # covariates
     X = datadf.drop(['sex', 'age_at_eval_years'], axis=1) 
     continuous_columns, binary_columns, categorical_columns = split_columns(list(X.columns))
@@ -353,7 +353,7 @@ def lmr_likelihood_ratio_test(n_iter=50):
 
 
 def posterior_prob_validation():
-    datadf = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  # 5279 individuals, RBSR+CBCL, no vineland, no ADI, no BMS
+    datadf = pd.read_csv('../PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  # 5279 individuals, RBSR+CBCL, no vineland, no ADI, no BMS
     datadf = datadf.round()
     age = datadf['age_at_eval_years']
     Z_p = datadf[['sex', 'age_at_eval_years']]

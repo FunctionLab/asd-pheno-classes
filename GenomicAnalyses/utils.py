@@ -14,7 +14,7 @@ def load_AF():
 
 
 def load_dnvs():
-    file = 'WES_V2_data/calling_denovos_data/VEP_most_severe_consequence_LOFTEE_DNV_calls_filtered_WES_v2.vcf' # filtered out centromeres and repeats
+    file = 'data/WES_V2_data/calling_denovos_data/VEP_most_severe_consequence_LOFTEE_DNV_calls_filtered_WES_v2.vcf' # filtered out centromeres and repeats
     dnvs = pd.read_csv(file, sep='\t', comment='#', header=0, index_col=None)
     dnvs = dnvs[['Uploaded_variation', 'Consequence', 'Gene', 'Extra']]
     dnvs['Consequence'] = dnvs['Consequence'].str.split(',').str[0]
@@ -53,14 +53,14 @@ def load_dnvs():
     dnvs_sibs = dnvs[dnvs['asd'] == 1]
     dnvs_pro = dnvs[dnvs['asd'] == 2]
 
-    gfmm_labels = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=False, header=0) # 5391 probands
+    gfmm_labels = pd.read_csv('../PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=False, header=0) # 5391 probands
     gfmm_labels = gfmm_labels.rename(columns={'subject_sp_id': 'spid'})
     gfmm_labels = gfmm_labels[['spid', 'mixed_pred']]
     spid_to_class = dict(zip(gfmm_labels['spid'], gfmm_labels['mixed_pred']))
     dnvs_pro['class'] = dnvs_pro['spid'].map(spid_to_class)
     dnvs_pro = dnvs_pro.dropna(subset=['class'])
 
-    sibling_list = 'asd-pheno-classes/PhenotypeClasses/data//WES_5392_siblings_spids.txt'
+    sibling_list = '../PhenotypeClasses/data/WES_5392_siblings_spids.txt'
     sibling_list = pd.read_csv(sibling_list, sep='\t', header=None)
     sibling_list.columns = ['spid']
     dnvs_sibs = pd.merge(dnvs_sibs, sibling_list, how='inner', on='spid')

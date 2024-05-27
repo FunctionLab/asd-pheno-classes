@@ -13,7 +13,7 @@ from utils import split_columns, get_feature_enrichments, cohens_d, adjust_pvalu
 
 
 def run_mixture_model_on_phenotypes(ncomp=4, summarize=False):
-    datadf = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)
+    datadf = pd.read_csv('data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)
     datadf = datadf.round()
     age = datadf['age_at_eval_years']
 
@@ -37,7 +37,7 @@ def run_mixture_model_on_phenotypes(ncomp=4, summarize=False):
     mixed_data['mixed_pred'] = model.predict(mixed_data)
     labels = mixed_data['mixed_pred']
     mixed_data['age'] = age
-    mixed_data.to_csv('asd-pheno-classes/PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv')
+    mixed_data.to_csv('data/SPARK_5392_ninit_cohort_GFMM_labeled.csv')
     
     # get feature enrichments
     if summarize:
@@ -84,7 +84,7 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments):
     features_to_exclude = features_to_exclude['feature'].unique()
 
     # read in feature_to_category mapping
-    features_to_category = pd.read_csv('/mnt/home/alitman/ceph/SPARK_Phenotype_Dataset/feature_to_category_mapping.csv', index_col=None)
+    features_to_category = pd.read_csv('../PhenotypeValidation/data/feature_to_category_mapping.csv', index_col=None)
     feature_to_category = dict(zip(features_to_category['feature'], features_to_category['category']))
     df = df_enriched_depleted.copy()
     df = df.fillna('NaN')

@@ -105,22 +105,24 @@ def make_gene_trend_figure(fdr=0.05):
     validation_subset = validation_subset.sort_values(['variable', 'cluster'])
     
     # rename 'variable' column
-    validation_subset['variable'] = validation_subset['variable'].map({'Principal_excitatory_neuron_down': 'Principal Excitatory Neuron: Down',
-                                                                        'Inhibitory_interneuron_MGE_down': 'Inhibitory Interneuron MGE: Down',
-                                                                        'Inhibitory_interneuron_CGE_down': 'Inhibitory Interneuron CGE: Down',
-                                                                        'Glia_down': 'Glia: Down',
-                                                                        'Principal_excitatory_neuron_trans_down': 'Principal Excitatory Neuron: Trans Down',
-                                                                        'Inhibitory_interneuron_MGE_trans_down': 'Inhibitory Interneuron MGE: Trans Down',
-                                                                        'Inhibitory_interneuron_CGE_trans_down': 'Inhibitory Interneuron CGE: Trans Down',
-                                                                        'Glia_trans_down': 'Glia: Trans Down',
-                                                                        'Principal_excitatory_neuron_trans_up': 'Principal Excitatory Neuron: Trans Up',
-                                                                        'Inhibitory_interneuron_MGE_trans_up': 'Inhibitory Interneuron MGE: Trans Up',
-                                                                        'Inhibitory_interneuron_CGE_trans_up': 'Inhibitory Interneuron CGE: Trans Up',
-                                                                        'Glia_trans_up': 'Glia: Trans Up',
-                                                                        'Principal_excitatory_neuron_up': 'Principal Excitatory Neuron: Up',
-                                                                        'Inhibitory_interneuron_MGE_up': 'Inhibitory Interneuron MGE: Up',
-                                                                        'Inhibitory_interneuron_CGE_up': 'Inhibitory Interneuron CGE: Up',
-                                                                        'Glia_up': 'Glia: Up'})
+    validation_subset['variable'] = validation_subset['variable'].map({
+        'Principal_excitatory_neuron_down': 'Principal Excitatory Neuron: Down',
+        'Inhibitory_interneuron_MGE_down': 'Inhibitory Interneuron MGE: Down',
+        'Inhibitory_interneuron_CGE_down': 'Inhibitory Interneuron CGE: Down',
+        'Glia_down': 'Glia: Down',
+        'Principal_excitatory_neuron_trans_down': 'Principal Excitatory Neuron: Trans Down',
+        'Inhibitory_interneuron_MGE_trans_down': 'Inhibitory Interneuron MGE: Trans Down',
+        'Inhibitory_interneuron_CGE_trans_down': 'Inhibitory Interneuron CGE: Trans Down',
+        'Glia_trans_down': 'Glia: Trans Down',
+        'Principal_excitatory_neuron_trans_up': 'Principal Excitatory Neuron: Trans Up',
+        'Inhibitory_interneuron_MGE_trans_up': 'Inhibitory Interneuron MGE: Trans Up',
+        'Inhibitory_interneuron_CGE_trans_up': 'Inhibitory Interneuron CGE: Trans Up',
+        'Glia_trans_up': 'Glia: Trans Up',
+        'Principal_excitatory_neuron_up': 'Principal Excitatory Neuron: Up',
+        'Inhibitory_interneuron_MGE_up': 'Inhibitory Interneuron MGE: Up',
+        'Inhibitory_interneuron_CGE_up': 'Inhibitory Interneuron CGE: Up',
+        'Glia_up': 'Glia: Up'
+    })
 
     # bubble plot
     colors = ['black', 'purple', 'blue', 'limegreen', 'violet', 'red']
@@ -145,6 +147,7 @@ def make_gene_trend_figure(fdr=0.05):
     
     plt.yticks(fontsize=18)
     plt.xticks(fontsize=20, rotation=35, ha='right')
+    plt.ylabel('')
     for axis in ['top','bottom','left','right']:
         ax.spines[axis].set_linewidth(1.5)
         ax.spines[axis].set_color('black')
@@ -152,7 +155,6 @@ def make_gene_trend_figure(fdr=0.05):
     for i, label in enumerate(ax.get_yticklabels()):
         label.set_color(ylabel_colors[i])
         label.set_fontweight('bold')
-    plt.ylabel('')
     
     plt.savefig(f'figures/WES_gene_trend_analysis.png', bbox_inches='tight')
     plt.close()

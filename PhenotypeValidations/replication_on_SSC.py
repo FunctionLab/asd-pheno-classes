@@ -86,7 +86,7 @@ def get_SSC_data(ncomp=4):
                     structural='covariate', n_steps=1, n_init=200) 
     model.fit(mixed_data)
     mixed_data['mixed_pred'] = model.predict(mixed_data)
-    mixed_data.to_csv('SSC_replication_mixed_pred_final.csv')
+    mixed_data.to_csv('data/SSC_replication_mixed_pred_final.csv')
     
     # compute feature enrichments
     feature_to_pval = dict()
@@ -247,7 +247,7 @@ def get_SSC_data(ncomp=4):
 
 
 def run_spark_model(ssc_feature_subset, subset=False):
-    mixed_data = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0)
+    mixed_data = pd.read_csv('../PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0)
 
     # subset to features used in ssc model
     if subset:
