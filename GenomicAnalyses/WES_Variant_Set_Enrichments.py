@@ -1,17 +1,13 @@
 import os
 from math import sqrt
-import requests
 
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import scipy.stats as stats
+from scipy.stats import ttest_ind, fisher_exact
 import pickle as rick
-import statistics
-from scipy.stats import hypergeom, ttest_ind, fisher_exact, ranksums, mannwhitneyu
-from sklearn.impute import KNNImputer
-from sklearn.preprocessing import MinMaxScaler
 from collections import defaultdict
 from matplotlib.lines import Line2D
 from statsmodels.stats.multitest import multipletests
@@ -24,867 +20,8 @@ with open('/mnt/home/alitman/ceph/Genome_Annotation_Files_hg38/gene_ensembl_ID_t
         ENSEMBL_TO_GENE_NAME = rick.load(f)
 
 
-def load_GFMM_labels():
-    '''get lists of SPIDs for each GFMM model class.'''
-    #model_labels = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/LCA_4classes_training_data_nobms_imputed_labeled.csv') #6406
-    model_labels = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/LCA_4classes_training_data_imputed_genetic_diagnosis_labeled.csv') #6515 (109 more with genetic diagnoses)
-    #model_labels = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/LCA_4classes_training_data_genetic_diagnosis_labeled.csv') # 5837, high-accuracy imputation on only CBCL scores
-    class0_spids = model_labels[model_labels['mixed_pred'] == 0]['subject_sp_id'].tolist()
-    class1_spids = model_labels[model_labels['mixed_pred'] == 1]['subject_sp_id'].tolist()
-    class2_spids = model_labels[model_labels['mixed_pred'] == 2]['subject_sp_id'].tolist()
-    class3_spids = model_labels[model_labels['mixed_pred'] == 3]['subject_sp_id'].tolist()
-    spid_to_class = dict(zip(model_labels['subject_sp_id'], model_labels['mixed_pred']))
-
-    return spid_to_class, class0_spids, class1_spids, class2_spids, class3_spids
-
-
-def load_AF():
-    # load AF for all WES variants
-    af = pd.read_csv('/mnt/ceph/SFARI/SPARK/pub/iWES_v2/variants/deepvariant/iWES_v2.deepvariant.pvcf_variants.tsv', sep='\t', header=0, index_col=None)
-    af['id'] = af['chrom'].astype(str) + '_' + af['pos'].astype(str) + '_' + af['ref'].astype(str) + '_' + af['alt'].astype(str)
-    af = af.drop(['chrom', 'pos', 'ref', 'alt'], axis=1)
-    af['af'] = pd.to_numeric(af['af'], errors='coerce')
-    return af
-
-
-def get_genetic_diagnoses():
-    clinical_lab_results = pd.read_csv(f'{BASE_PHENO_DIR}/clinical_lab_results-2022-06-03.csv')
-    # invert 'snv' column to 'cnv' column
-    #clinical_lab_results['cnv'] = clinical_lab_results['snv'].apply(lambda x: True if x is False else False)
-    spids = clinical_lab_results['subject_sp_id'].unique().tolist()
-    print('number of genetic diagnoses:')
-    print(len(spids))
-
-    _, class0, class1, class2, class3 = load_GFMM_labels()
-
-    # get overlapping spids between clinical lab results and LCA data for each class
-    class0_spids = list(set(class0).intersection(spids))
-    class1_spids = list(set(class1).intersection(spids))
-    class2_spids = list(set(class2).intersection(spids))
-    class3_spids = list(set(class3).intersection(spids))
-    print(f'Number of SPIDs in class 0: {len(class0_spids)}')
-    print(f'Number of SPIDs in class 1: {len(class1_spids)}')
-    print(f'Number of SPIDs in class 2: {len(class2_spids)}')
-    print(f'Number of SPIDs in class 3: {len(class3_spids)}')
-    print(f'Number of SPIDs in class 0: {len(class0_spids)/len(class0)}')
-    print(f'Number of SPIDs in class 1: {len(class1_spids)/len(class1)}')
-    print(f'Number of SPIDs in class 2: {len(class2_spids)/len(class2)}')
-    print(f'Number of SPIDs in class 3: {len(class3_spids)/len(class3)}')
-    print(f'Total number of SPIDs across all classes: {len(class0_spids)+len(class1_spids)+len(class2_spids)+len(class3_spids)}')
-    
-    # plot proportions for each class 
-    plt.style.use('seaborn-v0_8-whitegrid')
-    fig, ax = plt.subplots(figsize=(8, 5))
-    ax.bar([0, 1, 2, 3], [len(class0_spids)/len(class0)*100, len(class1_spids)/len(class1)*100, len(class2_spids)/len(class2)*100, len(class3_spids)/len(class3)*100], color=['blue', 'violet', 'limegreen', 'red'], width=0.6)
-    ax.set_xticks([0, 1, 2, 3])
-    ax.set_xticklabels(['ID', 'High Function', 'Social+Anxiety', 'Severe'], fontsize=14)
-    ax.set_ylabel('Proportion with genetic diagnoses', fontsize=14)
-    ax.set_xlabel('Class', fontsize=14)
-    ax.set_title('Proportion of probands with genetic diagnoses per class', fontsize=16)
-    fig.savefig('GFMM_WGS_Analysis_Plots/genetic_diagnoses_per_class_light.png', bbox_inches='tight')
-    
-    # plot fold enrichment of genetic diagnoses for each class
-    fig, ax = plt.subplots(figsize=(8, 5))
-    background = (len(class0_spids)+len(class1_spids)+len(class2_spids)+len(class3_spids))/(len(class0)+len(class1)+len(class2)+len(class3))
-    print(background)
-    print(len(class0_spids)/len(class0))
-    fold_class0 = (len(class0_spids)/len(class0))/background
-    fold_class1 = (len(class1_spids)/len(class1))/background
-    fold_class2 = (len(class2_spids)/len(class2))/background
-    fold_class3 = (len(class3_spids)/len(class3))/background
-    print(f'Fold enrichment of genetic diagnoses in class 0: {fold_class0}')
-    print(f'Fold enrichment of genetic diagnoses in class 1: {fold_class1}')
-    print(f'Fold enrichment of genetic diagnoses in class 2: {fold_class2}')
-    print(f'Fold enrichment of genetic diagnoses in class 3: {fold_class3}')
-    ax.bar([0, 1, 2, 3], [fold_class0, fold_class1, fold_class2, fold_class3], color=['blue', 'violet', 'limegreen', 'red'])
-    ax.set_xticks([0, 1, 2, 3])
-    ax.set_xticklabels(['Low-ASD/High-Delays', 'Low-ASD/Low-Delays', 'High-ASD/Low-Delays', 'High-ASD/High-Delays'], fontsize=14)
-    ax.set_ylabel('Fold enrichment', fontsize=14)
-    ax.set_xlabel('')
-    ax.set_title('Fold enrichment of genetic diagnoses per class', fontsize=16)
-    # line at y=1
-    ax.axhline(y=1, color='gray', linestyle='--', linewidth=2)
-    fig.savefig('GFMM_WGS_Analysis_Plots/fold_enrichment_genetic_diagnoses_per_class.png', bbox_inches='tight')
-
-    # get number of SPIDs with 'snv' genetic diagnoses per class
-    class0_snv = clinical_lab_results[clinical_lab_results['subject_sp_id'].isin(class0)]['snv'].value_counts()
-    class1_snv = clinical_lab_results[clinical_lab_results['subject_sp_id'].isin(class1)]['snv'].value_counts()
-    class2_snv = clinical_lab_results[clinical_lab_results['subject_sp_id'].isin(class2)]['snv'].value_counts()
-    class3_snv = clinical_lab_results[clinical_lab_results['subject_sp_id'].isin(class3)]['snv'].value_counts()
-    print(f'Number of SPIDs with snv genetic diagnoses in class 0: {class0_snv/len(class0)*100}')
-    print(f'Number of SPIDs with snv genetic diagnoses in class 1: {class1_snv/len(class1)*100}')
-    print(f'Number of SPIDs with snv genetic diagnoses in class 2: {class2_snv/len(class2)*100}')
-    print(f'Number of SPIDs with snv genetic diagnoses in class 3: {class3_snv/len(class3)*100}')
-
-    # Calculate fold enrichment for snv and cnv genetic diagnoses
-    # class 0
-    background = (class0_snv+class1_snv+class2_snv+class3_snv)/(len(class0)+len(class1)+len(class2)+len(class3))
-    print(background)
-    print(len(class3))
-    print(class3_snv/len(class3))
-    class0_fe = (class0_snv/len(class0))/background
-    class1_fe = (class1_snv/len(class1))/background
-    class2_fe = (class2_snv/len(class2))/background
-    class3_fe = (class3_snv/len(class3))/background
-    print(f'Fold enrichment of snv genetic diagnoses in class 0: {class0_fe}')
-    print(f'Fold enrichment of snv genetic diagnoses in class 1: {class1_fe}')
-    print(f'Fold enrichment of snv genetic diagnoses in class 2: {class2_fe}')
-    print(f'Fold enrichment of snv genetic diagnoses in class 3: {class3_fe}')
-
-    # plot fold enrichment of snv genetic diagnoses for each class
-    plt.style.use('ggplot')
-    fig, ax = plt.subplots(figsize=(8, 5))
-    # plot each class as two bars: snv and non-snv
-    ax.bar([0, 1, 3, 4, 6, 7, 9, 10], [class0_fe[True], class0_fe[False], class1_fe[True], class1_fe[False], class2_fe[True], class2_fe[False], class3_fe[True], class3_fe[False]], color=['blue', 'blue', 'violet', 'violet', 'limegreen', 'limegreen', 'red', 'red'], alpha=0.8, width=0.6)
-    ax.set_xticks([0, 1, 3, 4, 6, 7, 9, 10])
-    ax.set_xticklabels(['SNV', 'non-SNV', 'SNV', 'non-SNV', 'SNV', 'non-SNV', 'SNV', 'non-SNV'], fontsize=11.5)
-    ax.set_ylabel('Fold enrichment', fontsize=14)
-    ax.set_xlabel('Class', fontsize=14)
-    ax.set_title('Fold enrichment of snv genetic diagnoses per class', fontsize=16)
-    ax.axhline(y=1, color='gray', linestyle='--', linewidth=2)
-    fig.savefig('GFMM_WGS_Analysis_Plots/fold_enrichment_snv_genetic_diagnoses_per_class.png', bbox_inches='tight')
-
-    # get inheritence_confirmed counts per class
-    class0_snv_confirmed = clinical_lab_results[clinical_lab_results['subject_sp_id'].isin(class0)]['snv_inheritance_confirmed'].value_counts()
-    class1_snv_confirmed = clinical_lab_results[clinical_lab_results['subject_sp_id'].isin(class1)]['snv_inheritance_confirmed'].value_counts()
-    class2_snv_confirmed = clinical_lab_results[clinical_lab_results['subject_sp_id'].isin(class2)]['snv_inheritance_confirmed'].value_counts()
-    class3_snv_confirmed = clinical_lab_results[clinical_lab_results['subject_sp_id'].isin(class3)]['snv_inheritance_confirmed'].value_counts()
-    print(f'Number of SPIDs with inheritence_confirmed genetic diagnoses in class 0: {class0_snv_confirmed/len(class0)}')
-    print(f'Number of SPIDs with inheritence_confirmed genetic diagnoses in class 1: {class1_snv_confirmed/len(class1)}')
-    print(f'Number of SPIDs with inheritence_confirmed genetic diagnoses in class 2: {class2_snv_confirmed/len(class2)}')
-    print(f'Number of SPIDs with inheritence_confirmed genetic diagnoses in class 3: {class3_snv_confirmed/len(class3)}')
-
-    background_denovo = (class0_snv_confirmed['De Novo']+class1_snv_confirmed['De Novo']+class2_snv_confirmed['De Novo']+class3_snv_confirmed['De Novo'])/(len(class0)+len(class1)+len(class2)+len(class3))
-    class0_denovo = class0_snv_confirmed['De Novo']/len(class0)
-    class0_inherited = (class0_snv_confirmed['Not Maternal']+class0_snv_confirmed['Not Paternal']+class0_snv_confirmed['Maternal']+class0_snv_confirmed['Paternal'])/len(class0)
-    class0_maternal = class0_snv_confirmed['Maternal']/len(class0)
-    class0_paternal = class0_snv_confirmed['Paternal']/len(class0)
-    class1_denovo = class1_snv_confirmed['De Novo']/len(class1)
-    class1_inherited = (class1_snv_confirmed['Not Maternal'])/len(class1)
-    class1_paternal = 0
-    class1_maternal = 0
-    class2_denovo = class2_snv_confirmed['De Novo']/len(class2)
-    class2_inherited = (class2_snv_confirmed['Not Maternal']+class2_snv_confirmed['Paternal'])/len(class2)
-    class2_paternal = class2_snv_confirmed['Paternal']/len(class2)
-    class2_maternal = 0
-    class3_denovo = class3_snv_confirmed['De Novo']/len(class3)
-    class3_inherited = (class3_snv_confirmed['Not Maternal']+class3_snv_confirmed['Not Paternal'])/len(class3)
-    class3_maternal = class3_snv_confirmed['Not Paternal']/len(class3)
-    class3_paternal = 0
-    background_inherited = (class0_snv_confirmed['Not Maternal']+class0_snv_confirmed['Not Paternal']+class0_snv_confirmed['Maternal']+class0_snv_confirmed['Paternal']+class1_snv_confirmed['Not Maternal']+class2_snv_confirmed['Not Maternal']+class2_snv_confirmed['Paternal']+class3_snv_confirmed['Not Maternal']+class3_snv_confirmed['Not Paternal'])/(len(class0)+len(class1)+len(class2)+len(class3))
-    background_maternal = (class0_snv_confirmed['Maternal']+class3_snv_confirmed['Not Paternal'])/(len(class0)+len(class3))
-    background_paternal = (class0_snv_confirmed['Paternal']+class1_snv_confirmed['Not Maternal']+class2_snv_confirmed['Paternal']+class3_snv_confirmed['Not Maternal'])/(len(class0)+len(class1)+len(class2)+len(class3))
-    print(background_denovo)
-    print(background_inherited)
-    # divide by background
-    class0_denovo = class0_denovo/background_denovo
-    class0_inherited = class0_inherited/background_inherited
-    class1_denovo = class1_denovo/background_denovo
-    class1_inherited = class1_inherited/background_inherited
-    class2_denovo = class2_denovo/background_denovo
-    class2_inherited = class2_inherited/background_inherited
-    class3_denovo = class3_denovo/background_denovo
-    class3_inherited = class3_inherited/background_inherited
-
-    class0_maternal = class0_maternal/background_maternal
-    class1_maternal = class1_maternal/background_maternal
-    class2_maternal = class2_maternal/background_maternal
-    class3_maternal = class3_maternal/background_maternal
-    class0_paternal = class0_paternal/background_paternal
-    class1_paternal = class1_paternal/background_paternal
-    class2_paternal = class2_paternal/background_paternal
-    class3_paternal = class3_paternal/background_paternal
-
-    print(f'Fold enrichment of de novo genetic diagnoses in class 0: {class0_denovo}')
-    print(f'Fold enrichment of de novo genetic diagnoses in class 1: {class1_denovo}')
-    print(f'Fold enrichment of de novo genetic diagnoses in class 2: {class2_denovo}')
-    print(f'Fold enrichment of de novo genetic diagnoses in class 3: {class3_denovo}')
-    print(f'Fold enrichment of inherited genetic diagnoses in class 0: {class0_inherited}')
-    print(f'Fold enrichment of inherited genetic diagnoses in class 1: {class1_inherited}')
-    print(f'Fold enrichment of inherited genetic diagnoses in class 2: {class2_inherited}')
-    print(f'Fold enrichment of inherited genetic diagnoses in class 3: {class3_inherited}')
-    print('MATERNAL/PATERNAL:')
-    print(f'Fold enrichment of maternal genetic diagnoses in class 0: {class0_maternal}')
-    print(f'Fold enrichment of maternal genetic diagnoses in class 1: {class1_maternal}')
-    print(f'Fold enrichment of maternal genetic diagnoses in class 2: {class2_maternal}')
-    print(f'Fold enrichment of maternal genetic diagnoses in class 3: {class3_maternal}')
-    print(f'Fold enrichment of paternal genetic diagnoses in class 0: {class0_paternal}')
-    print(f'Fold enrichment of paternal genetic diagnoses in class 1: {class1_paternal}')
-    print(f'Fold enrichment of paternal genetic diagnoses in class 2: {class2_paternal}')
-    print(f'Fold enrichment of paternal genetic diagnoses in class 3: {class3_paternal}')
-    
-    # plot fold enrichment of de novo vs. inherited diagnoses for each class
-    fig, ax = plt.subplots(figsize=(8, 5))
-    # plot each class as two bars: de novo and inherited
-    ax.bar([0, 1, 3, 4, 6, 7, 9, 10], [class0_denovo, class0_inherited, class1_denovo, class1_inherited, class2_denovo, class2_inherited, class3_denovo, class3_inherited], color=['blue', 'blue', 'violet', 'violet', 'limegreen', 'limegreen', 'red', 'red'])
-    ax.set_xticks([0, 1, 3, 4, 6, 7, 9, 10])
-    ax.set_xticklabels(['de novo', 'inherited', 'de novo', 'inherited', 'de novo', 'inherited', 'de novo', 'inherited'], fontsize=11, rotation=45, ha='right')
-    ax.set_ylabel('Fold enrichment', fontsize=14)
-    ax.set_xlabel('Class', fontsize=14)
-    ax.set_title('Fold enrichment of de novo vs. inherited genetic diagnoses per class', fontsize=16)
-    ax.axhline(y=1, color='gray', linestyle='--', linewidth=2)
-    fig.savefig('GFMM_WGS_Analysis_Plots/fold_enrichment_denovo_inherited_genetic_diagnoses_per_class_light.png', bbox_inches='tight')
-    plt.close()
-
-    # get top genes in each class
-    class0_snv_genes = clinical_lab_results[clinical_lab_results['subject_sp_id'].isin(class0)]['snv_genetic_status'].value_counts()
-    class1_snv_genes = clinical_lab_results[clinical_lab_results['subject_sp_id'].isin(class1)]['snv_genetic_status'].value_counts()
-    class2_snv_genes = clinical_lab_results[clinical_lab_results['subject_sp_id'].isin(class2)]['snv_genetic_status'].value_counts()
-    class3_snv_genes = clinical_lab_results[clinical_lab_results['subject_sp_id'].isin(class3)]['snv_genetic_status'].value_counts()
-    print(f'Number of SPIDs with top genes in class 0: {class0_snv_genes/len(class0)}')
-    print(f'Number of SPIDs with top genes in class 1: {class1_snv_genes/len(class1)}')
-    print(f'Number of SPIDs with top genes in class 2: {class2_snv_genes/len(class2)}')
-    print(f'Number of SPIDs with top genes in class 3: {class3_snv_genes/len(class3)}')
-    print(class0_snv_genes)
-    print(class1_snv_genes)
-    print(class2_snv_genes)
-    print(class3_snv_genes)
-
-
-def filter_for_DNVs():
-    wes_spids = '/mnt/home/nsauerwald/ceph/SPARK/Mastertables/SPARK.iWES_v2.mastertable.2023_01.tsv'
-    wes_spids = pd.read_csv(wes_spids, sep='\t')
-    wes_spids = wes_spids[['father', 'mother', 'spid']]
-    # remove where FID=0 or MID=0
-    wes_spids = wes_spids[(wes_spids['father'] != '0') & (wes_spids['mother'] != '0')]
-    # save to file
-    wes_spids.to_csv('/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/thorough_spark_trios_WES2_cleaned_tab.txt', sep='\t', header=False, index=False)
-    wes_spids.to_csv('/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/thorough_spark_trios_WES2_cleaned_comma.txt', sep=',', header=False, index=False)
-
-    deepvar_dir = '/mnt/ceph/SFARI/SPARK/pub/iWES_v2/variants/deepvariant/gvcf/'
-    gatk_dir = '/mnt/ceph/SFARI/SPARK/pub/iWES_v2/variants/gatk/gvcf/'
-    ids = '/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/thorough_spark_trios_WES2_cleaned_tab.txt'
-    ids = pd.read_csv(ids, sep='\t')
-    ids.columns = ['FID', 'MID', 'SPID']
-    # check if all SPIDs are in the deepvar dir in the form of {SPID}.gvcf.gz
-    for fid, mid, spid in zip(ids['FID'], ids['MID'], ids['SPID']):
-        # if spid is not in any of the deepvar dirs, remove it from ids
-        # add i to the directory: {deepvar_dir}{i}/{spid}.gvcf.gz
-        # and check if it exists in any of those for both deepvar and gatk
-        for i in range(0, 11):
-            if os.path.exists(f'{deepvar_dir}{i}/{spid}.gvcf.gz'):
-                break
-            elif i == 10:
-                # remove spid from ids
-                ids = ids[ids['SPID'] != spid]
-        # do the same for the gatk dir - must exist in both to be considered
-        for i in range(0, 11):
-            if os.path.exists(f'{gatk_dir}{i}/{spid}.gvcf.gz'):
-                break
-            elif i == 10:
-                # remove from ids
-                ids = ids[ids['SPID'] != spid]
-        # check mid and fid too
-        for i in range(0, 11):
-            if os.path.exists(f'{deepvar_dir}{i}/{mid}.gvcf.gz'):
-                break
-            elif i == 10:
-                # remove from ids
-                ids = ids[ids['SPID'] != spid]
-        for i in range(0, 11):
-            if os.path.exists(f'{gatk_dir}{i}/{mid}.gvcf.gz'):
-                break
-            elif i == 10:
-                # remove from ids
-                ids = ids[ids['SPID'] != spid]
-        for i in range(0, 11):
-            if os.path.exists(f'{deepvar_dir}{i}/{fid}.gvcf.gz'):
-                break
-            elif i == 10:
-                # remove from ids
-                ids = ids[ids['SPID'] != spid]
-        for i in range(0, 11):
-            if os.path.exists(f'{gatk_dir}{i}/{fid}.gvcf.gz'):
-                break
-            elif i == 10:
-                # remove from ids
-                ids = ids[ids['SPID'] != spid]
-        
-    print(ids.shape)
-    # print to file
-    ids.to_csv('/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/thorough_spark_trios_WES2_cleaned_tab.txt', sep='\t', header=False, index=False)
-    ids.to_csv('/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/thorough_spark_trios_WES2_cleaned_comma.txt', sep=',', header=False, index=False)
-
-
-def get_paired_sibs():
-    file = '/mnt/home/nsauerwald/ceph/SPARK/Mastertables/SPARK.iWES_v2.mastertable.2023_01.tsv'
-    wes = pd.read_csv(file, sep='\t')
-    # subset wes to only include siblings
-    sibs = wes[wes['asd'] == 1]
-    spids_for_model = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0) # 5280 PROBANDS
-    probands = spids_for_model.index.tolist()
-    # get SPIDs for siblings who have the same FID/MID as the proband
-    sibling_spids = []
-    for i, row in wes.iterrows():
-        if row['spid'] in probands:
-            # get FID and MID
-            fid = row['father']
-            mid = row['mother']
-            # get all siblings with that FID/MID
-            if fid == '0' and mid == '0':
-                continue
-            if fid == '0':
-                siblings = sibs[sibs['mother'] == mid]['spid'].tolist()
-            elif mid == '0':
-                siblings = sibs[sibs['father'] == fid]['spid'].tolist()
-            else:
-                siblings = sibs[(sibs['father'] == fid) & (sibs['mother'] == mid)]['spid'].tolist()
-            # add to list of siblings
-            sibling_spids.extend(siblings)
-    print(len(sibling_spids))
-    # remove duplicates
-    sibling_spids = list(set(sibling_spids))
-    print(len(sibling_spids))
-    # save to file - either 4700 (not imputed) or 6400 (imputed)
-    with open('/mnt/home/alitman/ceph/WES_V2_data/WES_5392_siblings_spids.txt', 'w') as f:
-        for item in sibling_spids:
-            f.write("%s\n" % item)
-
-
-def process_DNVs():
-    dir = '/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/output/'
-    # for every subdir in dir, check if the following file exists: {subdir}/{subdir}.glnexus.family.combined_intersection_filtered_gq_20_depth_10.vcf
-    # if it does, then get the number of DNVs in that file
-    # if it doesn't, then skip and print("missing!")
-    # get all subdirs
-    subdirs = os.listdir(dir)
-    # get all SPIDs
-    var_to_spid = defaultdict(list) # dictionary with variant ID as key and list of SPIDs as value
-    SPID_to_vars = defaultdict(list) # dictionary with SPID as key and list of variant IDs as value
-    spid_to_count = defaultdict(int) # dictionary with SPID as key and number of DNVs as value
-    spids = []
-    missing = 0
-    for subdir in subdirs:
-        # check if the file exists
-        if os.path.exists(f'{dir}{subdir}/{subdir}.glnexus.family.combined_intersection_filtered_gq_20_depth_10.vcf'):
-            # get number of DNVs
-            try:
-                dnv = pd.read_csv(f'{dir}{subdir}/{subdir}.glnexus.family.combined_intersection_filtered_gq_20_depth_10.vcf', sep='\t', comment='#', header=None)
-                # populate var_to_spid and SPID_to_vars
-                for i, row in dnv.iterrows():
-                    # get variant ID
-                    var_id = row[2]
-                    # get SPID
-                    spid = str(subdir)
-                    # add to var_to_spid
-                    var_to_spid[var_id].append(spid)
-                    # add to SPID_to_vars
-                    SPID_to_vars[spid].append(var_id)
-                    # add to spid_to_count
-                    spid_to_count[spid] += 1
-            except pd.errors.EmptyDataError:
-                spid_to_count[subdir] = 0                
-        else:
-            print(f'{subdir} missing!')
-            missing += 1
-    print(f'Number of missing SPIDs: {missing}')
-
-    # get mean+3SD of counts
-    counts = []
-    for spid, count in spid_to_count.items():
-        counts.append(count)
-    mean = np.mean(counts)
-    sd = np.std(counts)
-    print(f'Mean: {mean}')
-    print(f'SD: {sd}')
-    # get threshold
-    threshold = mean + 3*sd
-    # FILTER: remove SPIDs with more than 3SD DNVs
-    spid_to_count = {k: v for k, v in spid_to_count.items() if v <= threshold}
-    SPID_to_vars = {k: v for k, v in SPID_to_vars.items() if k in spid_to_count.keys()}
-
-    # iterate through SPID_to_vars and remove variants that are not unique to that SPID (non-singletons)
-    for spid, vars in SPID_to_vars.items():
-        # get all SPIDs for each variant
-        for var in vars:
-            spids = var_to_spid[var]
-            # if there is more than one SPID, remove the variant from SPID_to_vars
-            if len(spids) > 1:
-                SPID_to_vars[spid].remove(var)
-    # update counts in spid_to_count
-    for spid, vars in SPID_to_vars.items():
-        spid_to_count[spid] = len(vars)
-
-    # update var_to_spid to only include singletons
-    var_to_spid = {}
-    for spid, vars in SPID_to_vars.items():
-        for var in vars:
-            var_to_spid[var] = spid
-    
-    # convert spid_to_count to a dataframe
-    spid_to_count = pd.DataFrame.from_dict(spid_to_count, orient='index')
-    spid_to_count.columns = ['count']
-    spid_to_count.index.name = 'SPID'
-    spid_to_count = spid_to_count.reset_index()
-    # save filtered df to file
-    spid_to_count.to_csv('/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/SPID_to_DNV_count.txt', sep='\t', index=False)
-
-    # save dictionary of filtered var to spid to pickle
-    with open('/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/var_to_spid.pkl', 'wb') as handle:
-        rick.dump(var_to_spid, handle, protocol=rick.HIGHEST_PROTOCOL)
-    
-    # save SPID_to_vars to file
-    with open('/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/SPID_to_vars.pkl', 'wb') as f:
-        rick.dump(SPID_to_vars, f, rick.HIGHEST_PROTOCOL)
-
-
-def load_dnvs(imputed=False):
-    #file = '/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/VEP_most_severe_consequence_DNV_calls_WES_v2.vcf'
-    #file = '/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/VEP_most_severe_consequence_DNV_calls_filtered_WES_v2.vcf' # filtered out centromeres and repeats
-    #file = '/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/VEP_most_severe_consequence_LOFTEE_DNV_calls_WES_v2.vcf' # LOFTEE + ALPHAMISSENSE PREDICTIONS
-    file = '/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/VEP_most_severe_consequence_LOFTEE_DNV_calls_filtered_WES_v2.vcf' # filtered out centromeres and repeats
-    dnvs = pd.read_csv(file, sep='\t', comment='#', header=0, index_col=None)
-    dnvs = dnvs[['Uploaded_variation', 'Consequence', 'Gene', 'Extra']]
-    dnvs['Consequence'] = dnvs['Consequence'].str.split(',').str[0]
-    dnvs = dnvs.rename({'Uploaded_variation': 'id'}, axis='columns')
-    ensembl_to_gene = dict(zip(ENSEMBL_TO_GENE_NAME['Gene'], ENSEMBL_TO_GENE_NAME['name']))
-    dnvs['name'] = dnvs['Gene'].map(ensembl_to_gene)
-    dnvs = dnvs.dropna(subset=['name'])
-
-    # parse Extra column to get the following features:
-    # am_class feature
-    # LoF feature
-    # LoF_flags feature
-    dnvs['am_class'] = dnvs['Extra'].str.extract(r'am_class=(.*?);')
-    dnvs['am_class'] = dnvs['am_class'].apply(lambda x: 1 if x in ['likely_pathogenic'] else 0)
-    dnvs['am_pathogenicity'] = dnvs['Extra'].str.extract(r'am_pathogenicity=([\d.]+)').astype(float)
-    dnvs['am_pathogenicity'] = dnvs['am_pathogenicity'].apply(lambda x: 1 if x>=0.9 else 0)
-    #print(dnvs['am_pathogenicity'].value_counts()); exit()
-    dnvs['LoF'] = dnvs['Extra'].str.extract(r'LoF=(.*?);')
-    dnvs['LoF'] = dnvs['LoF'].apply(lambda x: 1 if x == 'HC' else 0)
-    dnvs['LoF_flags'] = dnvs['Extra'].str.extract(r'LoF_flags=(.*?);')
-    # reformat lof_flags to 0/1 (whether passed flags or not)
-    dnvs['LoF_flags'] = dnvs['LoF_flags'].fillna(1)
-    dnvs['LoF_flags'] = dnvs['LoF_flags'].apply(lambda x: 1 if x in ['SINGLE_EXON',1] else 0)
-    dnvs = dnvs.drop('Extra', axis=1)
-
-    # load in SPID_to_vars
-    with open('/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/SPID_to_vars.pkl', 'rb') as f:
-        SPID_to_vars = rick.load(f)
-    # load var_to_spid
-    with open('/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/var_to_spid.pkl', 'rb') as handle:
-        var_to_spid = rick.load(handle)
-    
-    # annotate each variant with the SPID
-    dnvs['spid'] = dnvs['id'].map(var_to_spid)
-    dnvs = dnvs.dropna(subset=['spid'])
-
-    # read in master table
-    master = '/mnt/home/nsauerwald/ceph/SPARK/Mastertables/SPARK.iWES_v2.mastertable.2023_01.tsv'
-    master = pd.read_csv(master, sep='\t')
-    master = master[['spid', 'asd']]
-    # get dictionary mapping SPID to ASD status
-    spid_to_asd = dict(zip(master['spid'], master['asd']))
-    # annotate spids with ASD status
-    dnvs['asd'] = dnvs['spid'].map(spid_to_asd)
-    dnvs = dnvs.dropna(subset=['asd'])
-
-    '''
-    dnvs = dnvs[dnvs['name'] == 'PTEN']
-    dnvs = dnvs[dnvs['LoF'] == 1].reset_index()
-    dnvs = dnvs.drop('index', axis=1)
-    print(dnvs)
-    bms = pd.read_csv('/mnt/home/alitman/ceph/SPARK_Phenotype_Dataset/SPARK_collection_v9_2022-12-12/basic_medical_screening_2022-12-12.csv', index_col=False)
-    # rename subject_sp_id to spid
-    bms = bms.rename(columns={'subject_sp_id': 'spid'})
-    # intersect dnvs with bms
-    #dnvs = dnvs.merge(bms[['spid', 'growth_macroceph']], how='inner', on='spid')
-    spid_to_macroceph = dict(zip(bms['spid'], bms['growth_macroceph']))
-    # fillna growth_macroceph
-    dnvs['growth_macroceph'] = dnvs['spid'].map(spid_to_macroceph)
-    print(dnvs['growth_macroceph'])
-    print(dnvs); exit()
-    '''
-    
-    dnvs_sibs = dnvs[dnvs['asd'] == 1]
-    dnvs_pro = dnvs[dnvs['asd'] == 2]
-
-    # label pros with GFMM labels
-    if imputed:
-        #gfmm_labels = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/LCA_4classes_training_data_nobms_imputed_labeled.csv', index_col=False, header=0) # 6400 probands
-        gfmm_labels = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/SPARK_6406_imputed_cohort_GFMM_labeled.csv', index_col=False, header=0) # 6406 probands
-        #gfmm_labels = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/LCA_4classes_training_data_imputed_genetic_diagnosis_labeled.csv', index_col=False, header=0) # 6550 probands
-        #gfmm_labels = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/LCA_4classes_training_data_genetic_diagnosis_labeled.csv', index_col=False, header=0) # 5837 probands, cbcl scores only
-        #gfmm_labels = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/SPARK_no_bms_5721_imputed_labeled.csv', index_col=False, header=0) # 5721, impute all cbcl
-        #gfmm_labels = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/SPARK_no_bms_5727_imputed_labeled.csv', index_col=False, header=0) # 5727, impute all cbcl
-        #gfmm_labels = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/SPARK_no_bms_5714_labeled.csv', index_col=False, header=0) # 5714, cbcl scores only
-        # rename 'subject_sp_id' to 'spid'
-        gfmm_labels = gfmm_labels.rename(columns={'subject_sp_id': 'spid'})
-        gfmm_labels = gfmm_labels[['spid', 'mixed_pred']]
-        # create a dictionary mapping spid to class
-        spid_to_class = dict(zip(gfmm_labels['spid'], gfmm_labels['mixed_pred']))
-        # annotate dnvs_pro with class
-        dnvs_pro['class'] = dnvs_pro['spid'].map(spid_to_class)
-        dnvs_pro = dnvs_pro.dropna(subset=['class'])
-        # print counts of spids in each class
-        #print(dnvs_pro.groupby('class')['spid'].nunique())
-    else:
-        #gfmm_labels = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/SPARK_recode_ninit_cohort_GFMM_labeled.csv', index_col=False, header=0) # 5282 probands
-        gfmm_labels = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=False, header=0) # 5391 probands
-        #gfmm_labels = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/LCA_4classes_training_data_nobms_labeled.csv', index_col=False, header=0) # 4700 probands
-        # rename 'subject_sp_id' to 'spid'
-        gfmm_labels = gfmm_labels.rename(columns={'subject_sp_id': 'spid'})
-        gfmm_labels = gfmm_labels[['spid', 'mixed_pred']]
-        # create a dictionary mapping spid to class
-        spid_to_class = dict(zip(gfmm_labels['spid'], gfmm_labels['mixed_pred']))
-        # annotate dnvs_pro with class
-        dnvs_pro['class'] = dnvs_pro['spid'].map(spid_to_class)
-        # dropna
-        dnvs_pro = dnvs_pro.dropna(subset=['class'])
-
-    # subset dnv_sibs to paired sibs
-    if imputed:
-        sibling_list = '/mnt/home/alitman/ceph/WES_V2_data/WES_6400_siblings_spids.txt' # 2027 sibs
-        sibling_list = pd.read_csv(sibling_list, sep='\t', header=None)
-        sibling_list.columns = ['spid']
-        dnvs_sibs = pd.merge(dnvs_sibs, sibling_list, how='inner', on='spid') 
-        # print number of sibs
-        #print(dnvs_sibs['spid'].nunique())
-    else:
-        sibling_list = '/mnt/home/alitman/ceph/WES_V2_data/WES_5392_siblings_spids.txt'
-        #sibling_list = '/mnt/home/alitman/ceph/WES_V2_data/WES_5282_siblings_spids.txt'
-        #sibling_list = '/mnt/home/alitman/ceph/WES_V2_data/WES_4700_siblings_spids.txt' # 1588 sibs
-        sibling_list = pd.read_csv(sibling_list, sep='\t', header=None)
-        sibling_list.columns = ['spid']
-        dnvs_sibs = pd.merge(dnvs_sibs, sibling_list, how='inner', on='spid')
-    
-    #counts = dnvs_pro.groupby('spid')['class'].count()
-    #print(counts.mean())
-
-    # print mean number of dnvs per spid in dnvs_pro and dnvs_sibs
-    print(dnvs_pro['spid'].nunique())
-    print(dnvs_pro.groupby('spid')['id'].count().mean())
-    print(dnvs_pro.groupby('spid')['id'].count().std())
-    print(dnvs_sibs['spid'].nunique())
-    print(dnvs_sibs.groupby('spid')['id'].count().mean())
-    print(dnvs_sibs.groupby('spid')['id'].count().std())
-
-    # MERGE WITH PEOPLE WITH NO DNVs
-    count_file = '/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/SPID_to_DNV_count.txt'
-    counts = pd.read_csv(count_file, sep='\t', index_col=False)
-    # rename 'SPID' to 'spid'
-    counts = counts.rename(columns={'SPID': 'spid'})
-    # get people with 0 DNVs
-    zero = counts[counts['count'] == 0]
-    # annotate zero with asd status
-    zero = zero.merge(master[['spid', 'asd']], on='spid')
-    # annotate with class
-    zero_pros = zero.merge(gfmm_labels[['spid', 'mixed_pred']], on='spid').drop('asd', axis=1)
-    zero_sibs = zero.merge(sibling_list, on='spid').drop('asd', axis=1)
-    # print nuumber of unique spids in dnvs_pro, zero_pros, dnvs_sibs, zero_sibs
-    print(dnvs_pro['spid'].nunique())
-    print(zero_pros['spid'].nunique())
-    print(dnvs_sibs['spid'].nunique())
-    print(zero_sibs['spid'].nunique())
-
-    return dnvs_pro, dnvs_sibs, zero_pros, zero_sibs
-
-
-def get_gene_sets():
-
-    sfari_genes = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/SFARI_genes.csv', header=0, index_col=False).rename({'gene-symbol': 'name'}, axis='columns')
-    lof_genes = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/Constrained_PLIScoreOver0.9.bed', sep='\t', index_col=None)
-    chd8_genes = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/CHD8_targets_Cotney2015_Sugathan2014.bed', sep='\t', index_col=None)
-    fmrp_genes = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/FMRP_targets_Darnell2011.bed', sep='\t', index_col=None)
-    dd = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/Developmental_delay_DDD.bed', sep='\t', index_col=None)
-    asd_risk_genes = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/ASD_risk_genes_TADA_FDR0.3.bed', sep='\t', index_col=None)
-    haplo_genes = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/haploinsufficiency_hesc_2022_ST.csv', header=0, index_col=False).rename({'Symbol': 'name'}, axis='columns')
-    brain_expressed_genes = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/BrainExpressed_Kang2011.bed', sep='\t', index_col=None)
-    antisense_genes = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/Antisense_GencodeV19.bed', sep='\t', index_col=None)
-    asd_coexpression_networks = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/ASD_coexpression_networks_Willsey2013.bed', sep='\t', index_col=None)
-    linc_rna_genes = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/lincRNA_GencodeV19.bed', sep='\t', index_col=None)
-    psd_genes = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/PSD_Genes2Cognition.bed', sep='\t', index_col=None)
-    satterstrom = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/satterstrom_2020_102_ASD_genes.csv', header=0, index_col=False).rename({'gene': 'name'}, axis='columns')
-    ddg2p = pd.read_csv('/mnt/home/alitman/ceph/Marker_Genes/DDG2P.csv', header=0, index_col=False).rename({'gene symbol': 'name'}, axis='columns')
-    sfari_genes1 = list(sfari_genes[sfari_genes['gene-score'] == 1]['name'])
-    sfari_genes2 = list(sfari_genes[sfari_genes['gene-score'] == 2]['name'])
-    sfari_syndromic = list(sfari_genes[sfari_genes['syndromic'] == 1]['name'])
-    sfari_genes = list(sfari_genes['name'])
-    lof_genes = list(lof_genes['name'])
-    chd8_genes = list(chd8_genes['name'])
-    fmrp_genes = list(fmrp_genes['name'])
-    dd_genes = list(dd['name'])
-    asd_risk_genes = list(asd_risk_genes['name'])
-    haplo_genes = list(haplo_genes['name'])
-    brain_expressed_genes = list(brain_expressed_genes['name'])
-    asd_coexpression_networks = list(asd_coexpression_networks['name'])
-    psd_genes = list(psd_genes['name'])
-    satterstrom = list(satterstrom['name'])
-    ddg2p = list(ddg2p['name'])
-    #all_genes = list(set(pro_vars['name'].unique().tolist() + sib_vars['name'].unique().tolist()))
-    all_genes = pd.read_csv('/mnt/home/alitman/ceph/Genome_Annotation_Files_hg38/gencode.v29.annotation.protein_coding_genes.hg38.bed', sep='\t', index_col=None, header=None)
-    all_genes.columns = ['chr', 'start', 'end', 'gene', 'name', 'strand']
-    all_genes = list(all_genes['name'])
-
-    # liver-expression genes
-    liver_genes = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/liver_genes.txt', header=None)
-    liver_genes = liver_genes[0].tolist()
-
-    # get pLI scores for genes
-    pli_table = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/pLI_table.txt', sep='\t', index_col=False)
-    # get genes with pLI >= 0.995
-    pli_genes_highest = pli_table[pli_table['pLI'] >= 0.995]['gene'].tolist()
-    # get genes with pli 0.5-0.995
-    pli_genes_high = pli_table[(pli_table['pLI'] < 0.995) & (pli_table['pLI'] >= 0.5)]['gene'].tolist()
-
-    gene_list = [all_genes, lof_genes, chd8_genes, fmrp_genes, dd_genes, asd_risk_genes, haplo_genes, brain_expressed_genes, asd_coexpression_networks, psd_genes, satterstrom, sfari_genes, sfari_genes1, sfari_genes2, sfari_syndromic, pli_genes_highest, pli_genes_high, ddg2p, liver_genes]
-    gene_list_names = ['all_genes', 'lof_genes', 'chd8_genes', 'fmrp_genes', 'dd_genes', 'asd_risk_genes', 'haplo_genes', 'brain_expressed_genes', 'asd_coexpression_networks', 'psd_genes', 'satterstrom', 'sfari_genes', 'sfari_genes1', 'sfari_genes2', 'sfari_syndromic', 'pli_genes_highest', 'pli_genes_medium', 'ddg2p', 'liver_genes']
-
-    return gene_list, gene_list_names
-
-
-def volcano_lof(impute=False, all_pros=False):
-    '''Produce volcano plot for LOF variants (PTVs)'''
-    dnvs_pro, dnvs_sibs, zero_pro, zero_sibs = load_dnvs(imputed=impute)
-    
-    # subset to target Consequences 
-    consequences_lof = ['stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost', 'transcript_ablation']
-
-    # annotate dnvs_pro and dnvs_sibs with consequence (binary)
-    dnvs_pro['consequence'] = dnvs_pro['Consequence'].apply(lambda x: 1 if x in consequences_lof else 0)
-    dnvs_sibs['consequence'] = dnvs_sibs['Consequence'].apply(lambda x: 1 if x in consequences_lof else 0)
-    
-    gene_sets, gene_set_names = get_gene_sets()
-    
-    # for each gene set, annotate dnvs_pro and dnvs_sibs with gene set membership (binary)
-    for i in range(len(gene_sets)):
-        dnvs_pro[gene_set_names[i]] = dnvs_pro['name'].apply(lambda x: 1 if x in gene_sets[i] else 0)
-        dnvs_sibs[gene_set_names[i]] = dnvs_sibs['name'].apply(lambda x: 1 if x in gene_sets[i] else 0)
-    
-    # FAST EXTRACT GENES
-    # subset to sfari_genes1
-    #dnvs_pro = dnvs_pro[dnvs_pro['name'].isin(gene_sets[11])]
-    #num_class3 = dnvs_pro[dnvs_pro['class'] == 3].groupby('name')['consequence'].sum()
-    # print list of top 20 gene names with most PTVs
-    #print(num_class3.sort_values(ascending=False).head(20)[0:20].index.tolist())
-
-    # get number of spids in each class
-    num_class0 = dnvs_pro[dnvs_pro['class'] == 0]['spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 0]['spid'].nunique()
-    num_class1 = dnvs_pro[dnvs_pro['class'] == 1]['spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 1]['spid'].nunique()
-    num_class2 = dnvs_pro[dnvs_pro['class'] == 2]['spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 2]['spid'].nunique()
-    num_class3 = dnvs_pro[dnvs_pro['class'] == 3]['spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 3]['spid'].nunique()
-    num_sibs = dnvs_sibs['spid'].nunique() + zero_sibs['spid'].nunique()
-
-    FE = []
-    pvals = []
-    tick_labels = []
-    ref_colors_notimputed = ['violet', 'red', 'limegreen', 'blue']
-    ref_colors_imputed = ['violet', 'red', 'limegreen', 'blue']
-    if impute:
-        ref_colors = ref_colors_imputed
-    else:
-        ref_colors = ref_colors_notimputed
-    colors = []
-
-    gene_sets_to_keep = ['all_genes', 'lof_genes', 'fmrp_genes', 'asd_risk_genes', 'sfari_genes1', 'satterstrom', 'brain_expressed_genes']
-    shapes = []
-    potential_shapes = ['o', 'v', 'p', '^', 'd', "P", 's', '>', '*', 'X', 'D']
-    potential_shapes = potential_shapes[0:len(gene_sets_to_keep)]
-
-    props = []
-    # for each class, sum the number of PTVs per individual and create list of counts
-    for gene_set in gene_sets_to_keep:
-        shape = potential_shapes.pop(0)
-        if all_pros:
-            shapes += [shape, shape, shape, shape, shape]
-        else:
-            shapes += [shape, shape, shape, shape]
-        dnvs_pro[f'{gene_set}&consequence'] = dnvs_pro[gene_set] * dnvs_pro['consequence'] * dnvs_pro['LoF'] #* dnvs_pro['LoF_flags'] # only keep high confidence LoF variants
-        dnvs_sibs[f'{gene_set}&consequence'] = dnvs_sibs[gene_set] * dnvs_sibs['consequence'] * dnvs_sibs['LoF'] #* dnvs_sibs['LoF_flags']
-
-        # for each spid in each class, sum the number of PTVs for each gene in the gene set. if a person has no PTVs in the gene set, the sum will be 0
-        class0 = dnvs_pro[dnvs_pro['class'] == 0].groupby('spid')[f'{gene_set}&consequence'].sum().tolist()
-        # add zero_pro to class0 to account for probands in class 0 with no DNVs
-        zero_class0 = zero_pro[zero_pro['mixed_pred'] == 0]['count'].astype(int).tolist() # these probands have no DNVs -> therefore no dnPTVs either
-        class0 = class0 + zero_class0
-        class1 = dnvs_pro[dnvs_pro['class'] == 1].groupby('spid')[f'{gene_set}&consequence'].sum().tolist()
-        zero_class1 = zero_pro[zero_pro['mixed_pred'] == 1]['count'].astype(int).tolist()
-        class1 = class1 + zero_class1
-        class2 = dnvs_pro[dnvs_pro['class'] == 2].groupby('spid')[f'{gene_set}&consequence'].sum().tolist()
-        zero_class2 = zero_pro[zero_pro['mixed_pred'] == 2]['count'].astype(int).tolist()
-        class2 = class2 + zero_class2
-        class3 = dnvs_pro[dnvs_pro['class'] == 3].groupby('spid')[f'{gene_set}&consequence'].sum().tolist()
-        zero_class3 = zero_pro[zero_pro['mixed_pred'] == 3]['count'].astype(int).tolist()
-        class3 = class3 + zero_class3
-        sibs = dnvs_sibs.groupby('spid')[f'{gene_set}&consequence'].sum().tolist()
-        sibs = sibs + zero_sibs['count'].astype(int).tolist()
-        all_pros_data = class0 + class1 + class2 + class3
-
-        #print(np.sum(all_pros_data)/(num_class0 + num_class1 + num_class2 + num_class3))
-        props.append(np.sum(class0)/num_class0)
-        props.append(np.sum(class1)/num_class1)
-        props.append(np.sum(class2)/num_class2)
-        props.append(np.sum(class3)/num_class3)
-        props.append(np.sum(sibs)/num_sibs)
-
-        # get pvalue comparing each class to the rest of the sample using a t-test
-        class0_rest_of_sample = class1 + class2 + class3 + sibs
-        class1_rest_of_sample = class0 + class2 + class3 + sibs
-        class2_rest_of_sample = class0 + class1 + class3 + sibs
-        class3_rest_of_sample = class0 + class1 + class2 + sibs
-        sibs_rest_of_sample = class0 + class1 + class2 + class3
-        background_all = (np.sum(class0) + np.sum(class1) + np.sum(class2) + np.sum(class3))/(num_class0 + num_class1 + num_class2 + num_class3)
-        background = np.sum(sibs)/(num_sibs)
-
-        # get two pvalues - one with 'greater' alternative and one with 'less' alternative and take max of -log10(pvalue)
-        class0_pval = ttest_ind(class0, sibs, equal_var=False, alternative='greater')[1]
-        class1_pval = ttest_ind(class1, sibs, equal_var=False, alternative='greater')[1]
-        class2_pval = ttest_ind(class2, sibs, equal_var=False, alternative='greater')[1]
-        class3_pval = ttest_ind(class3, sibs, equal_var=False, alternative='greater')[1]
-        all_pros_pval = ttest_ind(all_pros_data, sibs, equal_var=False, alternative='greater')[1]
-        sibs_pval = ttest_ind(sibs, sibs_rest_of_sample, equal_var=False, alternative='greater')[1]
-        print(gene_set)
-        print([class0_pval, class1_pval, class2_pval, class3_pval])
-        # FDR CORRECTION
-        # multiple testing correction
-        if all_pros:
-            corrected = multipletests([class0_pval, class1_pval, class2_pval, class3_pval, all_pros_pval], method='fdr_bh', alpha=0.05)[1]
-            all_pros_pval = -np.log10(corrected[4])
-            #sibs_pval = -np.log10(corrected[5])
-        else:
-            corrected = multipletests([class0_pval, class1_pval, class2_pval, class3_pval], method='fdr_bh', alpha=0.05)[1]
-            print(corrected)
-            #sibs_pval = -np.log10(corrected[4])
-        class0_pval = -np.log10(corrected[0])
-        class1_pval = -np.log10(corrected[1])
-        class2_pval = -np.log10(corrected[2])
-        class3_pval = -np.log10(corrected[3])
-
-        class0_fe = np.log2((np.sum(class0)/num_class0)/background)
-        class1_fe = np.log2((np.sum(class1)/num_class1)/background)
-        class2_fe = np.log2((np.sum(class2)/num_class2)/background)
-        class3_fe = np.log2((np.sum(class3)/num_class3)/background)
-        all_pros_fe = np.log2((np.sum(all_pros_data)/(num_class0 + num_class1 + num_class2 + num_class3))/background)
-        sibs_fe = np.log2((np.sum(sibs)/num_sibs)/background_all)
-
-        print([class0_fe, class1_fe, class2_fe, class3_fe])
-        
-        # append fold enrichment and pvalue to lists
-        if all_pros:
-            FE += [class0_fe, class1_fe, class2_fe, class3_fe, all_pros_fe] 
-            pvals += [class0_pval, class1_pval, class2_pval, class3_pval, all_pros_pval]
-        else:
-            FE += [class0_fe, class1_fe, class2_fe, class3_fe] # sibs_fe
-            pvals += [class0_pval, class1_pval, class2_pval, class3_pval] # sibs_pval
-        # append colors to list
-        # append gray if p_value < 0.05, else append class color (orange for sibs)
-        thresh = -np.log10(0.05)
-        if class0_pval < thresh:
-            tick_labels.append('')
-            colors.append(ref_colors[0])
-            #colors.append('pink')
-        else:
-            #if class0_pval > 3.5:
-            #    tick_labels.append(gene_set)
-            #else:
-            tick_labels.append('')
-            print('class0')
-            print(class0_pval)
-            print(gene_set)
-            colors.append(ref_colors[0])
-        if class1_pval < thresh:
-            tick_labels.append('')
-            colors.append(ref_colors[1])
-            #colors.append('violet')
-        else:
-            if class1_fe > 3.8:
-                tick_labels.append('')
-            else:
-                tick_labels.append('')
-            print('class1')
-            print(class1_pval)
-            print(gene_set)
-            colors.append(ref_colors[1])
-        if class2_pval < thresh:
-            tick_labels.append('')
-            colors.append(ref_colors[2])
-            #colors.append('lightlimegreen')
-        else:
-            # if FE > 4, add tick
-            if class2_fe > 4:
-                tick_labels.append('')
-            else:
-                tick_labels.append('')
-            print('class2')
-            print(class2_pval)
-            print(gene_set)
-            colors.append(ref_colors[2])
-        if class3_pval < thresh:
-            tick_labels.append('')
-            colors.append(ref_colors[3])
-            #colors.append('lightblue')
-        else:
-            if class3_fe > 4:
-                tick_labels.append('')
-            else:
-                tick_labels.append('')
-            print('class3')
-            print(class3_pval)
-            print(gene_set)
-            colors.append(ref_colors[3])
-        if all_pros:
-            if all_pros_pval < thresh:
-                tick_labels.append('')
-                colors.append('purple')
-            else:
-                print('all_pros')
-                print(all_pros_pval)
-                print(gene_set)
-                colors.append('purple')
-        #if sibs_pval < thresh:
-        #    tick_labels.append('')
-        #    colors.append('black')
-        #else:
-        #    tick_labels.append(gene_set)
-        #    colors.append(ref_colors[4])
-
-    # plot volcano plot
-    plt.style.use('seaborn-v0_8-whitegrid')
-    fig, ax = plt.subplots(figsize=(7, 4.5))
-    for i in range(len(FE)):
-        if pvals[i] > -np.log10(0.05):
-            ax.scatter(FE[i], pvals[i], c=colors[i], s=90, marker=shapes[i])
-        else:
-            ax.scatter(FE[i], pvals[i], c='white', s=90, marker=shapes[i], linewidths=1.5, edgecolors=colors[i])
-    legend_elements = [Line2D([0], [0], marker='o', color='w', label='All genes', markerfacecolor='gray', markersize=10),
-                          Line2D([0], [0], marker='v', color='w', label='LoF-Intolerant', markerfacecolor='gray', markersize=10),
-                            Line2D([0], [0], marker='p', color='w', label='FMRP targets', markerfacecolor='gray', markersize=10),
-                                Line2D([0], [0], marker='^', color='w', label='ASD risk', markerfacecolor='gray', markersize=10),
-                                    Line2D([0], [0], marker='d', color='w', label='SFARI', markerfacecolor='gray', markersize=10),
-                                        Line2D([0], [0], marker='P', color='w', label='Satterstrom', markerfacecolor='gray', markersize=10),
-                                            Line2D([0], [0], marker='s', color='w', label='Brain-expressed', markerfacecolor='gray', markersize=10),
-                                                Line2D([0], [0], marker='>', color='w', label='DDG2P', markerfacecolor='gray', markersize=10),
-                                                    #Line2D([0], [0], marker='*', color='w', label='ASD coexpression', markerfacecolor='gray', markersize=10),
-                                                        #Line2D([0], [0], marker='X', color='w', label='PSD', markerfacecolor='gray', markersize=10),
-                                                            #Line2D([0], [0], marker='D', color='w', label='DDG2P', markerfacecolor='gray', markersize=10),
-                                                            Line2D([0], [0], marker='o', color='w', label='High-ASD/High-Delays', markerfacecolor='red', markersize=10),
-                                                                Line2D([0], [0], marker='o', color='w', label='Low-ASD/Low-Delays', markerfacecolor='violet', markersize=10),
-                                                                    Line2D([0], [0], marker='o', color='w', label='High-ASD/Low-Delays', markerfacecolor='limegreen', markersize=10),
-                                                                        Line2D([0], [0], marker='o', color='w', label='Low-ASD/High-Delays', markerfacecolor='blue', markersize=10)]
-                                                                            #Line2D([0], [0], marker='o', color='w', label='All probands', markerfacecolor='purple', markersize=10),
-                                                                                #Line2D([0], [0], marker='o', color='w', label='Siblings', markerfacecolor='black', markersize=10)]
-    #ax.legend(handles=legend_elements, loc='upper left', fontsize=16, bbox_to_anchor=(1, 1))
-    ax.set_xlabel('log2 fold change', fontsize=15)
-    ax.set_ylabel('-log10(q-value)', fontsize=15)
-    ax.set_title('dnLoF', fontsize=18)
-    ax.axhline(y=-np.log10(0.05), color='gray', linestyle='--', linewidth=1)
-    ax.axvline(x=1, color='gray', linestyle='--', alpha=1, linewidth=1)
-    #for i, txt in enumerate(tick_labels):
-    #    ax.annotate(txt, (FE[i], pvals[i]), fontsize=11)
-    for axis in ['top','bottom','left','right']:
-        ax.spines[axis].set_linewidth(1.5)
-        ax.spines[axis].set_color('black')
-    if impute:
-        fig.savefig('GFMM_WGS_Analysis_Plots/WES_6400_volcano_plot_DNV_PTVs.png', bbox_inches='tight')
-    else:
-        fig.savefig('GFMM_WGS_Analysis_Plots/WES_volcano_plot_DNV_PTVs.png', bbox_inches='tight')
-    plt.close()
-
-
-def plot_proportions(impute=False):
-    dnvs_pro, dnvs_sibs, zero_pro, zero_sibs = load_dnvs(imputed=impute)
-    
-    # subset to target Consequences 
+def plot_variant_proportions():
+    dnvs_pro, dnvs_sibs, zero_pro, zero_sibs = load_dnvs()
     consequences_missense = ['missense_variant', 'inframe_deletion', 'inframe_insertion', 'protein_altering_variant']
     consequences_lof = ['stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost', 'transcript_ablation']
     
@@ -908,411 +45,9 @@ def plot_proportions(impute=False):
     num_class3 = dnvs_pro[dnvs_pro['class'] == 3]['spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 3]['spid'].nunique()
     num_sibs = dnvs_sibs['spid'].nunique() + zero_sibs['spid'].nunique()
 
-    gene_sets_to_keep = ['all_genes', 'lof_genes', 'fmrp_genes', 'asd_risk_genes', 'sfari_genes', 'satterstrom', 'brain_expressed_genes', 'dd_genes']
-    props = []
-    stds = []
-    for gene_set in gene_sets_to_keep:
-        #dnvs_pro['gene_set&consequence'] = dnvs_pro[gene_set] * dnvs_pro['consequence'] * dnvs_pro['am_pathogenicity'] # only keep likely pathogenic missense variants
-        #dnvs_sibs['gene_set&consequence'] = dnvs_sibs[gene_set] * dnvs_sibs['consequence'] * dnvs_sibs['am_pathogenicity']
-        # for each spid in each class, sum the number of PTVs for each gene in the gene set. if a person has no PTVs in the gene set, the sum will be 0
-        class0 = dnvs_pro[dnvs_pro['class'] == 0].groupby('spid')['id'].count().tolist()
-        zero_class0 = zero_pro[zero_pro['mixed_pred'] == 0]['count'].astype(int).tolist()
-        class0 = class0 + zero_class0
-        class1 = dnvs_pro[dnvs_pro['class'] == 1].groupby('spid')['id'].count().tolist()
-        zero_class1 = zero_pro[zero_pro['mixed_pred'] == 1]['count'].astype(int).tolist()
-        class1 = class1 + zero_class1
-        class2 = dnvs_pro[dnvs_pro['class'] == 2].groupby('spid')['id'].count().tolist()
-        zero_class2 = zero_pro[zero_pro['mixed_pred'] == 2]['count'].astype(int).tolist()
-        class2 = class2 + zero_class2
-        class3 = dnvs_pro[dnvs_pro['class'] == 3].groupby('spid')['id'].count().tolist()
-        zero_class3 = zero_pro[zero_pro['mixed_pred'] == 3]['count'].astype(int).tolist()
-        class3 = class3 + zero_class3
-        sibs = dnvs_sibs.groupby('spid')['id'].count().tolist()
-        sibs = sibs + zero_sibs['count'].astype(int).tolist() #+ [1] # add pseudocount to avoid division by zero
-        all_pros_data = class0 + class1 + class2 + class3
-        
-        # plot all_pros_data mean and sibs mean
-        plt.style.use('seaborn-v0_8-whitegrid')
-        plt.figure(figsize=(4, 5))
-        plt.scatter(0.3, np.mean(all_pros_data), color='purple', s=200)
-        plt.scatter(0.7, np.mean(sibs), color='black', s=200)
-        plt.xticks([0.3, 0.7], ['All probands', 'Siblings'], fontsize=16)
-        plt.gca().set_axisbelow(True)
-        plt.xlim([0.1,0.9])
-        # make borders black
-        for axis in ['top','bottom','left','right']:
-            plt.gca().spines[axis].set_linewidth(1.5)
-            plt.gca().spines[axis].set_color('black')
-        plt.savefig('GFMM_WGS_Analysis_Plots/WES_DNMs_all_pros_sibs.png', bbox_inches='tight')
-        plt.close()
-        
-        props.append(np.sum(sibs)/num_sibs)
-        props.append(np.sum(class0)/num_class0)
-        props.append(np.sum(class1)/num_class1)
-        props.append(np.sum(class2)/num_class2)
-        props.append(np.sum(class3)/num_class3)
-        #props.append(np.sum(all_pros_data)/(num_class0 + num_class1 + num_class2 + num_class3))
-        
-        stds.append(np.std(sibs)/np.sqrt(num_sibs))
-        stds.append(np.std(class0)/np.sqrt(num_class0))
-        stds.append(np.std(class1)/np.sqrt(num_class1))
-        stds.append(np.std(class2)/np.sqrt(num_class2))
-        stds.append(np.std(class3)/np.sqrt(num_class3))
-        #stds.append(np.std(all_pros_data)/np.sqrt(num_class0 + num_class1 + num_class2 + num_class3))
-        
-        break 
-        
-    fig, ax = plt.subplots(figsize=(5.5,4.5))
-    # plot props as scatter
-    x_values = np.arange(len(props))
-    y_values = props
-    colors = ['dimgray', 'violet', 'red', 'limegreen', 'blue']
-
-    #plt.scatter(x_values, y_values, color=colors, s=200)
-    # plot error bars
-    # customize the colors to 'colors' list
-    for i in range(len(x_values)):
-        plt.errorbar(x_values[i], y_values[i], yerr=stds[i], fmt='o', color=colors[i], markersize=20)
-    plt.xlabel('')
-    plt.ylabel('\x1B[3mDe novo\x1B[0m variants per offspring', fontsize=16)
-    ax.set_xticks(x_values)
-    #ax.set_xticklabels(['Siblings', 'Low-ASD/Low-Delays', 'High-ASD/High-Delays', 'High-ASD/Low-Delays', 'Low-ASD/High-Delays'], fontsize=16, rotation=90)
-    plt.title('All \x1B[de novo\x1B[0m variants', fontsize=18)
-    ax.set_axisbelow(True)
-    # make border dark
-    for axis in ['top','bottom','left','right']:
-        ax.spines[axis].set_linewidth(1.5)
-        ax.spines[axis].set_color('black')
-    ax.grid(color='gray', linestyle='-', linewidth=0.5)
-    plt.savefig('GFMM_WGS_Analysis_Plots/WES_DNMs_props_scatter.png', bbox_inches='tight')
-    plt.close()
-
-    # NOW LOF VARIANTS
-    props = []
-    stds = []
-    for gene_set in gene_sets_to_keep:
-        dnvs_pro['gene_set&consequence'] = dnvs_pro[gene_set] * dnvs_pro['lof_consequence'] * dnvs_pro['LoF'] #* dnvs_pro['LoF_flags'] 
-        dnvs_sibs['gene_set&consequence'] = dnvs_sibs[gene_set] * dnvs_sibs['lof_consequence'] * dnvs_sibs['LoF'] #* dnvs_sibs['LoF_flags']
-        # for each spid in each class, sum the number of PTVs for each gene in the gene set. if a person has no PTVs in the gene set, the sum will be 0
-        class0 = dnvs_pro[dnvs_pro['class'] == 0].groupby('spid')['gene_set&consequence'].sum().tolist()
-        zero_class0 = zero_pro[zero_pro['mixed_pred'] == 0]['count'].astype(int).tolist()
-        class0 = class0 + zero_class0
-        class1 = dnvs_pro[dnvs_pro['class'] == 1].groupby('spid')['gene_set&consequence'].sum().tolist()
-        zero_class1 = zero_pro[zero_pro['mixed_pred'] == 1]['count'].astype(int).tolist()
-        class1 = class1 + zero_class1
-        class2 = dnvs_pro[dnvs_pro['class'] == 2].groupby('spid')['gene_set&consequence'].sum().tolist()
-        zero_class2 = zero_pro[zero_pro['mixed_pred'] == 2]['count'].astype(int).tolist()
-        class2 = class2 + zero_class2
-        class3 = dnvs_pro[dnvs_pro['class'] == 3].groupby('spid')['gene_set&consequence'].sum().tolist()
-        zero_class3 = zero_pro[zero_pro['mixed_pred'] == 3]['count'].astype(int).tolist()
-        class3 = class3 + zero_class3
-        sibs = dnvs_sibs.groupby('spid')['gene_set&consequence'].sum().tolist()
-        sibs = sibs + zero_sibs['count'].astype(int).tolist() + [1] # add pseudocount to avoid division by zero
-        all_pros_data = class0 + class1 + class2 + class3
-        
-        # plot all_pros_data mean and sibs mean
-        plt.style.use('seaborn-v0_8-whitegrid')
-        plt.figure(figsize=(4, 5))
-        plt.scatter(0.3, np.mean(all_pros_data), color='purple', s=200)
-        plt.scatter(0.7, np.mean(sibs), color='black', s=200)
-        plt.xticks([0.3, 0.7], ['All probands', 'Siblings'], fontsize=16)
-        plt.gca().set_axisbelow(True)
-        plt.xlim([0.1,0.9])
-        # make borders black
-        for axis in ['top','bottom','left','right']:
-            plt.gca().spines[axis].set_linewidth(1.5)
-            plt.gca().spines[axis].set_color('black')
-        plt.savefig('GFMM_WGS_Analysis_Plots/WES_LOF_all_pros_sibs.png', bbox_inches='tight')
-        plt.close()
-        
-        props.append(np.sum(sibs)/num_sibs)
-        props.append(np.sum(class0)/num_class0)
-        props.append(np.sum(class1)/num_class1)
-        props.append(np.sum(class2)/num_class2)
-        props.append(np.sum(class3)/num_class3)
-        #props.append(np.sum(all_pros_data)/(num_class0 + num_class1 + num_class2 + num_class3))
-        stds.append(np.std(sibs)/np.sqrt(num_sibs))
-        stds.append(np.std(class0)/np.sqrt(num_class0))
-        stds.append(np.std(class1)/np.sqrt(num_class1))
-        stds.append(np.std(class2)/np.sqrt(num_class2))
-        stds.append(np.std(class3)/np.sqrt(num_class3))
-        #stds.append(np.std(all_pros_data)/np.sqrt(num_class0 + num_class1 + num_class2 + num_class3))
-        
-        break 
-        
-    fig, ax = plt.subplots(figsize=(5.5,4.5))
-    # plot props as scatter
-    x_values = np.arange(len(props))
-    y_values = props
-    colors = ['dimgray', 'violet', 'red', 'limegreen', 'blue']
-
-    #plt.scatter(x_values, y_values, color=colors, s=200)
-    # plot error bars
-    # customize the colors to 'colors' list
-    for i in range(len(x_values)):
-        plt.errorbar(x_values[i], y_values[i], yerr=stds[i], fmt='o', color=colors[i], markersize=20)
-    plt.xlabel('')
-    plt.ylabel('dnLoF per offspring', fontsize=16)
-    ax.set_xticks(x_values)
-    #ax.set_xticklabels(['Siblings', 'Low-ASD/Low-Delays', 'High-ASD/High-Delays', 'High-ASD/Low-Delays', 'Low-ASD/High-Delays'], fontsize=16, rotation=90)
-    plt.title('dnLoF', fontsize=18)
-    ax.set_axisbelow(True)
-    # make border dark
-    for axis in ['top','bottom','left','right']:
-        ax.spines[axis].set_linewidth(1.5)
-        ax.spines[axis].set_color('black')
-    ax.grid(color='gray', linestyle='-', linewidth=0.5)
-    plt.savefig('GFMM_WGS_Analysis_Plots/WES_LOF_props_scatter.png', bbox_inches='tight')
-    plt.close()
+    gene_sets_to_keep = ['all_genes']
     
-    # NOW MIS VARIANTS
-    props = []
-    stds = []
-    for gene_set in gene_sets_to_keep:
-        dnvs_pro['gene_set&consequence'] = dnvs_pro[gene_set] * dnvs_pro['mis_consequence'] * dnvs_pro['am_class']
-        dnvs_sibs['gene_set&consequence'] = dnvs_sibs[gene_set] * dnvs_sibs['mis_consequence'] * dnvs_sibs['am_class']
-        # for each spid in each class, sum the number of PTVs for each gene in the gene set. if a person has no PTVs in the gene set, the sum will be 0
-        class0 = dnvs_pro[dnvs_pro['class'] == 0].groupby('spid')['gene_set&consequence'].sum().tolist()
-        zero_class0 = zero_pro[zero_pro['mixed_pred'] == 0]['count'].astype(int).tolist()
-        class0 = class0 + zero_class0
-        class1 = dnvs_pro[dnvs_pro['class'] == 1].groupby('spid')['gene_set&consequence'].sum().tolist()
-        zero_class1 = zero_pro[zero_pro['mixed_pred'] == 1]['count'].astype(int).tolist()
-        class1 = class1 + zero_class1
-        class2 = dnvs_pro[dnvs_pro['class'] == 2].groupby('spid')['gene_set&consequence'].sum().tolist()
-        zero_class2 = zero_pro[zero_pro['mixed_pred'] == 2]['count'].astype(int).tolist()
-        class2 = class2 + zero_class2
-        class3 = dnvs_pro[dnvs_pro['class'] == 3].groupby('spid')['gene_set&consequence'].sum().tolist()
-        zero_class3 = zero_pro[zero_pro['mixed_pred'] == 3]['count'].astype(int).tolist()
-        class3 = class3 + zero_class3
-        sibs = dnvs_sibs.groupby('spid')['gene_set&consequence'].sum().tolist()
-        sibs = sibs + zero_sibs['count'].astype(int).tolist() + [1] # add pseudocount to avoid division by zero
-        all_pros_data = class0 + class1 + class2 + class3
-        
-        # plot all_pros_data mean and sibs mean
-        plt.style.use('seaborn-v0_8-whitegrid')
-        plt.figure(figsize=(4, 5))
-        plt.scatter(0.3, np.mean(all_pros_data), color='purple', s=200)
-        plt.scatter(0.7, np.mean(sibs), color='black', s=200)
-        plt.xticks([0.3, 0.7], ['All probands', 'Siblings'], fontsize=16)
-        plt.gca().set_axisbelow(True)
-        plt.xlim([0.1,0.9])
-        # make borders black
-        for axis in ['top','bottom','left','right']:
-            plt.gca().spines[axis].set_linewidth(1.5)
-            plt.gca().spines[axis].set_color('black')
-        plt.savefig('GFMM_WGS_Analysis_Plots/WES_MIS_all_pros_sibs.png', bbox_inches='tight')
-        plt.close()
-        
-        props.append(np.sum(sibs)/num_sibs)
-        props.append(np.sum(class0)/num_class0)
-        props.append(np.sum(class1)/num_class1)
-        props.append(np.sum(class2)/num_class2)
-        props.append(np.sum(class3)/num_class3)
-        #props.append(np.sum(all_pros_data)/(num_class0 + num_class1 + num_class2 + num_class3))
-        
-        stds.append(np.std(sibs)/np.sqrt(num_sibs))
-        stds.append(np.std(class0)/np.sqrt(num_class0))
-        stds.append(np.std(class1)/np.sqrt(num_class1))
-        stds.append(np.std(class2)/np.sqrt(num_class2))
-        stds.append(np.std(class3)/np.sqrt(num_class3))
-        #stds.append(np.std(all_pros_data)/np.sqrt(num_class0 + num_class1 + num_class2 + num_class3))
-        
-        break 
-        
-    fig, ax = plt.subplots(figsize=(5.5,4.5))
-    # plot props as scatter
-    x_values = np.arange(len(props))
-    y_values = props
-    colors = ['dimgray', 'violet', 'red', 'limegreen', 'blue']
-
-    #plt.scatter(x_values, y_values, color=colors, s=200)
-    # plot error bars
-    # customize the colors to 'colors' list
-    for i in range(len(x_values)):
-        plt.errorbar(x_values[i], y_values[i], yerr=stds[i], fmt='o', color=colors[i], markersize=20)
-    plt.xlabel('')
-    plt.ylabel('dnMis per offspring', fontsize=16)
-    ax.set_xticks(x_values)
-    #ax.set_xticklabels(['Siblings', 'Low-ASD/Low-Delays', 'High-ASD/High-Delays', 'High-ASD/Low-Delays', 'Low-ASD/High-Delays'], fontsize=16, rotation=90)
-    plt.title('dnMis', fontsize=18)
-    ax.set_axisbelow(True)
-    # make border dark
-    for axis in ['top','bottom','left','right']:
-        ax.spines[axis].set_linewidth(1.5)
-        ax.spines[axis].set_color('black')
-    ax.grid(color='gray', linestyle='-', linewidth=0.5)
-    plt.savefig('GFMM_WGS_Analysis_Plots/WES_MIS_props_scatter.png', bbox_inches='tight')
-    plt.close()
-
-    # now inherited LOF
-    #with open('/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/spid_to_num_ptvs_LOFTEE_rare_inherited_noaf.pkl', 'rb') as f:
-    #    spid_to_num_ptvs = rick.load(f)
-    with open('/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/spid_to_num_ptvs_LOFTEE_rare_inherited.pkl', 'rb') as f:
-        spid_to_num_ptvs = rick.load(f)
-    with open('/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/spid_to_num_missense_ALPHAMISSENSE_rare_inherited.pkl', 'rb') as f: # _90patho
-        spid_to_num_missense = rick.load(f)
-
-    if impute:
-        gfmm_labels = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/LCA_4classes_training_data_nobms_imputed_labeled.csv', index_col=False, header=0) # 6400 probands
-        sibling_list = '/mnt/home/alitman/ceph/WES_V2_data/WES_6400_siblings_spids.txt'
-    else:
-        gfmm_labels = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=False, header=0) # 5391 probands
-        #gfmm_labels = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/LCA_4classes_training_data_nobms_labeled.csv', index_col=False, header=0) # 4700 probands
-        sibling_list = '/mnt/home/alitman/ceph/WES_V2_data/WES_5392_siblings_spids.txt' 
-    
-    gfmm_labels = gfmm_labels.rename(columns={'subject_sp_id': 'spid'})
-    spid_to_class = dict(zip(gfmm_labels['spid'], gfmm_labels['mixed_pred']))
-
-    pros_to_num_ptvs = {k: v for k, v in spid_to_num_ptvs.items() if k in spid_to_class}
-    pros_to_num_missense = {k: v for k, v in spid_to_num_missense.items() if k in spid_to_class}
-    print(len(pros_to_num_missense))
-    sibling_list = pd.read_csv(sibling_list, sep='\t', header=None)
-    sibling_list.columns = ['spid']
-    sibling_list = sibling_list['spid'].tolist()
-    sibs_to_num_ptvs = {k: v for k, v in spid_to_num_ptvs.items() if k in sibling_list}
-    sibs_to_num_missense = {k: v for k, v in spid_to_num_missense.items() if k in sibling_list}
-    print(len(sibs_to_num_missense))
-
-    gene_sets, gene_set_names = get_gene_sets()
-
-    # get number of spids in each class from spid_to_num_ptvs
-    num_class0 = len([k for k, v in pros_to_num_ptvs.items() if spid_to_class[k] == 0])
-    num_class1 = len([k for k, v in pros_to_num_ptvs.items() if spid_to_class[k] == 1])
-    num_class2 = len([k for k, v in pros_to_num_ptvs.items() if spid_to_class[k] == 2])
-    num_class3 = len([k for k, v in pros_to_num_ptvs.items() if spid_to_class[k] == 3])
-    num_sibs = len(sibs_to_num_ptvs)
-
-    gene_set_to_index = {gene_set: i for i, gene_set in enumerate(gene_set_names)}
-    gene_sets_to_keep = ['all_genes', 'lof_genes', 'fmrp_genes', 'asd_risk_genes', 'sfari_genes', 'satterstrom', 'brain_expressed_genes', 'dd_genes', 'asd_coexpression_networks', 'psd_genes']
-    indices = [gene_set_to_index[gene_set] for gene_set in gene_sets_to_keep]
-    
-    props = []
-    stds = []
-    for i in indices:
-        gene_set = gene_set_names[i] # get name of gene set
-        # get number of PTVs for each spid in gene set
-        class0 = [v[i] for k, v in pros_to_num_ptvs.items() if spid_to_class[k] == 0]
-        class1 = [v[i] for k, v in pros_to_num_ptvs.items() if spid_to_class[k] == 1]
-        class2 = [v[i] for k, v in pros_to_num_ptvs.items() if spid_to_class[k] == 2]
-        class3 = [v[i] for k, v in pros_to_num_ptvs.items() if spid_to_class[k] == 3]
-        all_pros_data = class0 + class1 + class2 + class3
-        sibs = [v[i] for k, v in sibs_to_num_ptvs.items()]
-        
-        props.append(np.sum(sibs)/num_sibs)
-        props.append(np.sum(class0)/num_class0)
-        props.append(np.sum(class1)/num_class1)
-        props.append(np.sum(class2)/num_class2)
-        props.append(np.sum(class3)/num_class3)
-        #props.append(np.sum(all_pros_data)/(num_class0 + num_class1 + num_class2 + num_class3))
-        stds.append(np.std(sibs)/np.sqrt(num_sibs))
-        stds.append(np.std(class0)/np.sqrt(num_class0))
-        stds.append(np.std(class1)/np.sqrt(num_class1))
-        stds.append(np.std(class2)/np.sqrt(num_class2))
-        stds.append(np.std(class3)/np.sqrt(num_class3))
-        #stds.append(np.std(all_pros_data)/np.sqrt(num_class0 + num_class1 + num_class2 + num_class3))
-        
-        print("INH LOF")
-        print(f"class 0: {stats.ttest_ind(class0, sibs, equal_var=False, alternative='greater')}")
-        print(f"class 1: {stats.ttest_ind(class1, sibs, equal_var=False, alternative='greater')}")
-        print(f"class 2: {stats.ttest_ind(class2, sibs, equal_var=False, alternative='greater')}")
-        print(f"class 3: {stats.ttest_ind(class3, sibs, equal_var=False, alternative='greater')}")
-        pvals = []
-        pvals.append(stats.ttest_ind(class0, sibs, equal_var=False, alternative='greater').pvalue)
-        pvals.append(stats.ttest_ind(class1, sibs, equal_var=False, alternative='greater').pvalue)
-        pvals.append(stats.ttest_ind(class2, sibs, equal_var=False, alternative='greater').pvalue)
-        pvals.append(stats.ttest_ind(class3, sibs, equal_var=False, alternative='greater').pvalue)
-        # FDR
-        pvals = multipletests(pvals, method='fdr_bh')[1]
-        print(f'CORRECTED: {pvals}')
-        break
-    
-    fig, ax = plt.subplots(figsize=(5.5,4.5))
-    # plot props as scatter
-    x_values = np.arange(len(props))
-    y_values = props
-    colors = ['dimgray', 'violet', 'red', 'limegreen', 'blue']
-
-    #plt.scatter(x_values, y_values, color=colors, s=200)
-    # plot error bars
-    # customize the colors to 'colors' list
-    for i in range(len(x_values)):
-        plt.errorbar(x_values[i], y_values[i], yerr=stds[i], fmt='o', color=colors[i], markersize=20)
-    plt.xlabel('')
-    plt.ylabel('inhLoF per offspring', fontsize=16)
-    ax.set_xticks(x_values)
-    #ax.set_xticklabels(['Siblings', 'Low-ASD/Low-Delays', 'High-ASD/High-Delays', 'High-ASD/Low-Delays', 'Low-ASD/High-Delays'], fontsize=16, rotation=90)
-    plt.title('inhLoF', fontsize=18)
-    ax.set_axisbelow(True)
-    # make border dark
-    for axis in ['top','bottom','left','right']:
-        ax.spines[axis].set_linewidth(1.5)
-        ax.spines[axis].set_color('black')
-    ax.grid(color='gray', linestyle='-', linewidth=0.5)
-    plt.savefig('GFMM_WGS_Analysis_Plots/WES_LOF_INH_props_scatter.png', bbox_inches='tight')
-    plt.close()
-
-    # NOW INHERITED MIS
-    props = []
-    stds = []
-    for i in indices:
-        gene_set = gene_set_names[i] # get name of gene set
-        # get number of PTVs for each spid in gene set
-        class0 = [v[i] for k, v in pros_to_num_missense.items() if spid_to_class[k] == 0]
-        class1 = [v[i] for k, v in pros_to_num_missense.items() if spid_to_class[k] == 1]
-        class2 = [v[i] for k, v in pros_to_num_missense.items() if spid_to_class[k] == 2]
-        class3 = [v[i] for k, v in pros_to_num_missense.items() if spid_to_class[k] == 3]
-        all_pros_data = class0 + class1 + class2 + class3
-        sibs = [v[i] for k, v in sibs_to_num_missense.items()]
-        
-        props.append(np.sum(sibs)/num_sibs)
-        props.append(np.sum(class0)/num_class0)
-        props.append(np.sum(class1)/num_class1)
-        props.append(np.sum(class2)/num_class2)
-        props.append(np.sum(class3)/num_class3)
-        #props.append(np.sum(all_pros_data)/(num_class0 + num_class1 + num_class2 + num_class3))
-        stds.append(np.std(sibs)/np.sqrt(num_sibs))
-        stds.append(np.std(class0)/np.sqrt(num_class0))
-        stds.append(np.std(class1)/np.sqrt(num_class1))
-        stds.append(np.std(class2)/np.sqrt(num_class2))
-        stds.append(np.std(class3)/np.sqrt(num_class3))
-        #stds.append(np.std(all_pros_data)/np.sqrt(num_class0 + num_class1 + num_class2 + num_class3))
-        
-        print("INH MIS")
-        print(f"class 0: {stats.ttest_ind(class0, sibs, equal_var=False, alternative='greater')}")
-        print(f"class 1: {stats.ttest_ind(class1, sibs, equal_var=False, alternative='greater')}")
-        print(f"class 2: {stats.ttest_ind(class2, sibs, equal_var=False, alternative='greater')}")
-        print(f"class 3: {stats.ttest_ind(class3, sibs, equal_var=False, alternative='greater')}")
-        pvals = []
-        pvals.append(stats.ttest_ind(class0, sibs, equal_var=False, alternative='greater').pvalue)
-        pvals.append(stats.ttest_ind(class1, sibs, equal_var=False, alternative='greater').pvalue)
-        pvals.append(stats.ttest_ind(class2, sibs, equal_var=False, alternative='greater').pvalue)
-        pvals.append(stats.ttest_ind(class3, sibs, equal_var=False, alternative='greater').pvalue)
-        # FDR
-        pvals = multipletests(pvals, method='fdr_bh')[1]
-        print(f'CORRECTED: {pvals}')
-        break
-    fig, ax = plt.subplots(figsize=(5.5,4.5))
-    # plot props as scatter
-    x_values = np.arange(len(props))
-    y_values = props
-    colors = ['dimgray', 'violet', 'red', 'limegreen', 'blue']
-    for i in range(len(x_values)):
-        plt.errorbar(x_values[i], y_values[i], yerr=stds[i], fmt='o', color=colors[i], markersize=20)
-    plt.xlabel('')
-    plt.ylabel('inhMis per offspring', fontsize=16)
-    ax.set_xticks(x_values)
-    #ax.set_xticklabels(['Siblings', 'Low-ASD/Low-Delays', 'High-ASD/High-Delays', 'High-ASD/Low-Delays', 'Low-ASD/High-Delays'], fontsize=16, rotation=90)
-    plt.title('inhMis', fontsize=18)
-    ax.set_axisbelow(True)
-    # make border dark
-    for axis in ['top','bottom','left','right']:
-        ax.spines[axis].set_linewidth(1.5)
-        ax.spines[axis].set_color('black')
-    ax.grid(color='gray', linestyle='-', linewidth=0.5)
-    plt.savefig('GFMM_WGS_Analysis_Plots/WES_MIS_INH_props_scatter.png', bbox_inches='tight')
-    plt.close()
-
-    # NOW DN LOF+MISSENSE COMBINED PLOT
+    # dnLoF + dnMis 
     props = []
     stds = []
     for gene_set in gene_sets_to_keep:
@@ -1321,7 +56,6 @@ def plot_proportions(impute=False):
         dnvs_pro['mis_gene_set&consequence'] = dnvs_pro[gene_set] * dnvs_pro['mis_consequence'] * dnvs_pro['am_class']
         dnvs_sibs['mis_gene_set&consequence'] = dnvs_sibs[gene_set] * dnvs_sibs['mis_consequence'] * dnvs_sibs['am_class']
 
-        # for each spid in each class, sum the number of PTVs for each gene in the gene set. if a person has no PTVs in the gene set, the sum will be 0
         class0_lof = dnvs_pro[dnvs_pro['class'] == 0].groupby('spid')['lof_gene_set&consequence'].sum().tolist()
         class0_mis = dnvs_pro[dnvs_pro['class'] == 0].groupby('spid')['mis_gene_set&consequence'].sum().tolist()
         zero_class0 = zero_pro[zero_pro['mixed_pred'] == 0]['count'].astype(int).tolist()
@@ -1341,84 +75,46 @@ def plot_proportions(impute=False):
         sibs_lof = dnvs_sibs.groupby('spid')['lof_gene_set&consequence'].sum().tolist()
         sibs_mis = dnvs_sibs.groupby('spid')['mis_gene_set&consequence'].sum().tolist()
         sibs = [sum(x) for x in zip(sibs_lof, sibs_mis)] + zero_sibs['count'].astype(int).tolist()
-        all_pros_data = class0 + class1 + class2 + class3
-        
-        # plot all_pros_data mean and sibs mean
-        plt.style.use('seaborn-v0_8-whitegrid')
-        plt.figure(figsize=(4, 5))
-        plt.scatter(0.3, np.mean(all_pros_data), color='purple', s=200)
-        plt.scatter(0.7, np.mean(sibs), color='black', s=200)
-        plt.xticks([0.3, 0.7], ['All probands', 'Siblings'], fontsize=16)
-        plt.gca().set_axisbelow(True)
-        plt.xlim([0.1,0.9])
-        # make borders black
-        for axis in ['top','bottom','left','right']:
-            plt.gca().spines[axis].set_linewidth(1.5)
-            plt.gca().spines[axis].set_color('black')
-        plt.savefig('GFMM_WGS_Analysis_Plots/WES_LOF_all_pros_sibs.png', bbox_inches='tight')
-        plt.close()
-
-        print(np.sum(class0))
-        print(np.sum(class1))
-        print(np.sum(class2))
-        print(np.sum(class3))
-        print(np.sum(sibs))
         
         props.append(np.sum(sibs)/num_sibs)
         props.append(np.sum(class0)/num_class0)
         props.append(np.sum(class1)/num_class1)
         props.append(np.sum(class2)/num_class2)
         props.append(np.sum(class3)/num_class3)
-        print(props)
-        #props.append(np.sum(all_pros_data)/(num_class0 + num_class1 + num_class2 + num_class3))
+
         stds.append(np.std(sibs)/np.sqrt(num_sibs))
         stds.append(np.std(class0)/np.sqrt(num_class0))
         stds.append(np.std(class1)/np.sqrt(num_class1))
         stds.append(np.std(class2)/np.sqrt(num_class2))
         stds.append(np.std(class3)/np.sqrt(num_class3))
-        #stds.append(np.std(all_pros_data)/np.sqrt(num_class0 + num_class1 + num_class2 + num_class3))
 
-        print('LOF+MIS DNMs')
-        print(f"class 0: {stats.ttest_ind(class0, sibs, equal_var=False, alternative='greater')}")
-        print(f"class 1: {stats.ttest_ind(class1, sibs, equal_var=False, alternative='greater')}")
-        print(f"class 2: {stats.ttest_ind(class2, sibs, equal_var=False, alternative='greater')}")
-        print(f"class 3: {stats.ttest_ind(class3, sibs, equal_var=False, alternative='greater')}")
         pvals = []
         pvals.append(stats.ttest_ind(class0, sibs, equal_var=False, alternative='greater').pvalue)
         pvals.append(stats.ttest_ind(class1, sibs, equal_var=False, alternative='greater').pvalue)
         pvals.append(stats.ttest_ind(class2, sibs, equal_var=False, alternative='greater').pvalue)
         pvals.append(stats.ttest_ind(class3, sibs, equal_var=False, alternative='greater').pvalue)
-        # FDR
         pvals = multipletests(pvals, method='fdr_bh')[1]
         pvals = {i: pval for i, pval in enumerate(pvals)}
-        print(pvals)
         break 
         
     fig, ax = plt.subplots(1,2,figsize=(11,4.5))
-    # plot props as scatter
     x_values = np.arange(len(props))
     y_values = props
     colors = ['dimgray', 'violet', 'red', 'limegreen', 'blue']
-
-    #plt.scatter(x_values, y_values, color=colors, s=200)
-    # plot error bars
-    # customize the colors to 'colors' list
     for i in range(len(x_values)):
         ax[0].errorbar(x_values[i], y_values[i], yerr=stds[i], fmt='o', color=colors[i], markersize=20)
     ax[0].set_xlabel('')
     ax[0].set_ylabel('Count per offspring', fontsize=16)
     ax[0].set_xticks(x_values)
     ax[0].tick_params(labelsize=16, axis='y')
-    #ax.set_xticklabels(['Siblings', 'Low-ASD/Low-Delays', 'High-ASD/High-Delays', 'High-ASD/Low-Delays', 'Low-ASD/High-Delays'], fontsize=16, rotation=90)
     ax[0].set_title('High-impact de novo variants', fontsize=21)
     ax[0].set_axisbelow(True)
-    # make border dark
     for axis in ['top','bottom','left','right']:
         ax[0].spines[axis].set_linewidth(1.5)
         ax[0].spines[axis].set_color('black')
     ax[0].grid(color='gray', linestyle='-', linewidth=0.5)
 
-    # ADD SIGNIFICANCE TO PLOT
+    # add significance stars to plot
     for grpidx in [0,1,2,3]:
         p_value = pvals[grpidx]
         x_position = grpidx+1
@@ -1432,12 +128,42 @@ def plot_proportions(impute=False):
         elif p_value < 0.1:
             ax[0].annotate('*', xy=(x_position, ypos), ha='center', size=20)
     
-    # COMBINED INH LOF + MIS
+    # inhLoF + inhMis
+    with open('/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/spid_to_num_ptvs_LOFTEE_rare_inherited.pkl', 'rb') as f:
+        spid_to_num_ptvs = rick.load(f)
+    with open('/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/spid_to_num_missense_ALPHAMISSENSE_rare_inherited.pkl', 'rb') as f: # _90patho
+        spid_to_num_missense = rick.load(f)
+
+    gfmm_labels = pd.read_csv('/mnt/home/alitman/ceph/GFMM_Labeled_Data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=False, header=0) # 5391 probands
+    sibling_list = '/mnt/home/alitman/ceph/WES_V2_data/WES_5392_siblings_spids.txt' 
+
+    gfmm_labels = gfmm_labels.rename(columns={'subject_sp_id': 'spid'})
+    spid_to_class = dict(zip(gfmm_labels['spid'], gfmm_labels['mixed_pred']))
+
+    pros_to_num_ptvs = {k: v for k, v in spid_to_num_ptvs.items() if k in spid_to_class}
+    pros_to_num_missense = {k: v for k, v in spid_to_num_missense.items() if k in spid_to_class}
+    sibling_list = pd.read_csv(sibling_list, sep='\t', header=None)
+    sibling_list.columns = ['spid']
+    sibling_list = sibling_list['spid'].tolist()
+    sibs_to_num_ptvs = {k: v for k, v in spid_to_num_ptvs.items() if k in sibling_list}
+    sibs_to_num_missense = {k: v for k, v in spid_to_num_missense.items() if k in sibling_list}
+
+    gene_sets, gene_set_names = get_gene_sets()
+
+    # get number of spids in each class from spid_to_num_ptvs
+    num_class0 = len([k for k, v in pros_to_num_ptvs.items() if spid_to_class[k] == 0])
+    num_class1 = len([k for k, v in pros_to_num_ptvs.items() if spid_to_class[k] == 1])
+    num_class2 = len([k for k, v in pros_to_num_ptvs.items() if spid_to_class[k] == 2])
+    num_class3 = len([k for k, v in pros_to_num_ptvs.items() if spid_to_class[k] == 3])
+    num_sibs = len(sibs_to_num_ptvs)
+
+    gene_set_to_index = {gene_set: i for i, gene_set in enumerate(gene_set_names)}
+    gene_sets_to_keep = ['all_genes']
+    gene_set_indices = [gene_set_to_index[gene_set] for gene_set in gene_sets_to_keep]
+    
     props = []
     stds = []
-    for i in indices:
-        gene_set = gene_set_names[i] # get name of gene set
-        # get number of PTVs for each spid in gene set
+    for i in gene_set_indices:
         class0_lof = [v[i] for k, v in pros_to_num_ptvs.items() if spid_to_class[k] == 0]
         class0_mis = [v[i] for k, v in pros_to_num_missense.items() if spid_to_class[k] == 0]
         class0 = [sum(x) for x in zip(class0_lof, class0_mis)]
@@ -1455,77 +181,51 @@ def plot_proportions(impute=False):
         sibs_mis = [v[i] for k, v in sibs_to_num_missense.items()]
         sibs = [sum(x) for x in zip(sibs_lof, sibs_mis)]
 
-        print(np.sum(class0))
-        print(np.sum(class1))
-        print(np.sum(class2))
-        print(np.sum(class3))
-        print(np.sum(sibs))
-        
         props.append(np.sum(sibs)/num_sibs)
         props.append(np.sum(class0)/num_class0)
         props.append(np.sum(class1)/num_class1)
         props.append(np.sum(class2)/num_class2)
         props.append(np.sum(class3)/num_class3)
-        print(props)
-        #props.append(np.sum(all_pros_data)/(num_class0 + num_class1 + num_class2 + num_class3))
+
         stds.append(np.std(sibs)/np.sqrt(num_sibs))
         stds.append(np.std(class0)/np.sqrt(num_class0))
         stds.append(np.std(class1)/np.sqrt(num_class1))
         stds.append(np.std(class2)/np.sqrt(num_class2))
         stds.append(np.std(class3)/np.sqrt(num_class3))
-        #stds.append(np.std(all_pros_data)/np.sqrt(num_class0 + num_class1 + num_class2 + num_class3))
 
-        # HYPOTHESIS TESTING of class against sibs
-        print("LOF+MIS INH")
-        print(f"class 0: {stats.ttest_ind(class0, sibs, equal_var=False, alternative='greater')}")
-        print(f"class 1: {stats.ttest_ind(class1, sibs, equal_var=False, alternative='greater')}")
-        print(f"class 2: {stats.ttest_ind(class2, sibs, equal_var=False, alternative='greater')}")
-        print(f"class 3: {stats.ttest_ind(class3, sibs, equal_var=False, alternative='greater')}")
+        # hypothesis testing
         pvals = []
         pvals.append(stats.ttest_ind(class0, sibs, equal_var=False, alternative='greater').pvalue)
         pvals.append(stats.ttest_ind(class1, sibs, equal_var=False, alternative='greater').pvalue)
         pvals.append(stats.ttest_ind(class2, sibs, equal_var=False, alternative='greater').pvalue)
         pvals.append(stats.ttest_ind(class3, sibs, equal_var=False, alternative='greater').pvalue)
-        # FDR
         pvals = multipletests(pvals, method='fdr_bh')[1]
-        # make pvals a dictionary mapping index to pval
         pvals = {i: pval for i, pval in enumerate(pvals)}
-        print(pvals)
         break
     
-    #fig, ax = plt.subplots(figsize=(5.5,4.5))
-    # plot props as scatter
     x_values = np.arange(len(props))
     y_values = props
     colors = ['dimgray', 'violet', 'red', 'limegreen', 'blue']
-
-    #plt.scatter(x_values, y_values, color=colors, s=200)
-    # plot error bars
-    # customize the colors to 'colors' list
-    print(y_values)
     for i in range(len(x_values)):
         ax[1].errorbar(x_values[i], y_values[i], yerr=stds[i], fmt='o', color=colors[i], markersize=20)
     ax[1].set_xlabel('')
     ax[1].set_ylabel('Count per offspring', fontsize=16)
     ax[1].set_xticks(x_values)
     ax[1].tick_params(labelsize=16, axis='y')
-    #ax.set_xticklabels(['Siblings', 'Low-ASD/Low-Delays', 'High-ASD/High-Delays', 'High-ASD/Low-Delays', 'Low-ASD/High-Delays'], fontsize=16, rotation=90)
     ax[1].set_title('High-impact rare inherited variants', fontsize=21)
     ax[1].set_axisbelow(True)
-    # make border dark
     for axis in ['top','bottom','left','right']:
         ax[1].spines[axis].set_linewidth(1.5)
         ax[1].spines[axis].set_color('black')
     ax[1].grid(color='gray', linestyle='-', linewidth=0.5)
 
-    # ADD SIGNIFICANCE TO PLOT
+    # add significance stars to plot
     for grpidx in [0,1,2,3]:
         p_value = pvals[grpidx]
         x_position = grpidx+1
         y_position = y_values[grpidx+1]
         se_value = stds[grpidx+1]
         ypos = y_position + se_value-0.05
-        print(p_value, x_position, ypos)
         if p_value < 0.01:
             ax[1].annotate('***', xy=(x_position, ypos), ha='center', size=20)
         elif p_value < 0.05:
@@ -1534,15 +234,119 @@ def plot_proportions(impute=False):
             ax[1].annotate('*', xy=(x_position, ypos), ha='center', size=20)
     fig.tight_layout()
     fig.subplots_adjust(wspace=0.2)
-    plt.savefig('GFMM_WGS_Analysis_Plots/WES_LOF_COMBINED_MIS_props_scatter.png', bbox_inches='tight')
+    plt.savefig('figures/WES_LoF_combined_Mis_props_scatter.png', bbox_inches='tight')
+    plt.close()
+
+
+def volcano_LoF():
+    '''
+    Produce volcano plot for LoF variants.
+    '''
+    dnvs_pro, dnvs_sibs, zero_pro, zero_sibs = load_dnvs()
+    consequences_lof = ['stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost', 'transcript_ablation']
+
+    # annotate dnvs_pro and dnvs_sibs with consequence (binary)
+    dnvs_pro['consequence'] = dnvs_pro['Consequence'].apply(lambda x: 1 if x in consequences_lof else 0)
+    dnvs_sibs['consequence'] = dnvs_sibs['Consequence'].apply(lambda x: 1 if x in consequences_lof else 0)
+    
+    gene_sets, gene_set_names = get_gene_sets()
+    
+    # for each gene set, annotate dnvs_pro and dnvs_sibs with gene set membership (binary)
+    for i in range(len(gene_sets)):
+        dnvs_pro[gene_set_names[i]] = dnvs_pro['name'].apply(lambda x: 1 if x in gene_sets[i] else 0)
+        dnvs_sibs[gene_set_names[i]] = dnvs_sibs['name'].apply(lambda x: 1 if x in gene_sets[i] else 0)
+    
+    # get number of spids in each class
+    num_class0 = dnvs_pro[dnvs_pro['class'] == 0]['spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 0]['spid'].nunique()
+    num_class1 = dnvs_pro[dnvs_pro['class'] == 1]['spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 1]['spid'].nunique()
+    num_class2 = dnvs_pro[dnvs_pro['class'] == 2]['spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 2]['spid'].nunique()
+    num_class3 = dnvs_pro[dnvs_pro['class'] == 3]['spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 3]['spid'].nunique()
+    num_sibs = dnvs_sibs['spid'].nunique() + zero_sibs['spid'].nunique()
+
+    FE = []
+    pvals = []
+    tick_labels = []
+    ref_colors = ['violet', 'red', 'limegreen', 'blue']
+    colors = [] # keep track of colors for plot
+
+    gene_sets_to_keep = ['all_genes', 'lof_genes', 'fmrp_genes', 'asd_risk_genes', 'sfari_genes1', 'satterstrom', 'brain_expressed_genes']
+    shapes = []
+    shape_list = ['o', 'v', 'p', '^', 'd', "P", 's', '>', '*', 'X', 'D']
+    shape_list = shape_list[0:len(gene_sets_to_keep)]
+
+    for gene_set in gene_sets_to_keep:
+        shape = potential_shapes.pop(0)
+        shapes += [shape, shape, shape, shape]
+        dnvs_pro[f'{gene_set}&consequence'] = dnvs_pro[gene_set] * dnvs_pro['consequence'] * dnvs_pro['LoF'] 
+        dnvs_sibs[f'{gene_set}&consequence'] = dnvs_sibs[gene_set] * dnvs_sibs['consequence'] * dnvs_sibs['LoF']
+
+        class0 = dnvs_pro[dnvs_pro['class'] == 0].groupby('spid')[f'{gene_set}&consequence'].sum().tolist()
+        zero_class0 = zero_pro[zero_pro['mixed_pred'] == 0]['count'].astype(int).tolist() # these probands have no DNVs
+        class0 = class0 + zero_class0
+        class1 = dnvs_pro[dnvs_pro['class'] == 1].groupby('spid')[f'{gene_set}&consequence'].sum().tolist()
+        zero_class1 = zero_pro[zero_pro['mixed_pred'] == 1]['count'].astype(int).tolist()
+        class1 = class1 + zero_class1
+        class2 = dnvs_pro[dnvs_pro['class'] == 2].groupby('spid')[f'{gene_set}&consequence'].sum().tolist()
+        zero_class2 = zero_pro[zero_pro['mixed_pred'] == 2]['count'].astype(int).tolist()
+        class2 = class2 + zero_class2
+        class3 = dnvs_pro[dnvs_pro['class'] == 3].groupby('spid')[f'{gene_set}&consequence'].sum().tolist()
+        zero_class3 = zero_pro[zero_pro['mixed_pred'] == 3]['count'].astype(int).tolist()
+        class3 = class3 + zero_class3
+        sibs = dnvs_sibs.groupby('spid')[f'{gene_set}&consequence'].sum().tolist()
+        sibs = sibs + zero_sibs['count'].astype(int).tolist()
+
+        # pvalue comparing each class to sibs using a t-test
+        background = np.sum(sibs)/(num_sibs)
+        class0_pval = ttest_ind(class0, sibs, equal_var=False, alternative='greater')[1]
+        class1_pval = ttest_ind(class1, sibs, equal_var=False, alternative='greater')[1]
+        class2_pval = ttest_ind(class2, sibs, equal_var=False, alternative='greater')[1]
+        class3_pval = ttest_ind(class3, sibs, equal_var=False, alternative='greater')[1]
+        corrected = multipletests([class0_pval, class1_pval, class2_pval, class3_pval], method='fdr_bh', alpha=0.05)[1]
+        class0_pval = -np.log10(corrected[0])
+        class1_pval = -np.log10(corrected[1])
+        class2_pval = -np.log10(corrected[2])
+        class3_pval = -np.log10(corrected[3])
+
+        class0_fe = np.log2((np.sum(class0)/num_class0)/background)
+        class1_fe = np.log2((np.sum(class1)/num_class1)/background)
+        class2_fe = np.log2((np.sum(class2)/num_class2)/background)
+        class3_fe = np.log2((np.sum(class3)/num_class3)/background)
+
+        FE += [class0_fe, class1_fe, class2_fe, class3_fe]
+        pvals += [class0_pval, class1_pval, class2_pval, class3_pval]
+        colors += ref_colors
+        
+    plt.style.use('seaborn-v0_8-whitegrid')
+    fig, ax = plt.subplots(figsize=(7, 4.5))
+    for i in range(len(FE)):
+        if pvals[i] > -np.log10(0.05):
+            ax.scatter(FE[i], pvals[i], c=colors[i], s=90, marker=shapes[i])
+        else:
+            ax.scatter(FE[i], pvals[i], c='white', s=90, marker=shapes[i], linewidths=1.5, edgecolors=colors[i])
+    legend_elements = [Line2D([0], [0], marker='o', color='w', label='All genes', markerfacecolor='gray', markersize=10),
+                        Line2D([0], [0], marker='v', color='w', label='LoF-Intolerant', markerfacecolor='gray', markersize=10),
+                        Line2D([0], [0], marker='p', color='w', label='FMRP targets', markerfacecolor='gray', markersize=10),
+                        Line2D([0], [0], marker='^', color='w', label='ASD risk', markerfacecolor='gray', markersize=10),
+                        Line2D([0], [0], marker='d', color='w', label='SFARI', markerfacecolor='gray', markersize=10),
+                        Line2D([0], [0], marker='P', color='w', label='Satterstrom', markerfacecolor='gray', markersize=10),
+                        Line2D([0], [0], marker='s', color='w', label='Brain-expressed', markerfacecolor='gray', markersize=10)]
+    ax.set_xlabel('log2 fold change', fontsize=15)
+    ax.set_ylabel('-log10(q-value)', fontsize=15)
+    ax.set_title('dnLoF', fontsize=18)
+    ax.axhline(y=-np.log10(0.05), color='gray', linestyle='--', linewidth=1)
+    ax.axvline(x=1, color='gray', linestyle='--', alpha=1, linewidth=1)
+    for axis in ['top','bottom','left','right']:
+        ax.spines[axis].set_linewidth(1.5)
+        ax.spines[axis].set_color('black')
+    fig.savefig('figures/WES_volcano_plot_DNV_PTVs.png', bbox_inches='tight')
     plt.close()
 
 
 def volcano_missense(impute=False, all_pros=False):
-    '''Produce volcano plot for dnMis variants'''
-    dnvs_pro, dnvs_sibs, zero_pro, zero_sibs = load_dnvs(imputed=impute)
-    
-    # subset to target Consequences 
+    '''
+    Produce volcano plot for de novo missense variants.
+    '''
+    dnvs_pro, dnvs_sibs, zero_pro, zero_sibs = load_dnvs()
     consequences_missense = ['missense_variant', 'inframe_deletion', 'inframe_insertion', 'protein_altering_variant']
 
     # annotate dnvs_pro and dnvs_sibs with consequence (binary)
@@ -1556,14 +360,6 @@ def volcano_missense(impute=False, all_pros=False):
         dnvs_pro[gene_set_names[i]] = dnvs_pro['name'].apply(lambda x: 1 if x in gene_sets[i] else 0)
         dnvs_sibs[gene_set_names[i]] = dnvs_sibs['name'].apply(lambda x: 1 if x in gene_sets[i] else 0)
 
-    # FAST EXTRACT GENES
-    # subset to asd_risk_genes
-    #dnvs_pro = dnvs_pro[dnvs_pro['name'].isin(gene_sets[4])]
-    #num_class0 = dnvs_pro[dnvs_pro['class'] == 0].groupby('name')['consequence'].sum()
-    # print list of top 20 gene names with most missense variants
-    #print(num_class0.sort_values(ascending=False).head(20))
-    #print(num_class0.sort_values(ascending=False).head(20)[0:20].index.tolist()); exit()
-
     # get number of spids in each class
     num_class0 = dnvs_pro[dnvs_pro['class'] == 0]['spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 0]['spid'].nunique()
     num_class1 = dnvs_pro[dnvs_pro['class'] == 1]['spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 1]['spid'].nunique()
@@ -1574,15 +370,10 @@ def volcano_missense(impute=False, all_pros=False):
     FE = []
     pvals = []
     tick_labels = []
-    ref_colors_notimputed = ['violet', 'red', 'limegreen', 'blue', 'black']
-    ref_colors_imputed = ['violet', 'red', 'limegreen', 'blue', 'black']
-    if impute:
-        ref_colors = ref_colors_imputed
-    else:
-        ref_colors = ref_colors_notimputed
+    ref_colors = ['violet', 'red', 'limegreen', 'blue']
     colors = []
 
-    gene_sets_to_keep = ['all_genes', 'lof_genes', 'fmrp_genes', 'asd_risk_genes', 'sfari_genes1', 'satterstrom', 'brain_expressed_genes', 'dd_genes']
+    gene_sets_to_keep = ['all_genes', 'lof_genes', 'fmrp_genes', 'asd_risk_genes', 'sfari_genes1', 'satterstrom', 'brain_expressed_genes']
     shapes = []
     potential_shapes = ['o', 'v', 'p', '^', 'd', "P", 's', '>', '*', 'X', 'D']
     potential_shapes = potential_shapes[0:len(gene_sets_to_keep)]
