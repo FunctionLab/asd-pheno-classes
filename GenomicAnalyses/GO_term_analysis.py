@@ -7,14 +7,14 @@ from utils import sort_and_select_top
 
 
 def GO_term_analysis(num_top_terms=3):
-    class0_biol_processes = pd.read_csv('/mnt/home/alitman/ceph/GO_enrichment_analysis/class0_top_pathways.csv')
-    class0_mol_functions = pd.read_csv('/mnt/home/alitman/ceph/GO_enrichment_analysis/class0_top_mol_functions.csv')
-    class1_biol_processes = pd.read_csv('/mnt/home/alitman/ceph/GO_enrichment_analysis/class1_top_pathways.csv')
-    class1_mol_functions = pd.read_csv('/mnt/home/alitman/ceph/GO_enrichment_analysis/class1_top_mol_functions.csv')
-    class2_biol_processes = pd.read_csv('/mnt/home/alitman/ceph/GO_enrichment_analysis/class2_top_pathways.csv')
-    class2_mol_functions = pd.read_csv('/mnt/home/alitman/ceph/GO_enrichment_analysis/class2_top_mol_functions.csv')
-    class3_biol_processes = pd.read_csv('/mnt/home/alitman/ceph/GO_enrichment_analysis/class3_top_pathways.csv')
-    class3_mol_functions = pd.read_csv('/mnt/home/alitman/ceph/GO_enrichment_analysis/class3_top_mol_functions.csv')
+    class0_biol_processes = pd.read_csv('data/class0_top_pathways.csv')
+    class0_mol_functions = pd.read_csv('data/class0_top_mol_functions.csv')
+    class1_biol_processes = pd.read_csv('data/class1_top_pathways.csv')
+    class1_mol_functions = pd.read_csv('data/class1_top_mol_functions.csv')
+    class2_biol_processes = pd.read_csv('data/class2_top_pathways.csv')
+    class2_mol_functions = pd.read_csv('data/class2_top_mol_functions.csv')
+    class3_biol_processes = pd.read_csv('data/class3_top_pathways.csv')
+    class3_mol_functions = pd.read_csv('data/class3_top_mol_functions.csv')
     
     dataframes = {
     'class0_biol_processes': class0_biol_processes,
@@ -140,4 +140,3 @@ def GO_term_analysis(num_top_terms=3):
 
 if __name__ == '__main__':
     GO_term_analysis()
-    
