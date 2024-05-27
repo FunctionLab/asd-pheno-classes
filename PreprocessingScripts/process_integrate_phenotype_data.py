@@ -79,7 +79,7 @@ def get_main_spark_data_for_GFMM():
     print(clean_df.shape)
     print(clean_df['age_at_eval_years'].value_counts())
     print(clean_df['sex'].value_counts())
-    clean_df.to_csv('/mnt/home/alitman/ceph/SPARK_Phenotype_Dataset/spark_5392_unimputed_cohort.txt', sep='\t')
+    clean_df.to_csv('../spark_5392_unimputed_cohort.txt', sep='\t')
     
 
 if __name__ == '__main__':
