@@ -246,41 +246,12 @@ def get_feature_enrichments_with_sibs(mixed_data, name, only_sibs=False):
     feature_sig_norm_high = pd.DataFrame(feature_sig_df_high, columns=feature_vector)
     feature_sig_norm_high['cluster'] = [-1, 0, 1, 2, 3]
     return feature_sig_norm_high
-
-
-def vineland_validation():
-    mixed_data = pd.read_csv('../PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
-    
-    vineland = pd.read_csv('data/spark_data_vineland_validation.txt', sep='\t', index_col=0)
-    motor = pd.read_csv('data/spark_data_motor_validation.txt', sep='\t', index_col=0)
-    vineland = vineland.dropna()
-    motor = motor.dropna()
-
-    mixed_data = pd.merge(mixed_data, vineland, left_index=True, right_index=True)
-    mixed_data = pd.merge(mixed_data, motor, left_index=True, right_index=True)
-
-    plt.style.use('seaborn-v0_8-whitegrid')
-    plt.figure(figsize=(11, 7))
-    data = mixed_data[['abc_standard', 'dls_standard', 'communication_standard', 'soc_standard', 'motor_standard', 'mixed_pred']]
-    data = pd.melt(data, id_vars=['mixed_pred'])
-    sns.boxplot(x='variable', y='value', hue='mixed_pred', data=data, palette=['violet','red','limegreen','blue'], showfliers=False) # whiskerprops = dict(color = "white"), capprops = dict(color = "white"),
-    plt.xlabel('')
-    plt.ylabel('Vineland Scores', fontsize=24)
-    plt.xticks([0,1,2,3,4], ['ABC', 'DLS', 'Comm', 'Soc', 'Motor'], fontsize=24)
-    handles, labels = plt.gca().get_legend_handles_labels()
-    for axis in ['top','bottom','left','right']:
-        plt.gca().spines[axis].set_linewidth(1.5)
-        plt.gca().spines[axis].set_color('black')
-    labels = ['High-ASD/High-Delays', 'Low-ASD/Low-Delays', 'High-ASD/Low-Delays', 'Low-ASD/High-Delays']
-    plt.legend(handles, labels, fontsize=16, loc='upper left', bbox_to_anchor=(1, 1))
-    plt.savefig('figures/GFMM_motor_vineland_validation_boxplot.png', bbox_inches='tight')   
-    plt.close()
     
 
 def individual_registration_validation():
     file = '../SPARK_collection_v9_2022-12-12/individuals_registration_2022-12-12.csv'
     data = pd.read_csv(file, index_col=0)
-    vars_for_val = ['num_asd_parents', 'num_asd_siblings', 'diagnosis_age', 'iep_asd', 'cognitive_impairment_at_enrollment', 'language_level_at_enrollment'] #
+    vars_for_val = ['diagnosis_age', 'iep_asd', 'cognitive_impairment_at_enrollment', 'language_level_at_enrollment'] #
     
     data['num_asd_parents'] = data['num_asd_parents'].replace(999, np.nan)
     data['num_asd_siblings'] = data['num_asd_siblings'].replace(999, np.nan)
@@ -297,9 +268,9 @@ def individual_registration_validation():
     sib_data = pd.merge(data, paired_sibs, left_index=True, right_index=True)
 
     plt.style.use('seaborn-v0_8-whitegrid')
-    fig, ax = plt.subplots(3, 2, figsize=(7, 10))
+    fig, ax = plt.subplots(2, 2, figsize=(7, 7))
     ax = ax.ravel()
-    variable_names = ['Number of ASD Parents', 'Number of ASD Siblings', 'Diagnosis Age', 'IEP for ASD', 'Cognitive Impairment', 'Language Level']
+    variable_names = ['Diagnosis Age', 'IEP for ASD', 'Cognitive Impairment', 'Language Level']
     for i, var in enumerate(vars_for_val):
         var_data = pro_data[[var, 'mixed_pred']]
         var_data = var_data.dropna()
@@ -307,7 +278,6 @@ def individual_registration_validation():
         sibling_data = sibling_data.dropna()
         sibling_data['mixed_pred'] = 4
         var_data = pd.concat([sibling_data, var_data])
-        print(var_data['mixed_pred'].value_counts())
 
         num_unique_vals = len(var_data[var].unique())
         if num_unique_vals == 2:
@@ -331,10 +301,11 @@ def individual_registration_validation():
             pvals.append(ttest_ind(group2, group3, equal_var=False, alternative='greater').pvalue)
             pvals = multipletests(pvals, method='fdr_bh')[1]
             
-        sns.barplot(x='mixed_pred', y=var, data=var_data, ax=ax[i], palette=['violet','red','limegreen','blue','dimgray'], linewidth = 1.5, edgecolor='black', alpha=0.85, dodge=False)
-        
-        if var in ['num_asd_parents', 'num_asd_siblings']:
-            continue
+        if var == 'diagnosis_age':
+            sns.boxplot(x='mixed_pred', y=var, data=var_data, ax=ax[i], showfliers=False, palette=['violet','red','limegreen','blue'])
+            sns.stripplot(x='mixed_pred', y=var, data=var_data, ax=ax[i], palette=['violet','red','limegreen','blue'], alpha=0.1)
+        else:
+            sns.barplot(x='mixed_pred', y=var, data=var_data, ax=ax[i], palette=['violet','red','limegreen','blue','dimgray'], linewidth = 1.5, edgecolor='black', dodge=False)
         
         ax[i].set_xlabel('')
         ax[i].set_ylabel('Age (months)', fontsize=18)
@@ -528,6 +499,5 @@ def developmental_milestones_validation():
 if __name__ == "__main__":
     developmental_milestones_validation()
     individual_registration_validation()
-    vineland_validation()
     scq_validation()
     main_clinical_validation(only_sibs=True)
