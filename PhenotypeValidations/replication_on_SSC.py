@@ -8,7 +8,7 @@ from collections import defaultdict
 from scipy import stats
 
 from ../PhenotypeClasses/GFMM import get_feature_enrichments
-from ../PhenotypeClasses/utils import split_columns, get_cross_cohort_SPARK_data
+from ../PhenotypeClasses/utils import split_columns, get_cross_cohort_SPARK_data, generate_ssc_data
 
 
 def cross_cohort_replication(ncomp):
@@ -252,7 +252,7 @@ def run_spark_model(ncomp):
 
     # look for common features
     spark_features = set(spark_data.columns)
-    ssc_data = generate_ssc_data(impute=False)
+    ssc_data = generate_ssc_data()
     ssc_features = set(ssc_data.columns)
     common_features = spark_features & ssc_features
     print(f'Number of total SPARK features: {len(spark_features)}')
@@ -289,7 +289,7 @@ def run_spark_model(ncomp):
     mixed_data['mixed_pred'] = model.predict(mixed_data, Z_p)
     print('SPARK class breakdown:')
     print(mixed_data['mixed_pred'].value_counts())
-    mixed_data.to_csv('ssc_replication_data/spark_cross_cohort_labels.csv')
+    mixed_data.to_csv('data/spark_cross_cohort_labels.csv')
 
     # predict on SSC test dataset
     Z_p_ssc = ssc_data[['sex', 'age_at_eval_years']]
@@ -306,7 +306,7 @@ def run_spark_model(ncomp):
     mixed_data_ssc['ssc_pred'] = model.predict(mixed_data_ssc, Z_p_ssc)
     print('SSC class breakdown:')
     print(mixed_data_ssc['ssc_pred'].value_counts())
-    mixed_data_ssc.to_csv('ssc_replication_data/ssc_cross_cohort_labels.csv')
+    mixed_data_ssc.to_csv('data/ssc_cross_cohort_labels.csv')
     
     return mixed_data, mixed_data_ssc
 
