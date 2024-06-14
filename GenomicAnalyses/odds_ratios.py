@@ -2,14 +2,15 @@ from collections import defaultdict
 
 import matplotlib.pyplot as plt
 from utils import load_dnvs, get_gene_sets
-from scipy.stats import fisher_exact, multipletests
+from scipy.stats import fisher_exact
+from statsmodels.stats.multitest import multipletests
 
 
 def compute_odds_ratios():
     plt.style.use('seaborn-v0_8-whitegrid')
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 6), sharey=True, gridspec_kw={'width_ratios': [2.3, 1]})
 
-    dnvs_pro, dnvs_sibs, zero_pro, zero_sibs = load_dnvs(imputed=impute)
+    dnvs_pro, dnvs_sibs, zero_pro, zero_sibs = load_dnvs()
     consequences_missense = ['missense_variant', 'inframe_deletion', 'inframe_insertion', 'protein_altering_variant']
     consequences_benign = ['synonymous_variant']
     consequences_lof = ['stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost', 'transcript_ablation']
@@ -20,6 +21,7 @@ def compute_odds_ratios():
     gene_set_of_interest = 'fmrp_genes'
     for i in range(len(gene_sets)):
         if gene_set_names[i] == gene_set_of_interest:
+            selected_gene_set = gene_sets[i]
             dnvs_pro[gene_set_names[i]] = dnvs_pro['name'].apply(lambda x: 1 if x in gene_sets[i] else 0)
             dnvs_sibs[gene_set_names[i]] = dnvs_sibs['name'].apply(lambda x: 1 if x in gene_sets[i] else 0)
 
@@ -40,6 +42,10 @@ def compute_odds_ratios():
     pvals_lof = []
     pvals_syn = []
     for class_id, class_count in zip([0,1,2,3], [num_class0, num_class1, num_class2, num_class3]):
+        gene_vars = dnvs_pro[dnvs_pro['name'].isin(selected_gene_set)]
+        gene_vars_for_class = gene_vars[gene_vars['class'] == class_id]
+        gene_vars_sibs = dnvs_sibs[dnvs_sibs['name'].isin(selected_gene_set)]
+
         lof_gene_vars_for_class = gene_vars_for_class[gene_vars_for_class['lof_final_consequence'] == 1]
         lof_case_variant_present_count = lof_gene_vars_for_class['spid'].nunique()
         lof_gene_vars_sibs = gene_vars_sibs[gene_vars_sibs['lof_final_consequence'] == 1]
@@ -83,7 +89,7 @@ def compute_odds_ratios():
     ax2.grid(which='both', axis='x', linestyle='')
 
     # SECOND SUBPLOT
-    dnvs_pro, dnvs_sibs, zero_pro, zero_sibs = load_dnvs(imputed=impute)
+    dnvs_pro, dnvs_sibs, zero_pro, zero_sibs = load_dnvs()
     consequences_missense = ['missense_variant', 'inframe_deletion', 'inframe_insertion', 'protein_altering_variant']
     consequences_benign = ['synonymous_variant']
     consequences_lof = ['stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost', 'transcript_ablation']
@@ -97,6 +103,7 @@ def compute_odds_ratios():
     gene_set_of_interest = 'asd_risk_genes'
     for i in range(len(gene_sets)):
         if gene_set_names[i] == gene_set_of_interest:
+            selected_gene_set = gene_sets[i]
             dnvs_pro[gene_set_names[i]] = dnvs_pro['name'].apply(lambda x: 1 if x in gene_sets[i] else 0)
             dnvs_sibs[gene_set_names[i]] = dnvs_sibs['name'].apply(lambda x: 1 if x in gene_sets[i] else 0)
 
@@ -119,7 +126,10 @@ def compute_odds_ratios():
     pvals_lof = []
     pvals_syn = []
     for class_id, class_count in zip([0,1,2,3], [num_class0, num_class1, num_class2, num_class3]):
-        # lof
+        gene_vars = dnvs_pro[dnvs_pro['name'].isin(selected_gene_set)]
+        gene_vars_for_class = gene_vars[gene_vars['class'] == class_id]
+        gene_vars_sibs = dnvs_sibs[dnvs_sibs['name'].isin(selected_gene_set)]
+
         lof_gene_vars_for_class = gene_vars_for_class[gene_vars_for_class['lof_final_consequence'] == 1]
         lof_case_variant_present_count = lof_gene_vars_for_class['spid'].nunique()
         lof_gene_vars_sibs = gene_vars_sibs[gene_vars_sibs['lof_final_consequence'] == 1]
