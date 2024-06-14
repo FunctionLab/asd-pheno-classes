@@ -47,15 +47,18 @@ def run_mixture_model_on_phenotypes(ncomp=4, summarize=False):
     
     # pie chart of class proportions
     fig, ax = plt.subplots(1,1,figsize=(7,7))
-    ax = mixed_data['mixed_pred'].value_counts().plot.pie(autopct='%1.0f%%', startangle=90, colors=['violet','limegreen','blue','red'], labels=None)
+    ax = mixed_data['mixed_pred'].value_counts().plot.pie(autopct='%1.0f%%', startangle=90, colors=['#FBB040','#39B54A','#27AAE1','#EE2A7B'], labels=None)
     for patch in ax.patches:
         patch.set_alpha(0.75)
     plt.title('SPARK class proportions', fontsize=24)
     plt.rcParams.update({'font.size': 24})
     plt.setp(ax.texts, size=22)
     plt.ylabel('')
-    plt.savefig(f'figures/GFMM_pie_chart_5392_{ncomp}comp.png', bbox_inches='tight')
+    plt.savefig(f'figures/class_breakdown_pie_chart_{ncomp}comp.png', bbox_inches='tight', dpi=600)
     plt.close()
+
+    # get age and sex breakdown by class
+    get_age_sex_distributions_for_classes(mixed_data, ncomp) 
 
 
 def generate_summary_table(df_enriched_depleted, fold_enrichments):
@@ -168,7 +171,25 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments):
     proportions_melted['class'] = proportions_melted['class'].apply(lambda x: x.split('_')[0])
 
     # plot variation figure
+    df = prop_df.drop(['class0_max', 'class1_max', 'class2_max', 'class3_max'], axis=1)
+    df = df[df.index != 'somatic']
+    df = df[df.index != 'other problems']
+    df = df[df.index != 'thought problems']
+
+    proportions = pd.DataFrame(index=df.index)
+    for i in range(4):
+        proportions[f'class{i}_enriched'] = df[f'class{i}_enriched']
+        proportions[f'class{i}_depleted'] = df[f'class{i}_depleted']
+    
+    proportions = proportions.reset_index()
+    proportions = proportions.set_index('feature_category').reindex(['anxiety/mood', 'attention', 'disruptive behavior', 'self-injury', 'restricted/repetitive', 'social/communication', 'developmental']).reset_index()
+    proportions_melted = pd.melt(proportions, id_vars=['feature_category'], value_vars=[f'class{i}_enriched' for i in range(4)] + [f'class{i}_depleted' for i in range(4)],
+                                var_name='class', value_name='proportion')
+    proportions_melted['type'] = proportions_melted['class'].apply(lambda x: x.split('_')[1])
+    proportions_melted['class'] = proportions_melted['class'].apply(lambda x: x.split('_')[0])
+
     fig, ax = plt.subplots(figsize=(12, 5))
+    colors = {'enriched': '#1f77b4', 'depleted': '#ff7f0e'}
     feature_categories = proportions['feature_category'].unique()
     classes = ['class0', 'class1', 'class2', 'class3']
     bar_width = 0.1
@@ -177,56 +198,65 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments):
     group_width = n_classes * bar_width + spacing
     bar_positions = np.arange(len(feature_categories)) * group_width
     class_colors = {
-        'class0': ['pink', 'violet'],
-        'class1': ['lightcoral', 'red'],
-        'class2': ['palegreen', 'limegreen'],
-        'class3': ['lightblue', 'blue']
+        'class0': ['#FBB040', '#FBB040'],
+        'class1': ['#EE2A7B', '#EE2A7B'],
+        'class2': ['#39B54A', '#39B54A'],
+        'class3': ['#27AAE1', '#27AAE1']
     }
     for idx, cls in enumerate(classes):
         enriched = proportions_melted[(proportions_melted['class'] == cls) & (proportions_melted['type'] == 'enriched')]
         depleted = proportions_melted[(proportions_melted['class'] == cls) & (proportions_melted['type'] == 'depleted')]
-        ax.bar(bar_positions + idx * bar_width, depleted['proportion'], width=bar_width, label=f'{cls} depleted', linewidth=0.5, edgecolor='black', color=class_colors[cls][0])
-        ax.bar(bar_positions + idx * bar_width, enriched['proportion'], width=bar_width, label=f'{cls} enriched', linewidth=0.5, edgecolor='black', color=class_colors[cls][1])
+        ax.bar(bar_positions + idx * bar_width, depleted['proportion'], width=bar_width, label=f'{cls} depleted', linewidth=0, color=class_colors[cls][0])
+        ax.bar(bar_positions + idx * bar_width, enriched['proportion'], width=bar_width, label=f'{cls} enriched', linewidth=0, color=class_colors[cls][1])
+    ax.axhline(y=0, color='gray', linewidth=2)
     ax.set_xticks(bar_positions + bar_width * 1.5)
-    ax.set_xticklabels(['anxiety/mood', 'attention', 'disruptive behavior', 'self-injury', 'limited social/communication', 'restricted/repetitive', 'developmental delay'], rotation=30, ha='right')
+    ax.set_xticklabels(['anxiety/mood', 'attention', 'disruptive behavior', 'self-injury', 'restricted/repetitive', 'limited social/communication', 'developmental delay'], rotation=30, ha='right')
     for axis in ['top','bottom','left','right']:
-        ax.spines[axis].set_linewidth(1)
-    ax.axhline(y=0, color='black', linewidth=1.5, linestyle='--')
+        ax.spines[axis].set_linewidth(1.5)
+        ax.spines[axis].set_color('black')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     plt.xlabel('')
     plt.ylabel('')
+    plt.title('Proportion and direction of enriched features', fontsize=24)
     plt.tight_layout()
-    plt.savefig('figures/GFMM_variation_summary_figure.png')
-    
+    plt.savefig('figures/GFMM_variation_figure.png', dpi=600)
+    plt.close()
+
     # Horizontally plot the phenotype categories, have one line per class, y-axis = proportion of significant features
     prop_df = prop_df.drop(['class0_enriched', 'class0_depleted', 'class1_enriched', 'class1_depleted', 'class2_enriched', 'class2_depleted', 'class3_enriched', 'class3_depleted'], axis=1)
-    prop_df.columns = ['lowASD/lowDelay', 'highASD/highDelay', 'highASD/lowDelay', 'lowASD/highDelay']
+    prop_df.columns = ['0', '1', '2', '3']
     features_to_visualize = features_to_visualize[:-1]
     prop_df = prop_df.loc[features_to_visualize]
     prop_df.index = np.arange(len(prop_df))    
+    
     fig, ax = plt.subplots(1,1,figsize=(10,6))
-    palette = ['violet','red','limegreen','blue']
+    palette = ['#FBB040','#EE2A7B','#39B54A','#27AAE1']
     ax = sns.lineplot(data=prop_df, dashes=False, markers=True, palette=palette, linewidth=3)    
     ax.set(xlabel="Phenotype Category", ylabel="")
     plt.xticks(ha='right', rotation=30, fontsize=16)
-    plt.xticks(np.arange(len(features_to_visualize)), ['anxiety/mood', 'attention', 'disruptive behavior', 'self-injury', 'limited social/communication', 'restricted/repetitive', 'developmental delay'])
+    plt.xticks(np.arange(len(features_to_visualize)), ['anxiety/mood', 'attention', 'disruptive behavior', 'self-injury', 'restricted/repetitive', 'limited social/communication', 'developmental delay'])
     plt.ylim([-1.1,1.1])
     for line in ax.lines:
         line.set_linewidth(5)
     for axis in ['top','bottom','left','right']:
         ax.spines[axis].set_linewidth(1.5)
         ax.spines[axis].set_color('black')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.grid(axis='y', linewidth=1)
     ax.get_legend().remove()
     ax.tick_params(labelsize=20)
     plt.xlabel('')
-    ax.set_ylabel('Proportion+direction of sig. features', fontsize=18)
+    plt.title('Feature enrichment by category', fontsize=24)
+    ax.set_ylabel('Proportion and direction', fontsize=18)
     ax.axhline(y=0, color='black', linewidth=1.5, linestyle='--')
-    plt.savefig('figures/GFMM_4_pheno_categories_lineplot.png', bbox_inches='tight', dpi=300)
+    plt.savefig('figures/4_phenotype_categories_horizontal_lineplot.png', bbox_inches='tight', dpi=300)
     plt.close()
-        
 
-def get_age_distributions_for_classes(mixed_data):
-    # visualize age distributions for classes
-    colors = ['violet','red','green','blue']
+
+def get_age_sex_distributions_for_classes(mixed_data, ncomp):
+    colors = ['#FBB040','#EE2A7B','green','#27AAE1']
     fig, ax = plt.subplots(2,2,figsize=(10,6))
     
     sns.distplot(list(mixed_data[mixed_data['mixed_pred'] == 0]['age']), hist=True, kde=True,
@@ -249,11 +279,20 @@ def get_age_distributions_for_classes(mixed_data):
     ax[1, 1].set_xlabel('Age', fontsize=14)
     ax[1, 1].set_title('Class 3', fontsize=14) 
     ax[1, 1].set_ylabel('Density', fontsize=14)
+    for i in range(2):
+        for j in range(2):
+            ax[i, j].spines['top'].set_visible(False)
+            ax[i, j].spines['right'].set_visible(False)
+    for i in range(2):
+        for j in range(2):
+            ax[i, j].spines['bottom'].set_linewidth(1.5)
+            ax[i, j].spines['left'].set_linewidth(1.5)
     fig.tight_layout()
-    plt.savefig('figures/GFMM_4class_age_density.png', bbox_inches='tight')
+    plt.subplots_adjust(top=0.9)
+    plt.suptitle('Age distributions by class', fontsize=16)
+    plt.savefig(f'figures/age_distributions_{ncomp}comp.png', bbox_inches='tight', dpi=600)
     plt.close()
 
-    # sex breakdown by class
     fig, ax = plt.subplots(1,1,figsize=(7,4))
     mixed_data['sex'].replace({0: 'Female', 1: 'Male'}, inplace=True)
     grouped = mixed_data.groupby('mixed_pred')['sex'].value_counts(normalize=True).reset_index(name='proportion')
@@ -262,7 +301,12 @@ def get_age_distributions_for_classes(mixed_data):
     plt.xlabel('Class', fontsize=14)
     plt.title('Sex distribution by class', fontsize=14)
     plt.legend(loc='upper right', bbox_to_anchor=(1.3, 1), fontsize=14)
-    plt.savefig('figures/GFMM_4class_sex_distribution_normalized.png', bbox_inches='tight')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    for axis in ['bottom','left']:
+        ax.spines[axis].set_linewidth(1.5)
+        ax.spines[axis].set_color('black')
+    plt.savefig(f'figures/sex_distribution_{ncomp}comp.png', bbox_inches='tight', dpi=600)
     plt.close()
     
 

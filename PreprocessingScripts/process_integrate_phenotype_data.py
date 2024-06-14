@@ -64,9 +64,6 @@ def get_main_spark_data_for_GFMM():
     cbcl_2 = cbcl_2.replace('has no brothers or sisters', 1)
     cbcl_2 = cbcl_2[~cbcl_2.index.duplicated(keep=False)]
     
-    ## OPTIONAL: only keep subscale scores from CBCL
-    #cbcl_2 = cbcl_2[['anxious_depressed_t_score','withdrawn_depressed_t_score','social_problems_t_score','attention_problems_t_score','internalizing_problems_t_score','total_problems_t_score','obsessive_compulsive_problems_t_score','stress_problems_t_score','dsm5_attention_deficit_hyperactivity_t_score','dsm5_anxiety_problems_t_score','dsm5_depressive_problems_t_score']]
-    
     # integrate phenotype measures
     finaldf = pd.concat([scqdf, bhdf, rbsr, cbcl_2],axis=1,join='inner')
     finaldf = finaldf.loc[:,~finaldf.columns.duplicated()]
