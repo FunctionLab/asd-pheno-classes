@@ -2,6 +2,10 @@ import pandas as pd
 import pickle as rick
 
 
+with open('data/gene_ensembl_ID_to_name.pkl', 'rb') as f:
+        ENSEMBL_TO_GENE_NAME = rick.load(f)
+
+
 def load_AF():
     '''
     Load allele frequencies for WES variants.
@@ -14,7 +18,7 @@ def load_AF():
 
 
 def load_dnvs():
-    file = 'data/WES_V2_data/calling_denovos_data/VEP_most_severe_consequence_LOFTEE_DNV_calls_filtered_WES_v2.vcf' # filtered out centromeres and repeats
+    file = 'data/VEP_most_severe_consequence_LOFTEE_DNV_calls_filtered_WES_v2.vcf' # filtered out centromeres and repeats
     dnvs = pd.read_csv(file, sep='\t', comment='#', header=0, index_col=None)
     dnvs = dnvs[['Uploaded_variation', 'Consequence', 'Gene', 'Extra']]
     dnvs['Consequence'] = dnvs['Consequence'].str.split(',').str[0]
@@ -60,7 +64,7 @@ def load_dnvs():
     dnvs_pro['class'] = dnvs_pro['spid'].map(spid_to_class)
     dnvs_pro = dnvs_pro.dropna(subset=['class'])
 
-    sibling_list = '../PhenotypeClasses/data/WES_5392_siblings_spids.txt'
+    sibling_list = '../PhenotypeValidations/data/WES_5392_siblings_spids.txt'
     sibling_list = pd.read_csv(sibling_list, sep='\t', header=None)
     sibling_list.columns = ['spid']
     dnvs_sibs = pd.merge(dnvs_sibs, sibling_list, how='inner', on='spid')
