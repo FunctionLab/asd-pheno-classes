@@ -1,7 +1,8 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.stats import ttest_ind, multipletests
+from scipy.stats import ttest_ind
+from statsmodels.stats.multitest import multipletests
 
 from utils import load_dnvs
 
@@ -12,7 +13,7 @@ def gene_constraint_analysis():
     # get gene sets
     pli = pd.read_csv('gene_sets/pLI_table.txt', sep='\t')
     pli = pli[['gene', 'pLI']]
-    pli_higer = pli[pli['pLI'] >= 0.995]['gene'].tolist()
+    pli_higher = pli[pli['pLI'] >= 0.995]['gene'].tolist()
     pli_lower = pli[(pli['pLI'] >= 0.5) & (pli['pLI'] < 0.995)]['gene'].tolist()
     
     consequences_lof = ['stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost', 'transcript_ablation']
@@ -34,7 +35,7 @@ def gene_constraint_analysis():
 
     plt.style.use('seaborn-v0_8-whitegrid')
     fig, (ax1, ax2) = plt.subplots(1,2,figsize=(11,4.5))
-    for gene_set, ax in zip(['pli_highest', 'pli_medium'], (ax1, ax2)):
+    for gene_set, ax in zip(['pli_higher', 'pli_lower'], (ax1, ax2)):
         props = []
         stds = []
         dnvs_pro['gene_set&consequence'] = dnvs_pro[gene_set] * dnvs_pro['consequence'] * dnvs_pro['LoF']
