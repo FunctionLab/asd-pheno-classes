@@ -104,59 +104,39 @@ def make_gene_trend_figure(fdr=0.05):
     validation_subset['variable'] = pd.Categorical(validation_subset['variable'], categories=order_of_variables, ordered=True)
     validation_subset = validation_subset.sort_values(['variable', 'cluster'])
     
-    # rename 'variable' column
-    validation_subset['variable'] = validation_subset['variable'].map({
-        'Principal_excitatory_neuron_down': 'Principal Excitatory Neuron: Down',
-        'Inhibitory_interneuron_MGE_down': 'Inhibitory Interneuron MGE: Down',
-        'Inhibitory_interneuron_CGE_down': 'Inhibitory Interneuron CGE: Down',
-        'Glia_down': 'Glia: Down',
-        'Principal_excitatory_neuron_trans_down': 'Principal Excitatory Neuron: Trans Down',
-        'Inhibitory_interneuron_MGE_trans_down': 'Inhibitory Interneuron MGE: Trans Down',
-        'Inhibitory_interneuron_CGE_trans_down': 'Inhibitory Interneuron CGE: Trans Down',
-        'Glia_trans_down': 'Glia: Trans Down',
-        'Principal_excitatory_neuron_trans_up': 'Principal Excitatory Neuron: Trans Up',
-        'Inhibitory_interneuron_MGE_trans_up': 'Inhibitory Interneuron MGE: Trans Up',
-        'Inhibitory_interneuron_CGE_trans_up': 'Inhibitory Interneuron CGE: Trans Up',
-        'Glia_trans_up': 'Glia: Trans Up',
-        'Principal_excitatory_neuron_up': 'Principal Excitatory Neuron: Up',
-        'Inhibitory_interneuron_MGE_up': 'Inhibitory Interneuron MGE: Up',
-        'Inhibitory_interneuron_CGE_up': 'Inhibitory Interneuron CGE: Up',
-        'Glia_up': 'Glia: Up'
-    })
-
-    # bubble plot
-    colors = ['black', 'purple', 'blue', 'limegreen', 'violet', 'red']
+    colors = ['black', 'purple', '#27AAE1', '#39B54A', '#FBB040', '#EE2A7B']
     markers = ['x', 'o', 'o', 'o', 'o', 'o']
     validation_subset['marker'] = validation_subset['cluster'].map({-2: 'x', -1: 'o', 0: 'o', 1: 'o', 2: 'o', 3: 'o'})
-    validation_subset['color'] = validation_subset['cluster'].map({-2: 'black', -1: 'purple', 0: 'blue', 1: 'limegreen', 2: 'red', 3: 'violet'})
-    validation_subset['Cluster'] = validation_subset['cluster'].map({-2: 'Siblings', -1: 'All Probands', 0: 'ASD-Developmentally Delayed', 1: 'ASD-Social/RRB', 2: 'ASD-Higher Support Needs', 3: 'ASD-Lower Support Needs'})
+    validation_subset['color'] = validation_subset['cluster'].map({-2: 'black', -1: 'mediumorchid', 0: '#FBB040', 1: '#EE2A7B', 2: '#39B54A', 3: '#27AAE1'})
+    validation_subset['Cluster'] = validation_subset['cluster'].map({-2: 'Siblings', -1: 'All Probands', 0: 'Moderate Challenges', 1: 'Broadly Impacted', 2: 'Social/Behavioral', 3: 'Mixed ASD with DD'})
     validation_subset['trend_color'] = validation_subset['trend'].map({'down': 'navy', 'trans_down': 'lightblue', 'trans_up': 'yellow', 'up': 'coral'})
     
     plt.style.use('seaborn-v0_8-whitegrid')
-    fig, ax = plt.subplots(figsize=(8,9))
+    fig, ax = plt.subplots(figsize=(7,12))
     for _, row in validation_subset.iterrows():
         if row['value'] < -np.log10(fdr):
-            plt.scatter(row['Cluster'], row['variable'], s=row['Fold Enrichment']*220, c='white', linewidth=2.5, edgecolors=row['color'], alpha=0.9)
+            plt.scatter(row['Cluster'], row['variable'], s=row['Fold Enrichment']*210, c='white', linewidth=2.5, edgecolors=row['color'], alpha=0.9)
         else:
-            plt.scatter(row['Cluster'], row['variable'], s=row['Fold Enrichment']*220, c=row['color']) #
+            plt.scatter(row['Cluster'], row['variable'], s=row['Fold Enrichment']*230, c=row['color']) #
 
-    # get legend for bubble size
-    for i in range(5):
-        plt.scatter([], [], s=(i+1)*220, c='gray', label=str(i+1))
-    plt.legend(scatterpoints=1, labelspacing=1.1, title='Fold Enrichment', title_fontsize=23, fontsize=18, loc='upper left', bbox_to_anchor=(1, 1))
-    
+    # legend for bubble size
+    for i in range(2, 16, 3):
+        plt.scatter([], [], s=(i)*230, c='dimgray', label=str(i+1))
+    plt.legend(scatterpoints=1, labelspacing=2.8, title='Fold Enrichment', title_fontsize=23, fontsize=18, loc='upper left', bbox_to_anchor=(1, 1))
+
     plt.yticks(fontsize=18)
     plt.xticks(fontsize=20, rotation=35, ha='right')
-    plt.ylabel('')
+    yticklabels = ['Inhibitory Interneuron MGE', 'Inhibitory Interneuron MGE', 'Principal Excitatory Neuron',
+                    'Principal Excitatory Neuron', 'Glia', 'Inhibitory Interneuron CGE', 'Inhibitory Interneuron MGE', 'Principal Excitatory Neuron'][::-1]
+    plt.yticks(ticks=range(8), labels=yticklabels, fontsize=18)
     for axis in ['top','bottom','left','right']:
         ax.spines[axis].set_linewidth(1.5)
         ax.spines[axis].set_color('black')
-    ylabel_colors = ['navy', 'navy', 'navy', 'navy', 'cornflowerblue', 'gold', 'gold', 'coral']
-    for i, label in enumerate(ax.get_yticklabels()):
-        label.set_color(ylabel_colors[i])
-        label.set_fontweight('bold')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.grid(False)
     
-    plt.savefig(f'figures/WES_gene_trend_analysis.png', bbox_inches='tight')
+    plt.savefig(f'figures/WES_gene_trends_dnLoF_analysis.png', bbox_inches='tight', dpi=600)
     plt.close()
 
 

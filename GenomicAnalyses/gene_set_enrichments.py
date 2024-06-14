@@ -34,7 +34,7 @@ def volcano_LoF():
 
     FE = []
     pvals = []
-    ref_colors = ['violet', 'red', 'limegreen', 'blue']
+    ref_colors = ['#FBB040', '#EE2A7B', '#39B54A', '#27AAE1']
     colors = [] # keep track of colors for plot
 
     gene_sets_to_keep = ['all_genes', 'lof_genes', 'fmrp_genes', 'asd_risk_genes', 'sfari_genes1', 'satterstrom', 'brain_expressed_genes']
@@ -106,6 +106,8 @@ def volcano_LoF():
     for axis in ['top','bottom','left','right']:
         ax.spines[axis].set_linewidth(1.5)
         ax.spines[axis].set_color('black')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     fig.savefig('figures/WES_volcano_plot_DNV_PTVs.png', bbox_inches='tight')
     plt.close()
 
@@ -137,7 +139,7 @@ def volcano_missense():
 
     FE = []
     pvals = []
-    ref_colors = ['violet', 'red', 'limegreen', 'blue']
+    ref_colors = ['#FBB040', '#EE2A7B', '#39B54A', '#27AAE1']
     colors = []
 
     gene_sets_to_keep = ['all_genes', 'lof_genes', 'fmrp_genes', 'asd_risk_genes', 'sfari_genes1', 'satterstrom', 'brain_expressed_genes']
@@ -205,6 +207,8 @@ def volcano_missense():
     for axis in ['top','bottom','left','right']:
         ax.spines[axis].set_linewidth(1.5)
         ax.spines[axis].set_color('black')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     fig.savefig('figures/WES_volcano_plot_DNV_missense_variants.png', bbox_inches='tight')
     plt.close()
 
@@ -242,7 +246,7 @@ def volcano_inherited():
 
     FE = []
     pvals = []
-    ref_colors = ['violet', 'red', 'limegreen', 'blue', 'black']
+    ref_colors = ['#FBB040', '#EE2A7B', '#39B54A', '#27AAE1', 'black']
     colors = []
 
     gene_set_to_index = {gene_set: i for i, gene_set in enumerate(gene_set_names)}
@@ -298,6 +302,8 @@ def volcano_inherited():
     for axis in ['top','bottom','left','right']:
         ax.spines[axis].set_linewidth(1.5)
         ax.spines[axis].set_color('black')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     fig.savefig('figures/WES_volcano_plot_INH_PTVs.png', bbox_inches='tight')
     plt.close()
 
@@ -305,7 +311,7 @@ def volcano_inherited():
     FE = []
     pvals = []
     tick_labels = []
-    ref_colors = ['violet', 'red', 'limegreen', 'blue']
+    ref_colors = ['#FBB040', '#EE2A7B', '#39B54A', '#27AAE1']
     colors = []
 
     gene_sets_to_keep = ['all_genes', 'lof_genes', 'fmrp_genes', 'asd_risk_genes', 'sfari_genes1', 'satterstrom', 'brain_expressed_genes']
@@ -360,6 +366,8 @@ def volcano_inherited():
     for axis in ['top','bottom','left','right']:
         ax.spines[axis].set_linewidth(1.5)
         ax.spines[axis].set_color('black')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     fig.savefig('figures/WES_volcano_plot_INH_missense.png', bbox_inches='tight')
     plt.close()
 

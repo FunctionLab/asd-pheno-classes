@@ -34,7 +34,7 @@ def gene_constraint_analysis():
 
     plt.style.use('seaborn-v0_8-whitegrid')
     fig, (ax1, ax2) = plt.subplots(1,2,figsize=(11,4.5))
-    for gene_set, ax in zip(['pli_higher', 'pli_lower'], (ax1, ax2)):
+    for gene_set, ax in zip(['pli_highest', 'pli_medium'], (ax1, ax2)):
         props = []
         stds = []
         dnvs_pro['gene_set&consequence'] = dnvs_pro[gene_set] * dnvs_pro['consequence'] * dnvs_pro['LoF']
@@ -55,12 +55,17 @@ def gene_constraint_analysis():
         sibs = dnvs_sibs.groupby('spid')['gene_set&consequence'].sum().tolist()
         sibs = sibs + zero_sibs['count'].astype(int).tolist()
 
-        # get average number of LoF variants per spid in each class
         class0_avg = np.mean(class0)
         class1_avg = np.mean(class1)
         class2_avg = np.mean(class2)
         class3_avg = np.mean(class3)
         sibs_avg = np.mean(sibs)
+
+        class0_rest_of_sample = class1 + class2 + class3 + sibs
+        class1_rest_of_sample = class0 + class2 + class3 + sibs
+        class2_rest_of_sample = class0 + class1 + class3 + sibs
+        class3_rest_of_sample = class0 + class1 + class2 + sibs
+        sibs_rest_of_sample = class0 + class1 + class2 + class3
 
         class0_pval = ttest_ind(class0, sibs, equal_var=False, alternative='greater')[1]
         class1_pval = ttest_ind(class1, sibs, equal_var=False, alternative='greater')[1]
@@ -81,27 +86,33 @@ def gene_constraint_analysis():
         stds.append(np.std(class2)/np.sqrt(num_class2))
         stds.append(np.std(class3)/np.sqrt(num_class3))
 
-        # plot proportions in scatterplot
         x_values = list(np.arange(len(props)))
         y_values = props
-        colors = ['dimgray', 'violet', 'red', 'limegreen', 'blue']
+        colors = ['dimgray', '#FBB040', '#EE2A7B', '#39B54A', '#27AAE1']
         for i in range(len(x_values)):
             ax.errorbar(x_values[i], y_values[i], yerr=stds[i], fmt='o', color=colors[i], markersize=20)
         ax.set_xlabel('')
-        ax.set_ylabel('dnLoF per offspring', fontsize=16)
-        ax.set_xticks(x_values)
-        if gene_set == 'pli_higher':
-            ax.set_title('pLI ≥ 0.995', fontsize=21)
+        if ax == ax1:
+            ax.set_ylabel('dnLoF per offspring', fontsize=16)
         else:
-            ax.set_title('0.5 ≤ pLI < 0.995', fontsize=21)
+            ax.set_ylabel('')
+        ax.set_xticks(x_values)
+        if gene_set == 'pli_highest':
+            ax.set_title('pLI ≥ 0.995', fontsize=19)
+        elif gene_set == 'pli_medium':
+            ax.set_title('0.5 ≤ pLI < 0.995', fontsize=19)
+        elif gene_set == 'pli_low':
+            ax.set_title('0.5 ≤ pLI < 0.9', fontsize=19)
         ax.set_axisbelow(True)
-        ax.tick_params(axis='y', labelsize=14)
+        ax.tick_params(axis='y', labelsize=16)
         for axis in ['top','bottom','left','right']:
             ax.spines[axis].set_linewidth(1.5)
             ax.spines[axis].set_color('black')
         ax.grid(color='gray', linestyle='-', linewidth=0.5)
+        ax.set_xticklabels([])
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
 
-        # add significance stars to plot
         for grpidx in [0,1,2,3]:
             p_value = pvals[grpidx]
             x_position = grpidx+1
@@ -109,11 +120,11 @@ def gene_constraint_analysis():
             se_value = stds[grpidx+1]
             ypos = y_position + se_value 
             if p_value < 0.01:
-                ax.annotate('***', xy=(x_position, ypos), ha='center', size=20)
+                ax.annotate('***', xy=(x_position, ypos), ha='center', size=24, fontweight='bold')
             elif p_value < 0.05:
-                ax.annotate('**', xy=(x_position, ypos), ha='center', size=20)
+                ax.annotate('**', xy=(x_position, ypos), ha='center', size=24, fontweight='bold')
             elif p_value < 0.1:
-                ax.annotate('*', xy=(x_position, ypos), ha='center', size=20)
+                ax.annotate('*', xy=(x_position, ypos), ha='center', size=24, fontweight='bold')
     fig.tight_layout()
     fig.savefig('figures/WES_gene_constraint_avg_lof_per_offspring.png', bbox_inches='tight')
     plt.close()

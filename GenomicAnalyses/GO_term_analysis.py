@@ -7,6 +7,8 @@ from utils import sort_and_select_top
 
 
 def GO_term_analysis(num_top_terms=3):
+
+    # read go term files
     class0_biol_processes = pd.read_csv('data/class0_top_pathways.csv')
     class0_mol_functions = pd.read_csv('data/class0_top_mol_functions.csv')
     class1_biol_processes = pd.read_csv('data/class1_top_pathways.csv')
@@ -15,126 +17,105 @@ def GO_term_analysis(num_top_terms=3):
     class2_mol_functions = pd.read_csv('data/class2_top_mol_functions.csv')
     class3_biol_processes = pd.read_csv('data/class3_top_pathways.csv')
     class3_mol_functions = pd.read_csv('data/class3_top_mol_functions.csv')
+
+    class0_biol_processes = class0_biol_processes.sort_values(by=['Fold Enrichment'], ascending=False)
+    class0_biol_processes = class0_biol_processes.iloc[:num_top_terms, :]
+    class0_mol_functions = class0_mol_functions.sort_values(by=['Fold Enrichment'], ascending=False)
+    class0_mol_functions = class0_mol_functions.iloc[:num_top_terms, :]
+    class1_biol_processes = class1_biol_processes.sort_values(by=['Fold Enrichment'], ascending=False)
+    class1_biol_processes = class1_biol_processes.iloc[:num_top_terms, :]
+    class1_mol_functions = class1_mol_functions.sort_values(by=['Fold Enrichment'], ascending=False)
+    class1_mol_functions = class1_mol_functions.iloc[:num_top_terms, :]
+    class2_biol_processes = class2_biol_processes.sort_values(by=['Fold Enrichment'], ascending=False)
+    class2_biol_processes = class2_biol_processes.iloc[:num_top_terms, :]
+    class2_mol_functions = class2_mol_functions.sort_values(by=['Fold Enrichment'], ascending=False)
+    class2_mol_functions = class2_mol_functions.iloc[:num_top_terms, :]
+    class3_biol_processes = class3_biol_processes.sort_values(by=['Fold Enrichment'], ascending=False)
+    class3_biol_processes = class3_biol_processes.iloc[:num_top_terms, :]
+    class3_mol_functions = class3_mol_functions.sort_values(by=['Fold Enrichment'], ascending=False)
+    class3_mol_functions = class3_mol_functions.iloc[:num_top_terms, :]
     
-    dataframes = {
-        'class0_biol_processes': class0_biol_processes,
-        'class0_mol_functions': class0_mol_functions,
-        'class1_biol_processes': class1_biol_processes,
-        'class1_mol_functions': class1_mol_functions,
-        'class2_biol_processes': class2_biol_processes,
-        'class2_mol_functions': class2_mol_functions,
-        'class3_biol_processes': class3_biol_processes,
-        'class3_mol_functions': class3_mol_functions
-    }
-
-    for name, df in dataframes.items():
-        dataframes[name] = sort_and_select_top(df, num_top_terms)
-
-    # Unpack the modified dataframes back into individual variables
-    class0_biol_processes = dataframes['class0_biol_processes']
-    class0_mol_functions = dataframes['class0_mol_functions']
-    class1_biol_processes = dataframes['class1_biol_processes']
-    class1_mol_functions = dataframes['class1_mol_functions']
-    class2_biol_processes = dataframes['class2_biol_processes']
-    class2_mol_functions = dataframes['class2_mol_functions']
-    class3_biol_processes = dataframes['class3_biol_processes']
-    class3_mol_functions = dataframes['class3_mol_functions']
-
-    # concat biological processes and molecular functions
-    class0_enrich = pd.concat([class0_biol_processes, class0_mol_functions], axis=0)
-    class1_enrich = pd.concat([class1_biol_processes, class1_mol_functions], axis=0)
     class2_enrich = pd.concat([class2_biol_processes, class2_mol_functions], axis=0)
     class3_enrich = pd.concat([class3_biol_processes, class3_mol_functions], axis=0)
-    
+    class0_enrich = pd.concat([class0_biol_processes, class0_mol_functions], axis=0)
+    class1_enrich = pd.concat([class1_biol_processes, class1_mol_functions], axis=0)
+
+    # process
     class0_enrich['Enrichment FDR'] = class0_enrich['Enrichment FDR'].apply(lambda x: -np.log10(x))
     class1_enrich['Enrichment FDR'] = class1_enrich['Enrichment FDR'].apply(lambda x: -np.log10(x))
     class2_enrich['Enrichment FDR'] = class2_enrich['Enrichment FDR'].apply(lambda x: -np.log10(x))
     class3_enrich['Enrichment FDR'] = class3_enrich['Enrichment FDR'].apply(lambda x: -np.log10(x))
-    # remove GO term ID from pathway name
+    
     class0_enrich['Pathway'] = class0_enrich['Pathway'].apply(lambda x: ' '.join(x.split()[1:]))
     class1_enrich['Pathway'] = class1_enrich['Pathway'].apply(lambda x: ' '.join(x.split()[1:]))
     class2_enrich['Pathway'] = class2_enrich['Pathway'].apply(lambda x: ' '.join(x.split()[1:]))
     class3_enrich['Pathway'] = class3_enrich['Pathway'].apply(lambda x: ' '.join(x.split()[1:]))
-    class3_enrich = class3_enrich.replace('double-strand break repair via alternative nonhomologous end joining', 'double-strand break repair') # simplify term
+    class3_enrich = class3_enrich.replace('double-strand break repair via alternative nonhomologous end joining', 'double-strand break repair')
     
-    # bubble plot
     plt.style.use('seaborn-v0_8-whitegrid')
-    fig, (ax0, ax1, ax2, ax3) = plt.subplots(4,1,figsize=(13.5,16))
-    
-    # class 0
-    sns.scatterplot(x='Fold Enrichment', y='Pathway', hue='Enrichment FDR', palette=sns.light_palette("violet", as_cmap=True), s=450, data=class0_enrich, edgecolor='black', linewidth=1, ax=ax0)
-    handles, labels = ax0.get_legend_handles_labels()
-    rounded_labels = [f'{float(label):.1f}' for label in labels]
-    ax0.legend(handles, rounded_labels, scatterpoints=1, labelspacing=1.1, title='-log10(FDR)', title_fontsize=18, fontsize=16, loc='upper left', bbox_to_anchor=(1, 1))
-    ax0.set_title('ASD-Low Support Needs', fontsize=28)
+    fig, (ax0, ax1, ax2, ax3) = plt.subplots(4,1,figsize=(14,16))
+
+    # Calculate scaling factor for legend
+    max_bubble_size = class0_enrich['Enrichment FDR'].max() * 60
+
+    ax0.hlines(y=class0_enrich['Pathway'], xmin=0, xmax=class0_enrich['Fold Enrichment']-1.4, color='black',linewidth=2.5, alpha=0.8)
+    sns.scatterplot(x='Fold Enrichment', y='Pathway', palette='black', color='black', s=class0_enrich['Enrichment FDR'] * max_bubble_size, data=class0_enrich, ax=ax0)
+    for i in range(3):
+        ax0.scatter([], [], s=(i + 1) * max_bubble_size, c='black', label=str(i + 1))
+    ax0.legend(scatterpoints=1, labelspacing=1.1, title='-log10(FDR)', title_fontsize=23, fontsize=18, loc='upper left', bbox_to_anchor=(1, 1))
+    ax0.set_xlim([0,47])
+    ax0.set_title('Moderate Challenges', fontsize=22)
     ax0.tick_params(labelsize=18)
     for axis in ['top','bottom','left','right']:
         ax0.spines[axis].set_linewidth(1.5)
         ax0.spines[axis].set_color('black')
+    ax0.spines['top'].set_visible(False)
+    ax0.spines['right'].set_visible(False)
     ax0.set_xlabel('')
     ax0.set_ylabel('')
-    for i in range(num_top_terms): # color y tick labels
-        ax0.get_yticklabels()[i].set_color('darkorange')
-    for i in range(num_top_terms, 2*num_top_terms):
-        ax0.get_yticklabels()[i].set_color('purple')
     
-    # class 1
-    sns.scatterplot(x='Fold Enrichment', y='Pathway', hue='Enrichment FDR', palette=sns.light_palette("red", as_cmap=True), s=450, data=class1_enrich, edgecolor='black', linewidth=1, ax=ax1)
-    handles, labels = ax1.get_legend_handles_labels()
-    rounded_labels = [f'{float(label):.1f}' for label in labels]
-    ax1.legend(handles, rounded_labels, scatterpoints=1, labelspacing=1.1, title='-log10(FDR)', title_fontsize=18, fontsize=16, loc='upper left', bbox_to_anchor=(1, 1))
-    ax1.set_title('ASD-High Support Needs', fontsize=28)
+    ax1.hlines(y=class1_enrich['Pathway'], xmin=0, xmax=class1_enrich['Fold Enrichment']-2.6, color='black',linewidth=2.5, alpha=0.8)
+    sns.scatterplot(x='Fold Enrichment', y='Pathway', palette='black', color='black', s=class1_enrich['Enrichment FDR'] * max_bubble_size, data=class1_enrich, ax=ax1)
+    ax1.set_xlim([0,100])
+    ax1.set_title('Broadly Impacted', fontsize=22)
     ax1.tick_params(labelsize=18)
     for axis in ['top','bottom','left','right']:
         ax1.spines[axis].set_linewidth(1.5)
         ax1.spines[axis].set_color('black')
+    ax1.spines['top'].set_visible(False)        
+    ax1.spines['right'].set_visible(False)    
     ax1.set_xlabel('')
     ax1.set_ylabel('')
-    for i in range(num_top_terms):
-        ax1.get_yticklabels()[i].set_color('darkorange')
-    for i in range(num_top_terms, 2*num_top_terms):
-        ax1.get_yticklabels()[i].set_color('purple')
-    
-    # class 2
-    sns.scatterplot(x='Fold Enrichment', y='Pathway', hue='Enrichment FDR', palette=sns.light_palette("limegreen", as_cmap=True), s=450, data=class2_enrich, edgecolor='black', linewidth=1, ax=ax2)
-    handles, labels = ax2.get_legend_handles_labels()
-    rounded_labels = [f'{float(label):.1f}' for label in labels]
-    ax2.legend(handles, rounded_labels, scatterpoints=1, labelspacing=1.1, title='-log10(FDR)', title_fontsize=18, fontsize=16, loc='upper left', bbox_to_anchor=(1, 1))
-    ax2.set_title('ASD-Social/RRB', fontsize=28)
+
+    ax2.hlines(y=class2_enrich['Pathway'], xmin=0, xmax=class2_enrich['Fold Enrichment']-3, color='black',linewidth=2.5, alpha=0.8)
+    sns.scatterplot(x='Fold Enrichment', y='Pathway', palette='black', color='black', s=class2_enrich['Enrichment FDR'] * max_bubble_size, data=class2_enrich, ax=ax2)
+    ax2.set_title('Social/Behavioral', fontsize=22)
     ax2.tick_params(labelsize=18)
+    ax2.set_xlim([0,105])
     for axis in ['top','bottom','left','right']:
         ax2.spines[axis].set_linewidth(1.5)
         ax2.spines[axis].set_color('black')
+    ax2.spines['top'].set_visible(False)
+    ax2.spines['right'].set_visible(False)
     ax2.set_xlabel('')
     ax2.set_ylabel('')
-    for i in range(num_top_terms):
-        ax2.get_yticklabels()[i].set_color('darkorange')
-    for i in range(num_top_terms, 2*num_top_terms):
-        ax2.get_yticklabels()[i].set_color('purple')
 
-    # class 3
-    sns.scatterplot(x='Fold Enrichment', y='Pathway', hue='Enrichment FDR', palette=sns.light_palette("blue", as_cmap=True), s=450, data=class3_enrich, edgecolor='black', linewidth=1, ax=ax3)
-    handles, labels = ax3.get_legend_handles_labels()
-    rounded_labels = [f'{float(label):.1f}' for label in labels]
-    ax3.legend(handles, rounded_labels, scatterpoints=1, labelspacing=1.1, title='-log10(FDR)', title_fontsize=18, fontsize=16, loc='upper left', bbox_to_anchor=(1, 1))
-    ax3.set_title('ASD-Developmentally Delayed', fontsize=28)
+    ax3.hlines(y=class3_enrich['Pathway'], xmin=0, xmax=class3_enrich['Fold Enrichment']-1, color='black',linewidth=2.5, alpha=0.8)
+    sns.scatterplot(x='Fold Enrichment', y='Pathway', palette='black', color='black', s=class3_enrich['Enrichment FDR'] * max_bubble_size, data=class3_enrich, ax=ax3)
+    ax3.set_title('Mixed ASD with DD', fontsize=22)
+    ax3.set_xlim([0,34])
     ax3.tick_params(labelsize=18)
     for axis in ['top','bottom','left','right']:
         ax3.spines[axis].set_linewidth(1.5)
         ax3.spines[axis].set_color('black')
+    ax3.spines['top'].set_visible(False)
+    ax3.spines['right'].set_visible(False)
     ax3.set_xlabel('Fold Enrichment', fontsize=24)
     ax3.set_ylabel('')
-    for i in range(num_top_terms):
-        ax3.get_yticklabels()[i].set_color('darkorange')
-    for i in range(num_top_terms, 2*num_top_terms):
-        ax3.get_yticklabels()[i].set_color('purple')
 
-    # add legend: dark orange = Biological Processes, purple = Molecular functions
-    #ax2.text(1.05, 0.2, 'Biological Process', fontsize=19, color='darkorange', transform=ax0.transAxes)
-    #ax2.text(1.05, 0.25, 'Molecular Function', fontsize=19, color='purple', transform=ax0.transAxes)
-
+    fig.suptitle('Enrichment of pathways and processes', fontsize=26)
     fig.tight_layout()
-    plt.savefig('figures/WES_GO_term_enrichment.png', bbox_inches='tight')
+    plt.savefig('figures/GO_enrichment_figure.png', bbox_inches='tight', dpi=600)
     plt.close()
 
 
