@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
-from scipy.stats import ttest_ind, multipletests, binomtest
+from scipy.stats import ttest_ind, binomtest
+from statsmodels.stats.multitest import multipletests
 
 
 def cohens_d(group1, group2):
@@ -187,33 +188,33 @@ def get_feature_enrichments(mixed_data, summarize=False):
             mean_values[feature] = [mean0, mean1, mean2, mean3]
 
         elif len(unique) > 2:  ## continuous or categorical
-            pval_class0 = stats.ttest_ind(class0[feature],
+            pval_class0 = ttest_ind(class0[feature],
                                           pd.concat([class1[feature], class2[feature], class3[feature]],
                                                     ignore_index=True, sort=False), equal_var=False,
                                           alternative='greater').pvalue
-            pval_class1 = stats.ttest_ind(class1[feature],
+            pval_class1 = ttest_ind(class1[feature],
                                           pd.concat([class0[feature], class2[feature], class3[feature]],
                                                     ignore_index=True, sort=False), equal_var=False,
                                           alternative='greater').pvalue
-            pval_class2 = stats.ttest_ind(class2[feature],
+            pval_class2 = ttest_ind(class2[feature],
                                           pd.concat([class0[feature], class1[feature], class3[feature]],
                                                     ignore_index=True, sort=False), equal_var=False,
                                           alternative='greater').pvalue
-            pval_class3 = stats.ttest_ind(class3[feature],
+            pval_class3 = ttest_ind(class3[feature],
                                           pd.concat([class0[feature], class1[feature], class2[feature]],
                                                     ignore_index=True, sort=False), equal_var=False,
                                           alternative='greater').pvalue
 
-            pval_class0_less = stats.ttest_ind(class0[feature], pd.concat(
+            pval_class0_less = ttest_ind(class0[feature], pd.concat(
                 [class1[feature], class2[feature], class3[feature]], ignore_index=True, sort=False),
                                                equal_var=False, alternative='less').pvalue
-            pval_class1_less = stats.ttest_ind(class1[feature], pd.concat(
+            pval_class1_less = ttest_ind(class1[feature], pd.concat(
                 [class0[feature], class2[feature], class3[feature]], ignore_index=True, sort=False),
                                                equal_var=False, alternative='less').pvalue
-            pval_class2_less = stats.ttest_ind(class2[feature], pd.concat(
+            pval_class2_less = ttest_ind(class2[feature], pd.concat(
                 [class0[feature], class1[feature], class3[feature]], ignore_index=True, sort=False),
                                                equal_var=False, alternative='less').pvalue
-            pval_class3_less = stats.ttest_ind(class3[feature], pd.concat(
+            pval_class3_less = ttest_ind(class3[feature], pd.concat(
                 [class0[feature], class1[feature], class2[feature]], ignore_index=True, sort=False),
                                                equal_var=False, alternative='less').pvalue
             

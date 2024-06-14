@@ -12,11 +12,11 @@ from scipy.stats import binomtest, pearsonr
 from utils import split_columns, get_feature_enrichments, cohens_d, adjust_pvalues
 
 
-def run_mixture_model_on_phenotypes(ncomp=4, summarize=False):
+def run_mixture_model_on_phenotypes(ncomp=4, summarize=True):
     datadf = pd.read_csv('data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)
     datadf = datadf.round()
     age = datadf['age_at_eval_years']
-
+    
     Z_p = datadf[['sex', 'age_at_eval_years']]
     X = datadf.drop(['sex', 'age_at_eval_years'], axis=1) 
     
@@ -58,7 +58,10 @@ def run_mixture_model_on_phenotypes(ncomp=4, summarize=False):
     plt.close()
 
     # get age and sex breakdown by class
+    mixed_data = mixed_data.merge(datadf['sex'], left_index=True, right_index=True)
     get_age_sex_distributions_for_classes(mixed_data, ncomp) 
+
+    return df_enriched_depleted, fold_enrichments
 
 
 def generate_summary_table(df_enriched_depleted, fold_enrichments):
@@ -87,7 +90,7 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments):
     features_to_exclude = features_to_exclude['feature'].unique()
 
     # read in feature_to_category mapping
-    features_to_category = pd.read_csv('../PhenotypeValidation/data/feature_to_category_mapping.csv', index_col=None)
+    features_to_category = pd.read_csv('../PhenotypeValidations/data/feature_to_category_mapping.csv', index_col=None)
     feature_to_category = dict(zip(features_to_category['feature'], features_to_category['category']))
     df = df_enriched_depleted.copy()
     df = df.fillna('NaN')
@@ -226,7 +229,7 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments):
     # Horizontally plot the phenotype categories, have one line per class, y-axis = proportion of significant features
     prop_df = prop_df.drop(['class0_enriched', 'class0_depleted', 'class1_enriched', 'class1_depleted', 'class2_enriched', 'class2_depleted', 'class3_enriched', 'class3_depleted'], axis=1)
     prop_df.columns = ['0', '1', '2', '3']
-    features_to_visualize = features_to_visualize[:-1]
+    features_to_visualize = ['anxiety/mood', 'attention', 'disruptive behavior', 'self-injury', 'restricted/repetitive', 'social/communication', 'developmental']
     prop_df = prop_df.loc[features_to_visualize]
     prop_df.index = np.arange(len(prop_df))    
     
