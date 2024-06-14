@@ -12,7 +12,7 @@ from utils import get_cross_cohort_SPARK_data, generate_ssc_data, split_columns,
 
 
 def cross_cohort_replication(ncomp):
-    #spark_labels, ssc_labels = run_spark_model(ncomp)
+    spark_labels, ssc_labels = run_spark_model(ncomp)
 
     # load labels
     spark_labels = pd.read_csv('data/spark_cross_cohort_labels.csv', index_col=0)
