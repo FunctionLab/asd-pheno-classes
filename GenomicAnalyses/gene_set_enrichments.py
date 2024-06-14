@@ -2,7 +2,9 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
-from scipy.stats import ttest_ind, multipletests
+from scipy.stats import ttest_ind
+import pickle as rick
+from statsmodels.stats.multitest import multipletests
 
 from utils import load_dnvs, get_gene_sets
 
@@ -37,14 +39,12 @@ def volcano_LoF():
     ref_colors = ['#FBB040', '#EE2A7B', '#39B54A', '#27AAE1']
     colors = [] # keep track of colors for plot
 
-    gene_sets_to_keep = ['all_genes', 'lof_genes', 'fmrp_genes', 'asd_risk_genes', 'sfari_genes1', 'satterstrom', 'brain_expressed_genes']
+    gene_set_order = ['all_genes', 'lof_genes', 'fmrp_genes', 'asd_risk_genes', 'sfari_genes1', 'satterstrom', 'brain_expressed_genes']
     shapes = []
     shape_list = ['o', 'v', 'p', '^', 'd', "P", 's', '>', '*', 'X', 'D']
-    shape_list = shape_list[0:len(gene_sets_to_keep)]
+    shape_list = shape_list[0:len(gene_set_order)]
 
-    for gene_set in gene_sets_to_keep:
-        shape = potential_shapes.pop(0)
-        shapes += [shape, shape, shape, shape]
+    for gene_set in gene_set_order:
         dnvs_pro[f'{gene_set}&consequence'] = dnvs_pro[gene_set] * dnvs_pro['consequence'] * dnvs_pro['LoF'] 
         dnvs_sibs[f'{gene_set}&consequence'] = dnvs_sibs[gene_set] * dnvs_sibs['consequence'] * dnvs_sibs['LoF']
 
@@ -64,12 +64,12 @@ def volcano_LoF():
         sibs = sibs + zero_sibs['count'].astype(int).tolist()
 
         # pvalue comparing each class to sibs using a t-test
-        background = np.sum(sibs)/(num_sibs)
+        background = (np.sum(sibs))/(num_sibs)
         class0_pval = ttest_ind(class0, sibs, equal_var=False, alternative='greater')[1]
         class1_pval = ttest_ind(class1, sibs, equal_var=False, alternative='greater')[1]
         class2_pval = ttest_ind(class2, sibs, equal_var=False, alternative='greater')[1]
         class3_pval = ttest_ind(class3, sibs, equal_var=False, alternative='greater')[1]
-        corrected = multipletests([class0_pval, class1_pval, class2_pval, class3_pval], method='fdr_bh', alpha=0.05)[1]
+        corrected = multipletests([class0_pval, class1_pval, class2_pval, class3_pval], method='fdr_bh')[1]
         class0_pval = -np.log10(corrected[0])
         class1_pval = -np.log10(corrected[1])
         class2_pval = -np.log10(corrected[2])
@@ -80,6 +80,8 @@ def volcano_LoF():
         class2_fe = np.log2((np.sum(class2)/num_class2)/background)
         class3_fe = np.log2((np.sum(class3)/num_class3)/background)
 
+        shape = shape_list.pop(0)
+        shapes += [shape, shape, shape, shape]
         FE += [class0_fe, class1_fe, class2_fe, class3_fe]
         pvals += [class0_pval, class1_pval, class2_pval, class3_pval]
         colors += ref_colors
@@ -108,7 +110,7 @@ def volcano_LoF():
         ax.spines[axis].set_color('black')
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-    fig.savefig('figures/WES_volcano_plot_DNV_PTVs.png', bbox_inches='tight')
+    fig.savefig('figures/WES_volcano_plot_dnLoF.png', bbox_inches='tight', dpi=600)
     plt.close()
 
 
@@ -142,13 +144,14 @@ def volcano_missense():
     ref_colors = ['#FBB040', '#EE2A7B', '#39B54A', '#27AAE1']
     colors = []
 
-    gene_sets_to_keep = ['all_genes', 'lof_genes', 'fmrp_genes', 'asd_risk_genes', 'sfari_genes1', 'satterstrom', 'brain_expressed_genes']
+    gene_set_order = ['all_genes', 'lof_genes', 'fmrp_genes', 'asd_risk_genes', 'sfari_genes1', 'satterstrom', 'brain_expressed_genes']
     shapes = []
     shape_list = ['o', 'v', 'p', '^', 'd', "P", 's', '>', '*', 'X', 'D']
-    shape_list = shape_list[0:len(gene_sets_to_keep)]
-    for gene_set in gene_sets_to_keep:
+    shape_list = shape_list[0:len(gene_set_order)]
+    for gene_set in gene_set_order:
         dnvs_pro['gene_set&consequence'] = dnvs_pro[gene_set] * dnvs_pro['consequence'] * dnvs_pro['am_class']
         dnvs_sibs['gene_set&consequence'] = dnvs_sibs[gene_set] * dnvs_sibs['consequence'] * dnvs_sibs['am_class']
+
         class0 = dnvs_pro[dnvs_pro['class'] == 0].groupby('spid')['gene_set&consequence'].sum().tolist()
         zero_class0 = zero_pro[zero_pro['mixed_pred'] == 0]['count'].astype(int).tolist()
         class0 = class0 + zero_class0
@@ -162,7 +165,7 @@ def volcano_missense():
         zero_class3 = zero_pro[zero_pro['mixed_pred'] == 3]['count'].astype(int).tolist()
         class3 = class3 + zero_class3
         sibs = dnvs_sibs.groupby('spid')['gene_set&consequence'].sum().tolist()
-        sibs = sibs + zero_sibs['count'].astype(int).tolist() + [1] # add pseudocount to avoid division by zero
+        sibs = sibs + zero_sibs['count'].astype(int).tolist()
         all_pros_data = class0 + class1 + class2 + class3
         
         class0_rest_of_sample = class1 + class2 + class3 + sibs
@@ -170,13 +173,13 @@ def volcano_missense():
         class2_rest_of_sample = class0 + class1 + class3 + sibs
         class3_rest_of_sample = class0 + class1 + class2 + sibs
 
-        background = np.sum(sibs)/(num_sibs)
+        background = (np.sum(sibs))/(num_sibs)
         class0_pval = ttest_ind(class0, sibs, equal_var=False, alternative='greater')[1]
         class1_pval = ttest_ind(class1, sibs, equal_var=False, alternative='greater')[1]
         class2_pval = ttest_ind(class2, sibs, equal_var=False, alternative='greater')[1]
         class3_pval = ttest_ind(class3, sibs, equal_var=False, alternative='greater')[1]
 
-        corrected = multipletests([class0_pval, class1_pval, class2_pval, class3_pval], method='fdr_bh', alpha=0.05)[1]
+        corrected = multipletests([class0_pval, class1_pval, class2_pval, class3_pval], method='fdr_bh')[1]
         class0_pval = -np.log10(corrected[0])
         class1_pval = -np.log10(corrected[1])
         class2_pval = -np.log10(corrected[2])
@@ -187,7 +190,7 @@ def volcano_missense():
         class2_fe = np.log2((np.sum(class2)/num_class2)/background)
         class3_fe = np.log2((np.sum(class3)/num_class3)/background)
 
-        shape = potential_shapes.pop(0)
+        shape = shape_list.pop(0)
         shapes += [shape, shape, shape, shape]
         FE += [class0_fe, class1_fe, class2_fe, class3_fe]
         pvals += [class0_pval, class1_pval, class2_pval, class3_pval]
@@ -209,7 +212,7 @@ def volcano_missense():
         ax.spines[axis].set_color('black')
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-    fig.savefig('figures/WES_volcano_plot_DNV_missense_variants.png', bbox_inches='tight')
+    fig.savefig('figures/WES_volcano_plot_dnMis.png', bbox_inches='tight', dpi=600)
     plt.close()
 
 
@@ -222,8 +225,8 @@ def volcano_inherited():
     with open('data/spid_to_num_missense_rare_inherited.pkl', 'rb') as f:
         spid_to_num_missense = rick.load(f)
 
-    gfmm_labels = pd.read_csv('asd-pheno-classes/PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=False, header=0)
-    sibling_list = 'asd-pheno-classes/PhenotypeClasses/data/WES_5392_siblings_spids.txt'
+    gfmm_labels = pd.read_csv('../PhenotypeValidations/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=False, header=0)
+    sibling_list = '../PhenotypeValidations/data/WES_5392_siblings_spids.txt'
     gfmm_labels = gfmm_labels.rename(columns={'subject_sp_id': 'spid'})
     spid_to_class = dict(zip(gfmm_labels['spid'], gfmm_labels['mixed_pred']))
 
@@ -246,15 +249,15 @@ def volcano_inherited():
 
     FE = []
     pvals = []
-    ref_colors = ['#FBB040', '#EE2A7B', '#39B54A', '#27AAE1', 'black']
+    ref_colors = ['#FBB040', '#EE2A7B', '#39B54A', '#27AAE1']
     colors = []
 
     gene_set_to_index = {gene_set: i for i, gene_set in enumerate(gene_set_names)}
-    gene_sets_to_keep = ['all_genes', 'lof_genes', 'fmrp_genes', 'asd_risk_genes', 'sfari_genes1', 'satterstrom', 'brain_expressed_genes']
-    gene_set_indices = [gene_set_to_index[gene_set] for gene_set in gene_sets_to_keep]
+    gene_set_order = ['all_genes', 'lof_genes', 'fmrp_genes', 'asd_risk_genes', 'sfari_genes1', 'satterstrom', 'brain_expressed_genes']
+    gene_set_indices = [gene_set_to_index[gene_set] for gene_set in gene_set_order]
     shapes = []
     shape_list = ['o', 'v', 'p', '^', 'd', "P", 's', '>', '*', 'X', 'D']
-    shape_list = shape_list[0:len(gene_sets_to_keep)]
+    shape_list = shape_list[0:len(gene_set_order)]
     
     for i in gene_set_indices:
         gene_set = gene_set_names[i]
@@ -276,7 +279,7 @@ def volcano_inherited():
         class2_pval = -np.log10(corrected[2])
         class3_pval = -np.log10(corrected[3])
 
-        background = np.sum(sibs)/(num_sibs)
+        background = (np.sum(sibs))/(num_sibs)
         class0_fe = np.log2((np.sum(class0)/num_class0)/background)
         class1_fe = np.log2((np.sum(class1)/num_class1)/background)
         class2_fe = np.log2((np.sum(class2)/num_class2)/background)
@@ -304,7 +307,7 @@ def volcano_inherited():
         ax.spines[axis].set_color('black')
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-    fig.savefig('figures/WES_volcano_plot_INH_PTVs.png', bbox_inches='tight')
+    fig.savefig('figures/WES_volcano_plot_inhLoF.png', bbox_inches='tight', dpi=600)
     plt.close()
 
     # rare inherited missense variants
@@ -314,10 +317,9 @@ def volcano_inherited():
     ref_colors = ['#FBB040', '#EE2A7B', '#39B54A', '#27AAE1']
     colors = []
 
-    gene_sets_to_keep = ['all_genes', 'lof_genes', 'fmrp_genes', 'asd_risk_genes', 'sfari_genes1', 'satterstrom', 'brain_expressed_genes']
     shapes = []
     shape_list = ['o', 'v', 'p', '^', 'd', "P", 's', '>', '*', 'X', 'D']
-    shape_list = shape_list[0:len(gene_sets_to_keep)]
+    shape_list = shape_list[0:len(gene_set_order)]
 
     for i in gene_set_indices:
         gene_set = gene_set_names[i]
@@ -332,13 +334,13 @@ def volcano_inherited():
         class2_pval = ttest_ind(class2, sibs, equal_var=False, alternative='greater')[1]
         class3_pval = ttest_ind(class3, sibs, equal_var=False, alternative='greater')[1]
 
-        corrected = multipletests([class0_pval, class1_pval, class2_pval, class3_pval], method='fdr_bh', alpha=0.05)[1]
+        corrected = multipletests([class0_pval, class1_pval, class2_pval, class3_pval], method='fdr_bh')[1]
         class0_pval = -np.log10(corrected[0])
         class1_pval = -np.log10(corrected[1])
         class2_pval = -np.log10(corrected[2])
         class3_pval = -np.log10(corrected[3])
 
-        background = np.sum(sibs)/(num_sibs)
+        background = (np.sum(sibs))/(num_sibs)
         class0_fe = np.log2((np.sum(class0)/num_class0)/background)
         class1_fe = np.log2((np.sum(class1)/num_class1)/background)
         class2_fe = np.log2((np.sum(class2)/num_class2)/background)
@@ -368,7 +370,7 @@ def volcano_inherited():
         ax.spines[axis].set_color('black')
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-    fig.savefig('figures/WES_volcano_plot_INH_missense.png', bbox_inches='tight')
+    fig.savefig('figures/WES_volcano_plot_inhMis.png', bbox_inches='tight', dpi=600)
     plt.close()
 
 
