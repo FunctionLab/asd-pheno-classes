@@ -1,7 +1,8 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.stats import ttest_ind, multipletests
+from scipy.stats import ttest_ind
+from statsmodels.stats.multitest import multipletests
 import pickle as rick
 
 from utils import load_dnvs, get_gene_sets
@@ -76,10 +77,10 @@ def compute_variant_set_proportions():
         stds.append(np.std(class3)/np.sqrt(num_class3))
 
         pvals = []
-        pvals.append(stats.ttest_ind(class0, sibs, equal_var=False, alternative='greater').pvalue)
-        pvals.append(stats.ttest_ind(class1, sibs, equal_var=False, alternative='greater').pvalue)
-        pvals.append(stats.ttest_ind(class2, sibs, equal_var=False, alternative='greater').pvalue)
-        pvals.append(stats.ttest_ind(class3, sibs, equal_var=False, alternative='greater').pvalue)
+        pvals.append(ttest_ind(class0, sibs, equal_var=False, alternative='greater').pvalue)
+        pvals.append(ttest_ind(class1, sibs, equal_var=False, alternative='greater').pvalue)
+        pvals.append(ttest_ind(class2, sibs, equal_var=False, alternative='greater').pvalue)
+        pvals.append(ttest_ind(class3, sibs, equal_var=False, alternative='greater').pvalue)
         pvals = multipletests(pvals, method='fdr_bh')[1]
         pvals = {i: pval for i, pval in enumerate(pvals)}
         break 
@@ -123,8 +124,8 @@ def compute_variant_set_proportions():
     with open('data/spid_to_num_missense_rare_inherited.pkl', 'rb') as f:
         spid_to_num_missense = rick.load(f)
 
-    gfmm_labels = pd.read_csv('../PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=False, header=0) # 5391 probands
-    sibling_list = '../PhenotypeClasses/data/WES_5392_siblings_spids.txt' 
+    gfmm_labels = pd.read_csv('../PhenotypeValidations/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=False, header=0)
+    sibling_list = '../PhenotypeValidations/data/WES_5392_siblings_spids.txt' 
 
     gfmm_labels = gfmm_labels.rename(columns={'subject_sp_id': 'spid'})
     spid_to_class = dict(zip(gfmm_labels['spid'], gfmm_labels['mixed_pred']))
@@ -184,10 +185,10 @@ def compute_variant_set_proportions():
 
         # hypothesis testing
         pvals = []
-        pvals.append(stats.ttest_ind(class0, sibs, equal_var=False, alternative='greater').pvalue)
-        pvals.append(stats.ttest_ind(class1, sibs, equal_var=False, alternative='greater').pvalue)
-        pvals.append(stats.ttest_ind(class2, sibs, equal_var=False, alternative='greater').pvalue)
-        pvals.append(stats.ttest_ind(class3, sibs, equal_var=False, alternative='greater').pvalue)
+        pvals.append(ttest_ind(class0, sibs, equal_var=False, alternative='greater').pvalue)
+        pvals.append(ttest_ind(class1, sibs, equal_var=False, alternative='greater').pvalue)
+        pvals.append(ttest_ind(class2, sibs, equal_var=False, alternative='greater').pvalue)
+        pvals.append(ttest_ind(class3, sibs, equal_var=False, alternative='greater').pvalue)
         pvals = multipletests(pvals, method='fdr_bh')[1]
         pvals = {i: pval for i, pval in enumerate(pvals)}
         break
@@ -198,7 +199,6 @@ def compute_variant_set_proportions():
     for i in range(len(x_values)):
         ax[1].errorbar(x_values[i], y_values[i], yerr=stds[i], fmt='o', color=colors[i], markersize=20)
     ax[1].set_xlabel('')
-    ax[1].set_ylabel('Count per offspring', fontsize=16)
     ax[1].set_xticks(x_values)
     ax[1].tick_params(labelsize=16, axis='y')
     ax[1].set_title('High-impact rare inherited variants', fontsize=19)
