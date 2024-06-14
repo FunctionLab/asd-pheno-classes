@@ -87,18 +87,20 @@ def compute_variant_set_proportions():
     fig, ax = plt.subplots(1,2,figsize=(11,4.5))
     x_values = np.arange(len(props))
     y_values = props
-    colors = ['dimgray', 'violet', 'red', 'limegreen', 'blue']
+    colors = ['dimgray', '#FBB040', '#EE2A7B', '#39B54A', '#27AAE1']
     for i in range(len(x_values)):
         ax[0].errorbar(x_values[i], y_values[i], yerr=stds[i], fmt='o', color=colors[i], markersize=20)
     ax[0].set_xlabel('')
     ax[0].set_ylabel('Count per offspring', fontsize=16)
     ax[0].set_xticks(x_values)
     ax[0].tick_params(labelsize=16, axis='y')
-    ax[0].set_title('High-impact de novo variants', fontsize=21)
+    ax[0].set_title('High-impact de novo variants', fontsize=19)
     ax[0].set_axisbelow(True)
     for axis in ['top','bottom','left','right']:
         ax[0].spines[axis].set_linewidth(1.5)
         ax[0].spines[axis].set_color('black')
+    ax[0].spines['top'].set_visible(False)
+    ax[0].spines['right'].set_visible(False)
     ax[0].grid(color='gray', linestyle='-', linewidth=0.5)
 
     # add significance stars to plot
@@ -109,11 +111,11 @@ def compute_variant_set_proportions():
         se_value = stds[grpidx+1]
         ypos = y_position + se_value - 0.001
         if p_value < 0.01:
-            ax[0].annotate('***', xy=(x_position, ypos), ha='center', size=20)
+            ax[0].annotate('***', xy=(x_position, ypos), ha='center', size=22, fontweight='bold')
         elif p_value < 0.05:
-            ax[0].annotate('**', xy=(x_position, ypos), ha='center', size=20)
+            ax[0].annotate('**', xy=(x_position, ypos), ha='center', size=22, fontweight='bold')
         elif p_value < 0.1:
-            ax[0].annotate('*', xy=(x_position, ypos), ha='center', size=20)
+            ax[0].annotate('*', xy=(x_position, ypos), ha='center', size=22, fontweight='bold')
     
     # inhLoF + inhMis
     with open('data/spid_to_num_lof_rare_inherited.pkl', 'rb') as f:
@@ -192,18 +194,20 @@ def compute_variant_set_proportions():
     
     x_values = np.arange(len(props))
     y_values = props
-    colors = ['dimgray', 'violet', 'red', 'limegreen', 'blue']
+    colors = ['dimgray', '#FBB040', '#EE2A7B', '#39B54A', '#27AAE1']
     for i in range(len(x_values)):
         ax[1].errorbar(x_values[i], y_values[i], yerr=stds[i], fmt='o', color=colors[i], markersize=20)
     ax[1].set_xlabel('')
     ax[1].set_ylabel('Count per offspring', fontsize=16)
     ax[1].set_xticks(x_values)
     ax[1].tick_params(labelsize=16, axis='y')
-    ax[1].set_title('High-impact rare inherited variants', fontsize=21)
+    ax[1].set_title('High-impact rare inherited variants', fontsize=19)
     ax[1].set_axisbelow(True)
     for axis in ['top','bottom','left','right']:
         ax[1].spines[axis].set_linewidth(1.5)
         ax[1].spines[axis].set_color('black')
+    ax[1].spines['top'].set_visible(False)
+    ax[1].spines['right'].set_visible(False)
     ax[1].grid(color='gray', linestyle='-', linewidth=0.5)
 
     # add significance stars to plot
@@ -214,11 +218,11 @@ def compute_variant_set_proportions():
         se_value = stds[grpidx+1]
         ypos = y_position + se_value-0.05
         if p_value < 0.01:
-            ax[1].annotate('***', xy=(x_position, ypos), ha='center', size=20)
+            ax[1].annotate('***', xy=(x_position, ypos), ha='center', size=22, fontweight='bold')
         elif p_value < 0.05:
-            ax[1].annotate('**', xy=(x_position, ypos), ha='center', size=20)
+            ax[1].annotate('**', xy=(x_position, ypos), ha='center', size=22, fontweight='bold')
         elif p_value < 0.1:
-            ax[1].annotate('*', xy=(x_position, ypos), ha='center', size=20)
+            ax[1].annotate('*', xy=(x_position, ypos), ha='center', size=22, fontweight='bold')
     fig.tight_layout()
     fig.subplots_adjust(wspace=0.2)
     plt.savefig('figures/WES_LoF_combined_Mis_props_scatter.png', bbox_inches='tight')
