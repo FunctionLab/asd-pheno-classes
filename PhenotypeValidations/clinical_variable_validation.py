@@ -18,46 +18,45 @@ from scipy.stats import binomtest, ttest_ind
 
 
 def main_clinical_validation(only_sibs=False):
-    mixed_data = pd.read_csv('../PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
+    mixed_data = pd.read_csv('data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
 
-    # retrieve BMS data
+    # get medical data for validation
     BASE_PHENO_DIR = '../SPARK_collection_v9_2022-12-12'
     bmsdf = pd.read_csv(f'{BASE_PHENO_DIR}/basic_medical_screening_2022-12-12.csv')
     bms_data = bmsdf.set_index('subject_sp_id',drop=True)
     bms_data = bms_data.replace(np.nan, 0)
     
-    # construct birth defects feature    
     birth_defect_features = ['birth_def_cns', 'birth_def_bone', 'birth_def_fac', 'birth_def_gastro', 'birth_def_thorac', 'birth_def_urogen']
     bms_data['birth_defect'] = np.where(bms_data[birth_defect_features].sum(axis=1) > 0, 1, 0)
     
-    neurodev = ['growth_macroceph', 'growth_microceph', 'dev_id', 'tics','neuro_sz', 'birth_defect']
+    neurodev = ['growth_macroceph', 'growth_microceph', 'dev_id', 'neuro_sz', 'birth_defect', 'dev_lang_dis']
     maternal = ['birth_ivh', 'birth_pg_inf', 'birth_prem']
-    mental_health = ['mood_ocd',  'mood_dep', 'mood_anx', 'behav_adhd']
-    daily_living = ['feeding_dx', 'sleep_dx', 'dev_motor', 'dev_lang_dis']
+    mental_health = ['tics', 'mood_ocd',  'mood_dep', 'mood_anx', 'behav_adhd']
+    daily_living = ['feeding_dx', 'sleep_dx', 'dev_motor']
     group = neurodev+maternal+mental_health+daily_living
-    subset_validation_data = bms_data[group] # get data for validation features
-    mixed_data = pd.merge(mixed_data, subset_validation_data, left_index=True, right_index=True)
+    subset_validation_data = bms_data[group]
 
     # get labels for plotting
-    neuro_labels = ['Macrocephaly', 'Microcephaly', 'ID', 'Tics', 'Seizures/Epilepsy', 'Birth Defect']
+    neuro_labels = ['Macrocephaly', 'Microcephaly', 'ID', 'Seizures/Epilepsy', 'Birth Defect', 'Language Delay']
     maternal_labels = ['IVH', 'Prenatal Infection', 'Premature Birth']
-    mental_health_labels = ['OCD', 'Depression', 'Anxiety', 'ADHD']
-    daily_living_labels = ['Feeding Disorder', 'Sleep Disorder', 'Motor Disorder', 'Language Delay']
+    mental_health_labels = ['Tics', 'OCD', 'Depression', 'Anxiety', 'ADHD']
+    daily_living_labels = ['Feeding Disorder', 'Sleep Disorder', 'Motor Disorder']
     
-    sibs = pd.read_csv('../PhenotypeClasses/data/spark_siblings_bms_validation.txt', sep='\t', index_col=0)
-    sibling_list = '../PhenotypeClasses/data/WES_5392_siblings_spids.txt'
+    mixed_data = pd.merge(mixed_data, subset_validation_data, left_index=True, right_index=True)
+    sibs = pd.read_csv('data/spark_siblings_bms_validation.txt', sep='\t', index_col=0)
+    sibling_list = 'data/WES_5392_siblings_spids.txt'
     paired_sibs = pd.read_csv(sibling_list, sep='\t', header=None, index_col=0)
-    sibs = pd.merge(sibs, paired_sibs, left_index=True, right_index=True) # subset to 1293 paired siblings who have BMS information
+    sibs = pd.merge(sibs, paired_sibs, left_index=True, right_index=True) # subset to paired siblings who have BMS information
     sibs['birth_defect'] = np.where(sibs[birth_defect_features].sum(axis=1) > 0, 1, 0) # add birth defect feature to sibs
     sibs = sibs[group]
     mixed_data = pd.concat([sibs, mixed_data])
     mixed_data['mixed_pred'] = mixed_data['mixed_pred'].replace(np.nan, -1)
 
-    category_names = ['Neurodevelopmental', 'Mental Health', 'Daily Living'] 
+    category_names = ['Neurodevelopmental', 'Mental Health', 'Co-occurring']
     labels = [neuro_labels, mental_health_labels, daily_living_labels]
     plt.style.use('seaborn-v0_8-whitegrid')
-    fig, ax = plt.subplots(3, 1, figsize=(10.5, 12), sharex=True)
-    for i, name, label, category in zip(np.arange(len(category_names)), category_names, labels, [neurodev, mental_health, daily_living]): # maternal
+    fig, ax = plt.subplots(3, 1, figsize=(10.5, 12), sharex=True, gridspec_kw={'height_ratios': [1.7, 1.4, 1]})
+    for i, name, label, category in zip(np.arange(len(category_names)), category_names, labels, [neurodev, mental_health, daily_living]):
         p_values = get_feature_enrichments_with_sibs(mixed_data[category+['mixed_pred']], name, only_sibs)
         validation_subset = p_values.loc[:,category+['cluster']]
         validation_subset = pd.melt(validation_subset, id_vars=['cluster'])
@@ -67,63 +66,41 @@ def main_clinical_validation(only_sibs=False):
         validation_subset['Fold Enrichment'] = fold_enrichments['value']
         make_bubble_plot(validation_subset, category, label, name, ax=ax[i])
     
+    # save figure
     fig.tight_layout()
     plt.subplots_adjust(hspace=0.12, wspace=0.12)
-    plt.savefig('figures/GFMM_clinical_bubble_plots_validation.png', bbox_inches='tight')
+    plt.savefig('figures/clinical_bubble_plots_validation.png', bbox_inches='tight', dpi=600)
     plt.close()
 
 
-def make_bubble_plot(validation_subset, category, y_labels, category_name, enrichment=True, ax=None):
-    
+def make_bubble_plot(validation_subset, category, y_labels, category_name, ax=None):
     validation_subset = validation_subset[validation_subset['cluster'] != -1]
-    colors = ['violet', 'red', 'limegreen', 'blue']
-    validation_subset['color'] = validation_subset['cluster'].map({0: 'violet', 1: 'red', 2: 'limegreen', 3: 'blue'})
-    validation_subset['Cluster'] = validation_subset['cluster'].map({0: 'ASD-Lower Support Needs', 1: 'ASD-Higher Support Needs', 2: 'ASD-Social/RRB', 3: 'ASD-Developmentally Delayed'})
-    markers = ['o', 'o', 'o', 'o']
-    validation_subset['marker'] = validation_subset['cluster'].map({0: 'o', 1: 'o', 2: 'o', 3: 'o'})
     
-    if enrichment:
-        for i, row in validation_subset.iterrows():
-            if row['value'] < -np.log10(0.05):
-                ax.scatter(row['Fold Enrichment'], row['variable'], s=250, c='white', marker=row['marker'], linewidth=2.5, alpha=0.8, edgecolors=row['color'])
-            else:
-                ax.scatter(row['Fold Enrichment'], row['variable'], s=250, c=row['color'], marker=row['marker'], alpha=0.85)
-        if category_name == 'Daily Living':
-            ax.set_xlabel('Fold Enrichment', fontsize=26)
-        elif category_name == 'Maternal':
-            ax.set_xlabel('Fold Enrichment', fontsize=24)
-        ax.set_ylabel('')
-        ax.tick_params(labelsize=20, axis='y')
-        ax.tick_params(labelsize=20, axis='x')
-        ax.set_title(f'{category_name}', fontsize=26)
-        ax.set_yticks([x for x in range(len(y_labels))], y_labels, fontsize=20)
-        ax.axvline(x=1, color='gray', linestyle='--', linewidth=1.4)
-        for axis in ['top','bottom','left','right']:
-            ax.spines[axis].set_linewidth(1.5)
-            ax.spines[axis].set_color('black')
-    else:
-        plt.style.use('seaborn-v0_8-whitegrid')
-        fig, ax = plt.subplots(figsize=(9,4.5))
-        sns.scatterplot(data=validation_subset, x='value', y='variable', size='Fold Enrichment', hue='Cluster', palette=colors, markers=markers, sizes=(50, 500))
-        for i, row in validation_subset.iterrows():
-            if row['cluster'] == -1:
-                ax.scatter(row['value'], row['variable'], s=120, c='black', marker='x', alpha=0.8)
-        plt.xlabel('-log10(q-value)', fontsize=20)
-        plt.ylabel('')
-        plt.yticks(fontsize=20)
-        handles, labels = plt.gca().get_legend_handles_labels()
-        labels = ['Siblings', 'ASD-Lower Support Needs', 'ASD-Higher Support Needs', 'ASD-Social/RRB', 'ASD-Developmentally Delayed']
-        handles[0] = plt.Line2D([0], [0], marker='x', color='w', markerfacecolor='black', markersize=10, label='Siblings')
-        plt.legend(handles, labels, fontsize=14, title='Cluster', title_fontsize=14, loc='upper left', bbox_to_anchor=(1, 1))
-        plt.title(f'{category_name}', fontsize=24)
-        plt.yticks([x for x in range(len(y_labels))], y_labels, fontsize=20)
-        plt.axvline(x=-np.log10(0.05), color='gray', linestyle='--', linewidth=1.4)
-        for axis in ['top','bottom','left','right']:
-            ax.spines[axis].set_linewidth(1.5)
-            ax.spines[axis].set_color('black')
-        plt.savefig(f'figures/GFMM_clinical_bubble_plot_{category_name}_validation.png', bbox_inches='tight')
-        plt.close()
-
+    colors = ['#FBB040', '#EE2A7B', '#39B54A', '#27AAE1']
+    validation_subset['color'] = validation_subset['cluster'].map({0: '#FBB040', 1: '#EE2A7B', 2: '#39B54A', 3: '#27AAE1'})
+    validation_subset['Cluster'] = validation_subset['cluster'].map({0: 'ASD-Lower Support Needs', 1: 'ASD-Higher Support Needs', 2: 'ASD-Social/RRB', 3: 'ASD-Developmentally Delayed'})
+    validation_subset['marker'] = validation_subset['cluster'].map({0: 'o', 1: 'o', 2: 'o', 3: 'o'})
+        
+    for i, row in validation_subset.iterrows():
+        if row['value'] < -np.log10(0.05):
+            ax.scatter(row['Fold Enrichment'], row['variable'], s=220, c='white', marker=row['marker'], linewidth=2.5, alpha=0.8, edgecolors=row['color'])
+        else:
+            ax.scatter(row['Fold Enrichment'], row['variable'], s=250, c=row['color'], marker=row['marker'], alpha=0.9)
+    if category_name == 'Co-occurring':
+        ax.set_xlabel('Fold Enrichment', fontsize=26)
+    ax.set_xticks([x for x in range(1, 20, 2)])
+    ax.set_ylabel('')
+    ax.tick_params(labelsize=24, axis='y')
+    ax.tick_params(labelsize=20, axis='x')
+    ax.set_title(f'{category_name}', fontsize=26)
+    ax.set_yticks([x for x in range(len(y_labels))], y_labels, fontsize=24)
+    ax.axvline(x=1, color='gray', linestyle='--', linewidth=1.4)
+    for axis in ['top','bottom','left','right']:
+        ax.spines[axis].set_linewidth(1.5)
+        ax.spines[axis].set_color('black')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    
 
 def get_fold_enrichment(mixed_data, only_sibs=False):
     feature_sig_df_high = pd.DataFrame()
@@ -251,17 +228,16 @@ def get_feature_enrichments_with_sibs(mixed_data, name, only_sibs=False):
 def individual_registration_validation():
     file = '../SPARK_collection_v9_2022-12-12/individuals_registration_2022-12-12.csv'
     data = pd.read_csv(file, index_col=0)
-    vars_for_val = ['diagnosis_age', 'iep_asd', 'cognitive_impairment_at_enrollment', 'language_level_at_enrollment'] #
+    vars_for_val = ['diagnosis_age', 'cognitive_impairment_at_enrollment', 'language_level_at_enrollment']
     
-    data['num_asd_parents'] = data['num_asd_parents'].replace(999, np.nan)
-    data['num_asd_siblings'] = data['num_asd_siblings'].replace(999, np.nan)
+    # clean up data
     data['language_level_at_enrollment'] = data['language_level_at_enrollment'].replace('Uses longer sentences of his/her own and is able to tell you something that happened', 3)
     data['language_level_at_enrollment'] = data['language_level_at_enrollment'].replace('Combines 3 words together into short sentences', 2)
     data['language_level_at_enrollment'] = data['language_level_at_enrollment'].replace('Uses single words meaningfully (for example, to request)', 1)
     data['language_level_at_enrollment'] = data['language_level_at_enrollment'].replace('No words/does not speak', 0)
 
-    gfmm_labels = pd.read_csv('../PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
-    sibling_list = '../PhenotypeClasses/data/WES_5392_siblings_spids.txt'
+    gfmm_labels = pd.read_csv('data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0) 
+    sibling_list = 'data/WES_5392_siblings_spids.txt' 
     paired_sibs = pd.read_csv(sibling_list, sep='\t', header=None, index_col=0)
 
     pro_data = pd.merge(data, gfmm_labels[['mixed_pred']], left_index=True, right_index=True)
@@ -270,84 +246,156 @@ def individual_registration_validation():
     plt.style.use('seaborn-v0_8-whitegrid')
     fig, ax = plt.subplots(2, 2, figsize=(7, 7))
     ax = ax.ravel()
-    variable_names = ['Diagnosis Age', 'IEP for ASD', 'Cognitive Impairment', 'Language Level']
+    variable_names = ['Diagnosis Age', 'Cognitive Impairment', 'Language']
     for i, var in enumerate(vars_for_val):
+        if var == 'diagnosis_age':
+            fig, ax = plt.subplots(figsize=(3.2, 3))
+        else:
+            fig, ax = plt.subplots(figsize=(3, 3))
         var_data = pro_data[[var, 'mixed_pred']]
+
         var_data = var_data.dropna()
         sibling_data = sib_data[[var]]
         sibling_data = sibling_data.dropna()
         sibling_data['mixed_pred'] = 4
         var_data = pd.concat([sibling_data, var_data])
-
-        num_unique_vals = len(var_data[var].unique())
-        if num_unique_vals == 2:
-            group0 = var_data[var_data['mixed_pred'] == 0][var]
-            group1 = var_data[var_data['mixed_pred'] == 1][var]
-            group2 = var_data[var_data['mixed_pred'] == 2][var]
-            group3 = var_data[var_data['mixed_pred'] == 3][var]
-            pvals = []
-            pvals.append(binomtest(np.sum(group0), n=len(group0), p=np.sum(group3)/len(group3)).pvalue)
-            pvals.append(binomtest(np.sum(group1), n=len(group1), p=np.sum(group3)/len(group3)).pvalue)
-            pvals.append(binomtest(np.sum(group2), n=len(group2), p=np.sum(group3)/len(group3)).pvalue)
-            pvals = multipletests(pvals, method='fdr_bh')[1]
-        else:
-            group0 = var_data[var_data['mixed_pred'] == 0][var]
-            group1 = var_data[var_data['mixed_pred'] == 1][var]
-            group2 = var_data[var_data['mixed_pred'] == 2][var]
-            group3 = var_data[var_data['mixed_pred'] == 3][var]
-            pvals = []
-            pvals.append(ttest_ind(group0, group3, equal_var=False, alternative='greater').pvalue)
-            pvals.append(ttest_ind(group1, group3, equal_var=False, alternative='greater').pvalue)
-            pvals.append(ttest_ind(group2, group3, equal_var=False, alternative='greater').pvalue)
-            pvals = multipletests(pvals, method='fdr_bh')[1]
             
         if var == 'diagnosis_age':
-            sns.boxplot(x='mixed_pred', y=var, data=var_data, ax=ax[i], showfliers=False, palette=['violet','red','limegreen','blue'])
-            sns.stripplot(x='mixed_pred', y=var, data=var_data, ax=ax[i], palette=['violet','red','limegreen','blue'], alpha=0.1)
+            sns.boxplot(x='mixed_pred', y=var, data=var_data, showfliers=True, palette=['#FBB040','#EE2A7B','#39B54A','#27AAE1'],
+                        whiskerprops = dict(color = "black", linewidth=2), capprops = dict(color = "black", linewidth=2),
+                        medianprops=dict(color='white', linewidth=2), boxprops=dict(edgecolor='white', linewidth=0.5))
         else:
-            sns.barplot(x='mixed_pred', y=var, data=var_data, ax=ax[i], palette=['violet','red','limegreen','blue','dimgray'], linewidth = 1.5, edgecolor='black', dodge=False)
+            sns.barplot(x='mixed_pred', y=var, data=var_data, palette=['#FBB040','#EE2A7B','#39B54A','#27AAE1','dimgray'], dodge=False)
         
-        ax[i].set_xlabel('')
-        ax[i].set_ylabel('Age (months)', fontsize=18)
-        ax[i].set_title(f'{variable_names[i]}', fontsize=20)
+        ax.set_xlabel('')
+        if var == 'diagnosis_age':
+            ax.set_ylabel('Months', fontsize=16)
+        elif var == 'language_level_at_enrollment':
+            ax.set_ylabel('Level', fontsize=16)
+        elif var == 'cognitive_impairment_at_enrollment':
+            ax.set_ylabel('Proportion', fontsize=16)
+        else:
+            ax.set_ylabel('')
+        ax.set_title(f'{variable_names[i]}', fontsize=16)
         for axis in ['top','bottom','left','right']:
-            ax[i].spines[axis].set_linewidth(1)
-            ax[i].spines[axis].set_color('black')
+            ax.spines[axis].set_linewidth(1.5)
+            ax.spines[axis].set_color('black')
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.tick_params(axis='both', which='major', labelsize=14)
+        ax.set_xticklabels([])
+
         plt.tight_layout()
+        plt.savefig(f'figures/{var}_individual_registration_validation.png', bbox_inches='tight', dpi=600)
+        plt.close()
 
-    plt.tight_layout()
-    plt.savefig('figures/GFMM_individual_registration_validation.png', bbox_inches='tight')
-    plt.close()
 
-    # plot age_at_registration_years
-    var_data = pro_data[['age_at_registration_years', 'mixed_pred']]
-    var_data = var_data.dropna()
-    fig, ax = plt.subplots(1, 1, figsize=(8, 6))
-    sns.barplot(x='mixed_pred', y='age_at_registration_years', data=var_data, palette=['violet','red','green','blue'], linewidth = 1.5, edgecolor='black', alpha=0.95, dodge=False)
-    ax.set_xlabel('')
-    ax.set_ylabel('Age (years)', fontsize=16)
-    ax.set_title(f'Age at registration', fontsize=20)
+def scq_and_developmental_milestones_validation():
+    gfmm_labels = pd.read_csv('data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
+    
+    # get sibling data for background history
+    BASE_PHENO_DIR = '../SPARK_collection_v9_2022-12-12'
+    bhdf = pd.read_csv(f'{BASE_PHENO_DIR}/background_history_sibling_2022-12-12.csv')
+    bhdf = bhdf.loc[(bhdf['age_at_eval_years'] <= 18) & (bhdf['age_at_eval_years'] >= 4)]
+    dev_milestones = ['smiled_age_mos', 'sat_wo_support_age_mos', 'crawled_age_mos', 'walked_age_mos',
+                      'fed_self_spoon_age_mos', 'used_words_age_mos', 'combined_words_age_mos', 'combined_phrases_age_mos',
+                      'bladder_trained_age_mos', 'bowel_trained_age_mos']
+    bhdf = bhdf.set_index('subject_sp_id',drop=True)[dev_milestones]
+
+    # subset to paired sibs
+    sibling_list = 'data/WES_5392_siblings_spids.txt'
+    paired_sibs = pd.read_csv(sibling_list, sep='\t', header=None, index_col=0)
+    sib_data = pd.merge(bhdf, paired_sibs, left_index=True, right_index=True)
+    sib_bh_data = sib_data[dev_milestones].dropna().astype(float)
+
+    plt.style.use('seaborn-v0_8-whitegrid')
+    plt.rcParams.update({'axes.titlepad': 20})
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(9, 16.5))
+    
+    # plot first milestone
+    milestone = 'used_words_age_mos'
+    milestone_data = gfmm_labels[[milestone, 'mixed_pred']]
+    all_proband_bh_data = milestone_data[milestone].astype(float).to_list()
+    class0 = milestone_data[milestone_data['mixed_pred'] == 0][milestone].astype(float).to_list()
+    class1 = milestone_data[milestone_data['mixed_pred'] == 1][milestone].astype(float).to_list()
+    class2 = milestone_data[milestone_data['mixed_pred'] == 2][milestone].astype(float).to_list()
+    class3 = milestone_data[milestone_data['mixed_pred'] == 3][milestone].astype(float).to_list()
+
+    pvals = []
+    pvals.append(stats.ttest_ind(class0, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue)
+    pvals.append(stats.ttest_ind(class1, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue)
+    pvals.append(stats.ttest_ind(class2, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue)
+    pvals.append(stats.ttest_ind(class3, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue)
+    pvals = multipletests(pvals, method='fdr_bh')[1]
+    print(milestone)
+    print(pvals)
+    
+    sns.boxplot(data=[sib_bh_data[milestone].to_list(), class0, class1, class2, class3], showfliers=True, palette=['dimgray','#FBB040','#EE2A7B','#39B54A','#27AAE1'], whiskerprops = dict(color = "black", linewidth=2), capprops = dict(color = "black", linewidth=2),
+                medianprops=dict(color='white', linewidth=2), boxprops=dict(edgecolor='white', linewidth=0.5), ax=ax1)
+    ax1.set_ylim([0, 90])
+    yticks = ax1.get_yticks()
+    yticks = [int(y) for y in yticks]
+    ax1.set_yticks(yticks)
+    ax1.set_xlabel('')
+    ax1.set_ylabel('Months', fontsize=20)
+    ax1.set_title('Age first used words', fontsize=22)
+    ax1.set_yticklabels(ax1.get_yticks(), fontsize=16)
+    ax1.set_xticklabels([])
     for axis in ['top','bottom','left','right']:
-        ax.spines[axis].set_linewidth(1)
-        ax.spines[axis].set_color('black')
-    plt.tight_layout()
-    plt.savefig('figures/GFMM_age_at_registration.png', bbox_inches='tight')
-    plt.close()
+        ax1.spines[axis].set_linewidth(1.5)
+        ax1.spines[axis].set_color('black')
+    ax1.spines['top'].set_visible(False)
+    ax1.spines['right'].set_visible(False)
 
+    # plot second milestone
+    milestone = 'walked_age_mos'
+    milestone_data = gfmm_labels[[milestone, 'mixed_pred']]
+    all_proband_bh_data = milestone_data[milestone].astype(float).to_list()
+    class0 = milestone_data[milestone_data['mixed_pred'] == 0][milestone].astype(float).to_list()
+    class1 = milestone_data[milestone_data['mixed_pred'] == 1][milestone].astype(float).to_list()
+    class2 = milestone_data[milestone_data['mixed_pred'] == 2][milestone].astype(float).to_list()
+    class3 = milestone_data[milestone_data['mixed_pred'] == 3][milestone].astype(float).to_list()
 
-def scq_validation():
-    gfmm_labels = pd.read_csv('../PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
+    pvals = []
+    pvals.append(stats.ttest_ind(class0, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue)
+    pvals.append(stats.ttest_ind(class1, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue)
+    pvals.append(stats.ttest_ind(class2, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue)
+    pvals.append(stats.ttest_ind(class3, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue)
+    pvals = multipletests(pvals, method='fdr_bh')[1]
+    print(milestone)
+    print(pvals)
+    
+    sns.boxplot(data=[sib_bh_data[milestone].to_list(), class0, class1, class2, class3], showfliers=True, palette=['dimgray','#FBB040','#EE2A7B','#39B54A','#27AAE1'], whiskerprops = dict(color = "black", linewidth=2), capprops = dict(color = "black", linewidth=2),
+                medianprops=dict(color='white', linewidth=2), boxprops=dict(edgecolor='white', linewidth=0.5), ax=ax2)
+    ax2.set_ylim([0, 45])
+    ax2.set_xlabel('')
+    ax2.set_ylabel('Months', fontsize=20)
+    yticks = ax2.get_yticks()
+    yticks = [int(y) for y in yticks]
+    ax2.set_yticks(yticks)
+    ax2.set_title('Age first walked', fontsize=22)
+    plt.rcParams['axes.titlepad'] = 20
+    ax2.set_yticklabels(ax2.get_yticks(), fontsize=16)
+    ax2.set_xticklabels([])
+    for axis in ['top','bottom','left','right']:
+        ax2.spines[axis].set_linewidth(1.5)
+        ax2.spines[axis].set_color('black')
+    ax2.spines['top'].set_visible(False)
+    ax2.spines['right'].set_visible(False)
+
+    # plot scq total score
+    # get sibling data for SCQ
     BASE_PHENO_DIR = '../SPARK_collection_v9_2022-12-12'
     scqdf = pd.read_csv(f'{BASE_PHENO_DIR}/scq_2022-12-12.csv')
     scqdf = scqdf.loc[(scqdf['age_at_eval_years'] <= 18) & (scqdf['missing_values'] < 1) & (scqdf['age_at_eval_years'] >= 4)]
     scqdf = scqdf.set_index('subject_sp_id',drop=True).drop(['respondent_sp_id', 'family_sf_id', 'biomother_sp_id', 'biofather_sp_id','current_depend_adult','age_at_eval_months','scq_measure_validity_flag','eval_year','missing_values','summary_score'],axis=1)
     scqdf = scqdf[scqdf['asd'] == 0]
     
-    sibling_list = '../PhenotypeClasses/data/WES_5392_siblings_spids.txt'
-    paired_sibs = pd.read_csv(sibling_list, sep='\t', header=None, index_col=0)
+    # intersect with paired sibs
     sib_data = pd.merge(scqdf, paired_sibs, left_index=True, right_index=True)
     sib_scq_data = sib_data['final_score'].dropna().astype(int).to_list()
 
+    # get total scores for each class
     final_score = gfmm_labels[['final_score', 'mixed_pred']]
     all_proband_scq_data = final_score['final_score'].dropna().astype(int).to_list()
     class0 = final_score[final_score['mixed_pred'] == 0]['final_score'].dropna().astype(int).to_list()
@@ -355,149 +403,39 @@ def scq_validation():
     class2 = final_score[final_score['mixed_pred'] == 2]['final_score'].dropna().astype(int).to_list()
     class3 = final_score[final_score['mixed_pred'] == 3]['final_score'].dropna().astype(int).to_list()
 
+    # hypothesis testing vs. sibs
     p_vals = []
-    print(f"SCQ: {stats.ttest_ind(all_proband_scq_data, sib_scq_data, equal_var=False, alternative='greater').pvalue}")
-    print(f"High-ASD/High-Delays: {stats.ttest_ind(class0, sib_scq_data, equal_var=False, alternative='greater').pvalue}")
     p_vals.append(stats.ttest_ind(class0, sib_scq_data, equal_var=False, alternative='greater').pvalue)
-    print(f"Low-ASD/Low-Delays: {stats.ttest_ind(class1, sib_scq_data, equal_var=False, alternative='greater').pvalue}")
     p_vals.append(stats.ttest_ind(class1, sib_scq_data, equal_var=False, alternative='greater').pvalue)
-    print(f"High-ASD/Low-Delays: {stats.ttest_ind(class2, sib_scq_data, equal_var=False, alternative='greater').pvalue}")
     p_vals.append(stats.ttest_ind(class2, sib_scq_data, equal_var=False, alternative='greater').pvalue)
-    print(f"Low-ASD/High-Delays: {stats.ttest_ind(class3, sib_scq_data, equal_var=False, alternative='greater').pvalue}")
     p_vals.append(stats.ttest_ind(class3, sib_scq_data, equal_var=False, alternative='greater').pvalue)
-    print(p_vals)
+    # FDR correction
     p_vals = multipletests(p_vals, method='fdr_bh')[1]
     print(p_vals)
-
-    plt.style.use('seaborn-v0_8-whitegrid')
-    plt.figure(figsize=(10, 6))
-    data = [sib_scq_data, all_proband_scq_data]
-    ax = sns.boxplot(data=data, showfliers=False, palette=['dimgray','purple'])
-    plt.xlabel('')
-    plt.ylabel('SCQ Final Score', fontsize=20)
-    plt.xticks([0,1], ['Siblings', 'Probands'], fontsize=20)
-    handles, labels = plt.gca().get_legend_handles_labels()
-    labels = ['Siblings', 'Probands']
-    for axis in ['top','bottom','left','right']:
-        plt.gca().spines[axis].set_linewidth(1)
-        plt.gca().spines[axis].set_color('black')
-    plt.legend(handles, labels, fontsize=16)
-    plt.text(0.5, 0.9, f'***', ha='center', va='center', transform=ax.transAxes, fontsize=20)
-    plt.savefig('figures/GFMM_scq_validation_all_pros_vs_sibs.png', bbox_inches='tight')
-    plt.close()
-
-    plt.style.use('seaborn-v0_8-whitegrid')
-    plt.figure(figsize=(7.5, 5.5))
     data = [sib_scq_data, class0, class1, class2, class3]
-    sns.boxplot(data=data, palette=['dimgray','violet','red','limegreen','blue'], showfliers=False, whiskerprops = dict(color = "black", linewidth=1.5), capprops = dict(color = "black"),
-                medianprops=dict(color='black', linewidth=1.5), boxprops=dict(edgecolor='black', linewidth=1.5))
-    sns.stripplot(data=data, palette=['dimgray','violet','red','limegreen','blue'], alpha=0.1)
-    plt.xlabel('')
-    plt.ylabel('SCQ Final Score', fontsize=20)
-    handles, labels = plt.gca().get_legend_handles_labels()
-    labels = ['Siblings', 'High-ASD/High-Delays', 'Low-ASD/Low-Delays', 'High-ASD/Low-Delays', 'Low-ASD/High-Delays']
-    plt.yticks(fontsize=16)
+    sns.boxplot(data=data, palette=['dimgray','#FBB040','#EE2A7B','#39B54A','#27AAE1'], showfliers=True, whiskerprops = dict(color = "black", linewidth=2), capprops = dict(color = "black", linewidth=2),
+                medianprops=dict(color='white', linewidth=2), boxprops=dict(edgecolor='white', linewidth=0.5), ax=ax3)
+    ax3.set_xlabel('')
+    ax3.set_ylabel('Total Score', fontsize=20)
+    plt.rcParams['axes.titlepad'] = 20
+    plt.title('Social Communication Questionnaire', fontsize=22)
+    ax3.set_xticklabels([])
+    yticks = ax3.get_yticks()
+    yticks = [int(y) for y in yticks]
+    ax3.set_yticks(yticks)
+    ax3.set_ylim([0, 40])
+    ax3.set_yticklabels(ax3.get_yticks(), fontsize=16)
     for axis in ['top','bottom','left','right']:
-        plt.gca().spines[axis].set_linewidth(1.5)
-        plt.gca().spines[axis].set_color('black')
-    plt.legend(handles, labels, fontsize=16)
-    plt.savefig('figures/GFMM_scq_validation_classes_vs_sibs.png', bbox_inches='tight')
-    plt.close()
-
-
-def developmental_milestones_validation():
-    gfmm_labels = pd.read_csv('../PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
+        ax3.spines[axis].set_linewidth(1.5)
+        ax3.spines[axis].set_color('black')
+    ax3.spines['top'].set_visible(False)
+    ax3.spines['right'].set_visible(False)
     
-    BASE_PHENO_DIR = '../SPARK_collection_v9_2022-12-12'
-    bhdf = pd.read_csv(f'{BASE_PHENO_DIR}/background_history_sibling_2022-12-12.csv')
-    bhdf = bhdf.loc[(bhdf['age_at_eval_years'] <= 18) & (bhdf['age_at_eval_years'] >= 4)]
-    dev_milestones = ['smiled_age_mos', 'sat_wo_support_age_mos', 'crawled_age_mos', 'walked_age_mos',
-                                                        'fed_self_spoon_age_mos', 'used_words_age_mos', 'combined_words_age_mos', 'combined_phrases_age_mos',
-                                                        'bladder_trained_age_mos', 'bowel_trained_age_mos']
-    bhdf = bhdf.set_index('subject_sp_id',drop=True)[dev_milestones]
-
-    sibling_list = '../PhenotypeClasses/data/WES_5392_siblings_spids.txt'
-    paired_sibs = pd.read_csv(sibling_list, sep='\t', header=None, index_col=0)
-    sib_data = pd.merge(bhdf, paired_sibs, left_index=True, right_index=True)
-    sib_bh_data = sib_data[dev_milestones].dropna().astype(float)
-
-    #sib_bh_data = sib_bh_data.replace(888,0)
-
-    plt.style.use('seaborn-v0_8-whitegrid')
-    fig, ax = plt.subplots(2, 5, figsize=(18.5, 8))
-
-    comprehensive_score_class0 = []
-    comprehensive_score_class1 = []
-    comprehensive_score_class2 = []
-    comprehensive_score_class3 = []
-    comprehensive_score_sib = []
-
-    for i, milestone in enumerate(dev_milestones):
-        milestone_data = gfmm_labels[[milestone, 'mixed_pred']]
-        milestone_data[milestone] = milestone_data[milestone].apply(lambda x: 216 if x > 216 else x) 
-        all_proband_bh_data = milestone_data[milestone].astype(float).to_list()
-        class0 = milestone_data[milestone_data['mixed_pred'] == 0][milestone].astype(float).to_list()
-        class1 = milestone_data[milestone_data['mixed_pred'] == 1][milestone].astype(float).to_list()
-        class2 = milestone_data[milestone_data['mixed_pred'] == 2][milestone].astype(float).to_list()
-        class3 = milestone_data[milestone_data['mixed_pred'] == 3][milestone].astype(float).to_list()
-
-        comprehensive_score_class0.extend(class0)
-        comprehensive_score_class1.extend(class1)
-        comprehensive_score_class2.extend(class2)
-        comprehensive_score_class3.extend(class3)
-        comprehensive_score_sib.extend(sib_bh_data[milestone].to_list())
-
-        pvals = []
-        pvals.append(stats.ttest_ind(class0, sib_bh_data[milestone], equal_var=False, alternative='two-sided').pvalue)
-        pvals.append(stats.ttest_ind(class1, sib_bh_data[milestone], equal_var=False, alternative='two-sided').pvalue)
-        pvals.append(stats.ttest_ind(class2, sib_bh_data[milestone], equal_var=False, alternative='two-sided').pvalue)
-        pvals.append(stats.ttest_ind(class3, sib_bh_data[milestone], equal_var=False, alternative='two-sided').pvalue)
-        pvals = multipletests(pvals, method='fdr_bh')[1]
-        print(milestone)
-        print(pvals)
-        
-        fig, ax = plt.subplots(1,1,figsize=(3.5, 4.5))
-        plt.style.use('seaborn-v0_8-whitegrid')
-        sns.boxplot(data=[sib_bh_data[milestone].to_list(), class0, class1, class2, class3], showfliers=False, palette=['dimgray','violet','red','limegreen','blue'])
-        ylims=ax.get_ylim()
-        sns.stripplot(data=[sib_bh_data[milestone].to_list(), class0, class1, class2, class3], palette=['dimgray','violet','red','limegreen','blue'], alpha=0.1)
-        plt.ylim(ylims)
-        plt.xlabel('')
-        plt.ylabel('months', fontsize=20)
-        if f"{' '.join(milestone.split('_'))}" == 'used words age mos':
-            plt.title('Age first used words', fontsize=22)
-        elif f"{' '.join(milestone.split('_'))}" == 'walked age mos':
-            plt.title('Age first walked', fontsize=22)
-        plt.yticks(fontsize=16)
-        for axis in ['top','bottom','left','right']:
-            plt.gca().spines[axis].set_linewidth(1.5)
-            plt.gca().spines[axis].set_color('black')
-        plt.savefig(f'figures/GFMM_milestone_validation_{milestone}.png', bbox_inches='tight')
-        plt.close()
-        
-        # plot distributions for classes and sibs on one boxplot
-        data = [sib_bh_data[milestone].to_list(), class0, class1, class2, class3]
-        box_colors = ['dimgray', 'violet', 'red', 'limegreen', 'blue']
-        for j, (color, values) in enumerate(zip(box_colors, data)):
-            parts = ax[0,0].violinplot(values, positions=[j], showmedians=True, showextrema=False, widths=0.65, bw_method=0.5)
-            for i, pc in enumerate(parts['bodies']):
-                pc.set_facecolor(color)
-                pc.set_edgecolor('black')
-
-        ax[i//5, i%5].set_xlabel('')
-        ax[i//5, i%5].set_ylabel('age (months)', fontsize=17)
-        ax[i//5, i%5].set_title('Developmental milestones', fontsize=18)
-        for axis in ['top','bottom','left','right']:
-            ax[i//5, i%5].spines[axis].set_linewidth(1)
-            ax[i//5, i%5].spines[axis].set_color('black')
-        plt.tight_layout()
-    
-    plt.savefig(f'figures/GFMM_milestone_validation_classes_vs_sibs.png', bbox_inches='tight')
+    plt.savefig('figures/Figure1_C_D.png', bbox_inches='tight', dpi=600)
     plt.close()
 
 
 if __name__ == "__main__":
-    developmental_milestones_validation()
+    scq_and_developmental_milestones_validation()
     individual_registration_validation()
-    scq_validation()
     main_clinical_validation(only_sibs=True)
