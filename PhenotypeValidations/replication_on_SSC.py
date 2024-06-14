@@ -6,9 +6,9 @@ from stepmix.stepmix import StepMix
 from stepmix.utils import get_mixed_descriptor
 from collections import defaultdict
 from scipy import stats
+from statsmodels.stats.multitest import multipletests
 
-from ../PhenotypeClasses/GFMM import get_feature_enrichments
-from ../PhenotypeClasses/utils import split_columns, get_cross_cohort_SPARK_data, generate_ssc_data
+from utils import get_cross_cohort_SPARK_data, generate_ssc_data, split_columns, get_feature_enrichments
 
 
 def cross_cohort_replication(ncomp):
@@ -216,9 +216,9 @@ def cross_cohort_replication(ncomp):
     correlations = []
     pvals = []
     for i, feature in enumerate(features_to_visualize):
-        corr_matrix[i, i] = pearsonr(polar.loc[polar["variable"] == i, "ssc_value"], polar.loc[polar["variable"] == i, "spark_value"])[0] # get the correlation value
-        correlations.append(pearsonr(polar.loc[polar["variable"] == i, "ssc_value"], polar.loc[polar["variable"] == i, "spark_value"])[0])
-        pvals.append(pearsonr(polar.loc[polar["variable"] == i, "ssc_value"], polar.loc[polar["variable"] == i, "spark_value"])[1])
+        corr_matrix[i, i] = stats.pearsonr(polar.loc[polar["variable"] == i, "ssc_value"], polar.loc[polar["variable"] == i, "spark_value"])[0] # get the correlation value
+        correlations.append(stats.pearsonr(polar.loc[polar["variable"] == i, "ssc_value"], polar.loc[polar["variable"] == i, "spark_value"])[0])
+        pvals.append(stats.pearsonr(polar.loc[polar["variable"] == i, "ssc_value"], polar.loc[polar["variable"] == i, "spark_value"])[1])
 
     # correction of pvals
     pvals = multipletests(pvals, method='fdr_bh')[1]
