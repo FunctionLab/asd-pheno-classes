@@ -1,20 +1,11 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import StandardScaler
 import seaborn as sns
-import scipy.stats as stats
-from stepmix.stepmix import StepMix
-from stepmix.utils import get_mixed_descriptor
-from collections import defaultdict
-from scipy import stats
-import pickle as rick
 from statsmodels.stats.multitest import multipletests
-from scipy.stats import hypergeom
-from latent_class_analysis import split_columns
-import plotly.express as px
-import plotly.graph_objects as go
 from scipy.stats import binomtest, ttest_ind
+
+from utils import split_columns
 
 
 def main_clinical_validation(only_sibs=False):
@@ -68,7 +59,6 @@ def main_clinical_validation(only_sibs=False):
     
     # save figure
     fig.tight_layout()
-    plt.subplots_adjust(hspace=0.12, wspace=0.12)
     plt.savefig('figures/clinical_bubble_plots_validation.png', bbox_inches='tight', dpi=600)
     plt.close()
 
@@ -322,10 +312,10 @@ def scq_and_developmental_milestones_validation():
     class3 = milestone_data[milestone_data['mixed_pred'] == 3][milestone].astype(float).to_list()
 
     pvals = []
-    pvals.append(stats.ttest_ind(class0, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue)
-    pvals.append(stats.ttest_ind(class1, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue)
-    pvals.append(stats.ttest_ind(class2, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue)
-    pvals.append(stats.ttest_ind(class3, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue)
+    pvals.append(ttest_ind(class0, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue)
+    pvals.append(ttest_ind(class1, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue)
+    pvals.append(ttest_ind(class2, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue)
+    pvals.append(ttest_ind(class3, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue)
     pvals = multipletests(pvals, method='fdr_bh')[1]
     print(milestone)
     print(pvals)
@@ -357,10 +347,10 @@ def scq_and_developmental_milestones_validation():
     class3 = milestone_data[milestone_data['mixed_pred'] == 3][milestone].astype(float).to_list()
 
     pvals = []
-    pvals.append(stats.ttest_ind(class0, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue)
-    pvals.append(stats.ttest_ind(class1, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue)
-    pvals.append(stats.ttest_ind(class2, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue)
-    pvals.append(stats.ttest_ind(class3, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue)
+    pvals.append(ttest_ind(class0, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue)
+    pvals.append(ttest_ind(class1, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue)
+    pvals.append(ttest_ind(class2, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue)
+    pvals.append(ttest_ind(class3, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue)
     pvals = multipletests(pvals, method='fdr_bh')[1]
     print(milestone)
     print(pvals)
@@ -405,10 +395,10 @@ def scq_and_developmental_milestones_validation():
 
     # hypothesis testing vs. sibs
     p_vals = []
-    p_vals.append(stats.ttest_ind(class0, sib_scq_data, equal_var=False, alternative='greater').pvalue)
-    p_vals.append(stats.ttest_ind(class1, sib_scq_data, equal_var=False, alternative='greater').pvalue)
-    p_vals.append(stats.ttest_ind(class2, sib_scq_data, equal_var=False, alternative='greater').pvalue)
-    p_vals.append(stats.ttest_ind(class3, sib_scq_data, equal_var=False, alternative='greater').pvalue)
+    p_vals.append(ttest_ind(class0, sib_scq_data, equal_var=False, alternative='greater').pvalue)
+    p_vals.append(ttest_ind(class1, sib_scq_data, equal_var=False, alternative='greater').pvalue)
+    p_vals.append(ttest_ind(class2, sib_scq_data, equal_var=False, alternative='greater').pvalue)
+    p_vals.append(ttest_ind(class3, sib_scq_data, equal_var=False, alternative='greater').pvalue)
     # FDR correction
     p_vals = multipletests(p_vals, method='fdr_bh')[1]
     print(p_vals)
