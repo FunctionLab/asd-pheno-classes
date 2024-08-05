@@ -104,7 +104,7 @@ def get_gene_sets():
     asd_coexpression_networks = list(asd_coexpression_networks['name'])
     psd_genes = list(psd_genes['name'])
     satterstrom = list(satterstrom['name'])
-    all_genes = pd.read_csv('/mnt/home/alitman/ceph/Genome_Annotation_Files_hg38/gencode.v29.annotation.protein_coding_genes.hg38.bed', sep='\t', index_col=None, header=None)
+    all_genes = pd.read_csv('gene_sets/gencode.v29.annotation.protein_coding_genes.hg38.bed', sep='\t', index_col=None, header=None)
     all_genes.columns = ['chr', 'start', 'end', 'gene', 'name', 'strand']
     all_genes = list(all_genes['name'])
 
@@ -118,7 +118,7 @@ def get_gene_sets():
     df['sfari_genes1'] = df['name'].apply(lambda x: 1 if x in sfari_genes1 else 0)
     df.to_csv('data/Supp_Table_4.csv', index=False)
 
-    pli_table = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/pLI_table.txt', sep='\t', index_col=False)
+    pli_table = pd.read_csv('gene_sets/pLI_table.txt', sep='\t', index_col=False)
     pli_genes_higher = pli_table[pli_table['pLI'] >= 0.995]['gene'].tolist()
     pli_genes_lower = pli_table[(pli_table['pLI'] < 0.995) & (pli_table['pLI'] >= 0.5)]['gene'].tolist()
 
