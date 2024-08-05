@@ -165,5 +165,5 @@ def GO_term_analysis(num_top_terms=3):
 
 
 if __name__ == '__main__':
-    get_impacted_genes_per_class(); exit()
+    get_impacted_genes_per_class()
     GO_term_analysis()
