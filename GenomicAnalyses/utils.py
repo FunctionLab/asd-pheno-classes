@@ -1,5 +1,6 @@
 import pandas as pd
 import pickle as rick
+import numpy as np
 
 
 with open('data/gene_ensembl_ID_to_name.pkl', 'rb') as f:
@@ -53,6 +54,7 @@ def load_dnvs():
     dnvs_pro = dnvs[dnvs['asd'] == 2]
 
     gfmm_labels = pd.read_csv('../PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=False, header=0)
+    
     gfmm_labels = gfmm_labels.rename(columns={'subject_sp_id': 'spid'})
     gfmm_labels = gfmm_labels[['spid', 'mixed_pred']]
     spid_to_class = dict(zip(gfmm_labels['spid'], gfmm_labels['mixed_pred']))
@@ -77,17 +79,17 @@ def load_dnvs():
 
 
 def get_gene_sets():
-    sfari_genes = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/SFARI_genes.csv', header=0, index_col=False).rename({'gene-symbol': 'name'}, axis='columns')
-    lof_genes = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/Constrained_PLIScoreOver0.9.bed', sep='\t', index_col=None)
-    chd8_genes = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/CHD8_targets_Cotney2015_Sugathan2014.bed', sep='\t', index_col=None)
-    fmrp_genes = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/FMRP_targets_Darnell2011.bed', sep='\t', index_col=None)
-    dd = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/Developmental_delay_DDD.bed', sep='\t', index_col=None)
-    asd_risk_genes = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/ASD_risk_genes_TADA_FDR0.3.bed', sep='\t', index_col=None)
-    haplo_genes = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/haploinsufficiency_hesc_2022_ST.csv', header=0, index_col=False).rename({'Symbol': 'name'}, axis='columns')
-    brain_expressed_genes = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/BrainExpressed_Kang2011.bed', sep='\t', index_col=None)
-    asd_coexpression_networks = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/ASD_coexpression_networks_Willsey2013.bed', sep='\t', index_col=None)
-    psd_genes = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/PSD_Genes2Cognition.bed', sep='\t', index_col=None)
-    satterstrom = pd.read_csv('/mnt/home/alitman/ceph/DIS_Tissue_Analysis_Variant_Sets/gene_sets/satterstrom_2020_102_ASD_genes.csv', header=0, index_col=False).rename({'gene': 'name'}, axis='columns')
+    sfari_genes = pd.read_csv('gene_sets/SFARI_genes.csv', header=0, index_col=False).rename({'gene-symbol': 'name'}, axis='columns')
+    lof_genes = pd.read_csv('gene_sets/Constrained_PLIScoreOver0.9.bed', sep='\t', index_col=None)
+    chd8_genes = pd.read_csv('gene_sets/CHD8_targets_Cotney2015_Sugathan2014.bed', sep='\t', index_col=None)
+    fmrp_genes = pd.read_csv('gene_sets/FMRP_targets_Darnell2011.bed', sep='\t', index_col=None)
+    dd = pd.read_csv('gene_sets/Developmental_delay_DDD.bed', sep='\t', index_col=None)
+    asd_risk_genes = pd.read_csv('gene_sets/ASD_risk_genes_TADA_FDR0.3.bed', sep='\t', index_col=None)
+    haplo_genes = pd.read_csv('gene_sets/haploinsufficiency_hesc_2022_ST.csv', header=0, index_col=False).rename({'Symbol': 'name'}, axis='columns')
+    brain_expressed_genes = pd.read_csv('gene_sets/BrainExpressed_Kang2011.bed', sep='\t', index_col=None)
+    asd_coexpression_networks = pd.read_csv('gene_sets/ASD_coexpression_networks_Willsey2013.bed', sep='\t', index_col=None)
+    psd_genes = pd.read_csv('gene_sets/PSD_Genes2Cognition.bed', sep='\t', index_col=None)
+    satterstrom = pd.read_csv('gene_sets/satterstrom_2020_102_ASD_genes.csv', header=0, index_col=False).rename({'gene': 'name'}, axis='columns')
     sfari_genes1 = list(sfari_genes[sfari_genes['gene-score'] == 1]['name'])
     sfari_genes2 = list(sfari_genes[sfari_genes['gene-score'] == 2]['name'])
     sfari_syndromic = list(sfari_genes[sfari_genes['syndromic'] == 1]['name'])
@@ -176,5 +178,7 @@ def get_trend_celltype_gene_sets():
     return gene_sets, gene_set_names, trends, cell_type_categories
 
 
-def sort_and_select_top(df, num_top_terms):
-    return df.sort_values(by='Fold Enrichment', ascending=False).iloc[:num_top_terms, :]
+def pad_lists(dict_of_lists):
+    max_len = max(len(lst) for lst in dict_of_lists.values())
+    padded_dict = {k: lst + [np.nan] * (max_len - len(lst)) for k, lst in dict_of_lists.items()}
+    return padded_dict

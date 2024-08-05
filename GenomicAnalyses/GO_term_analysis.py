@@ -3,14 +3,59 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from utils import sort_and_select_top
+from utils import load_dnvs, get_gene_sets, pad_lists
+
+
+def get_impacted_genes_per_class():
+    dnvs_pro, _, _, _ = load_dnvs()
+    
+    # subset to target Consequences 
+    consequences_missense = ['missense_variant', 'inframe_deletion', 'inframe_insertion', 'protein_altering_variant']
+    consequences_lof = ['stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost', 'transcript_ablation']
+
+    # annotate dnvs_pro and dnvs_sibs with consequence (binary)
+    dnvs_pro['consequence'] = dnvs_pro['Consequence'].apply(lambda x: 1 if x in consequences_missense else 0)
+    dnvs_pro['consequence_lof'] = dnvs_pro['Consequence'].apply(lambda x: 1 if x in consequences_lof else 0)
+    
+    gene_sets, gene_set_names = get_gene_sets()
+    
+    # for each gene set, annotate dnvs_pro and dnvs_sibs with gene set membership (binary)
+    all_genes_idx = 0 # retrieve index for all protein coding genes
+    dnvs_pro[gene_set_names[all_genes_idx]] = dnvs_pro['name'].apply(lambda x: 1 if x in gene_sets[all_genes_idx] else 0)
+
+    # further subset variants based on LOFTEE and AlphaMissense
+    dnvs_pro['final_consequence'] = dnvs_pro['consequence'] * dnvs_pro['am_class']
+    dnvs_pro['final_consequence_lof'] = dnvs_pro['consequence_lof'] * dnvs_pro['LoF']
+        
+    class_to_gene_set = {}
+    for class_id in [0,1,2,3]:
+        gene_vars = dnvs_pro[dnvs_pro['name'].isin(gene_sets[all_genes_idx])]
+        gene_vars_for_class = gene_vars[gene_vars['class'] == class_id]
+        
+        mis_gene_vars_for_class = gene_vars_for_class[gene_vars_for_class['final_consequence'] == 1]
+        lof_gene_vars_for_class = gene_vars_for_class[gene_vars_for_class['final_consequence_lof'] == 1]
+
+        genes = [] # initialize list of genes for the class
+        genes.extend(mis_gene_vars_for_class['name'].unique())
+        genes.extend(lof_gene_vars_for_class['name'].unique())
+       
+        class_to_gene_set[class_id] = list(set(genes))
+
+    # build a dataframe with the gene sets
+    padded_class_to_gene_set = pad_lists(class_to_gene_set)
+    class_to_gene_set_df = pd.DataFrame(padded_class_to_gene_set)
+    class_to_gene_set_df.to_csv('data/impacted_genes_per_class.csv', index=False)
+
+    for class_id in [0,1,2,3]:
+        print(f"Impacted genes for class {class_id}: {len(class_to_gene_set[class_id])} genes in total.")
+        print(', '.join([f'{gene}' for gene in class_to_gene_set[class_id]]))
 
 
 def GO_term_analysis(num_top_terms=3):
 
     # read go term files
-    class0_biol_processes = pd.read_csv('data/class0_top_pathways.csv')
-    class0_mol_functions = pd.read_csv('data/class0_top_mol_functions.csv')
+    class0_biol_processes = pd.read_csv('data/class0_top_pathways.csv') # bio processes
+    class0_mol_functions = pd.read_csv('data/class0_top_mol_functions.csv') # mol functions
     class1_biol_processes = pd.read_csv('data/class1_top_pathways.csv')
     class1_mol_functions = pd.read_csv('data/class1_top_mol_functions.csv')
     class2_biol_processes = pd.read_csv('data/class2_top_pathways.csv')
@@ -120,4 +165,5 @@ def GO_term_analysis(num_top_terms=3):
 
 
 if __name__ == '__main__':
+    get_impacted_genes_per_class(); exit()
     GO_term_analysis()
