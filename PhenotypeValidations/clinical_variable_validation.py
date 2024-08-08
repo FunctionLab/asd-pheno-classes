@@ -178,9 +178,13 @@ def get_feature_enrichments_with_sibs(mixed_data, name, only_sibs=False):
             sf3 = binomtest(subset_class3, n=total_in_class3, p=background, alternative='greater').pvalue
 
             feature_sig_df_high[feature] = [sf0, sf1, sf2, sf3]
-            feature_sig_df_high[feature] = multipletests(feature_sig_df_high[feature], method='fdr_bh')[1]
             feature_vector.append(feature)
 
+    # multiple hypothesis correction with Benjamini-Hochberg
+    shape = feature_sig_df_high.shape
+    feature_sig_df_high = feature_sig_df_high.values.flatten()
+    feature_sig_df_high = multipletests(feature_sig_df_high, method='fdr_bh')[1]
+    feature_sig_df_high = feature_sig_df_high.reshape(shape)
     feature_sig_norm_high = pd.DataFrame(feature_sig_df_high, columns=feature_vector)
     feature_sig_norm_high['cluster'] = [0, 1, 2, 3]
     return feature_sig_norm_high
