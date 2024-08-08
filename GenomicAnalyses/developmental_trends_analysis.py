@@ -9,7 +9,8 @@ from utils import load_dnvs, get_trend_celltype_gene_sets
 
 
 def make_gene_trend_figure(fdr=0.05):
-    #gene_sets, gene_set_names, trends, cell_type_categories = get_trend_celltype_gene_sets()
+    # run function or load precomputed data
+    #gene_sets, gene_set_names, trends, cell_type_categories = get_trend_celltype_gene_sets() 
     
     with open('data/gene_sets.pkl', 'rb') as f:
         gene_sets = rick.load(f)
@@ -22,6 +23,7 @@ def make_gene_trend_figure(fdr=0.05):
     
     dnvs_pro, dnvs_sibs, zero_pro, zero_sibs = load_dnvs()
     
+    # select LoF consequences
     consequences = ['stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost', 'transcript_ablation']
    
     # annotate dnvs_pro and dnvs_sibs with consequence (binary)
@@ -33,7 +35,7 @@ def make_gene_trend_figure(fdr=0.05):
         dnvs_pro[gene_set_names[i]] = dnvs_pro['name'].apply(lambda x: 1 if x in gene_sets[i] else 0)
         dnvs_sibs[gene_set_names[i]] = dnvs_sibs['name'].apply(lambda x: 1 if x in gene_sets[i] else 0)
     
-    # get number of spids in each class
+    # get number of participants in each class
     num_class0 = dnvs_pro[dnvs_pro['class'] == 0]['spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 0]['spid'].nunique()
     num_class1 = dnvs_pro[dnvs_pro['class'] == 1]['spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 1]['spid'].nunique()
     num_class2 = dnvs_pro[dnvs_pro['class'] == 2]['spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 2]['spid'].nunique()
@@ -41,6 +43,7 @@ def make_gene_trend_figure(fdr=0.05):
     num_sibs = dnvs_sibs['spid'].nunique() + zero_sibs['spid'].nunique()
     all_spids = num_class0 + num_class1 + num_class2 + num_class3
 
+    # compute enrichments for each gene set
     celltype_to_enrichment = {}
     class_to_go_enrichment = {}
     validation_subset = pd.DataFrame()
@@ -87,7 +90,7 @@ def make_gene_trend_figure(fdr=0.05):
             continue
 
         background_all = (np.sum(class0) + np.sum(class1) + np.sum(class2) + np.sum(class3) + np.sum(sibs))/(num_class0 + num_class1 + num_class2 + num_class3 + num_sibs)
-        background = np.sum(sibs)/num_sibs
+        background = np.sum(sibs)/num_sibs # sibling background
         class0_fe = (np.sum(class0)/num_class0)/background
         class1_fe = (np.sum(class1)/num_class1)/background
         class2_fe = (np.sum(class2)/num_class2)/background
@@ -129,6 +132,7 @@ def make_gene_trend_figure(fdr=0.05):
     validation_subset['color'] = validation_subset['cluster'].map({-2: 'black', -1: 'mediumorchid', 0: '#FBB040', 1: '#EE2A7B', 2: '#39B54A', 3: '#27AAE1'})
     validation_subset['Cluster'] = validation_subset['cluster'].map({-2: 'Siblings', -1: 'All Probands', 0: 'Moderate Challenges', 1: 'Broadly Impacted', 2: 'Social/Behavioral', 3: 'Mixed ASD with DD'})
     
+    # plot
     plt.style.use('seaborn-v0_8-whitegrid')
     fig, ax = plt.subplots(figsize=(7,12))
     for _, row in validation_subset.iterrows():
@@ -137,7 +141,7 @@ def make_gene_trend_figure(fdr=0.05):
         else:
             plt.scatter(row['Cluster'], row['variable'], s=row['Fold Enrichment']*230, c=row['color'])
 
-    for i in range(2, 16, 3):
+    for i in range(2, 16, 3): # add legend sizes
         plt.scatter([], [], s=(i)*230, c='dimgray', label=str(i+1))
     plt.legend(scatterpoints=1, labelspacing=2.8, title='Fold Enrichment', title_fontsize=23, fontsize=18, loc='upper left', bbox_to_anchor=(1, 1))
     plt.yticks(fontsize=18)
@@ -151,7 +155,6 @@ def make_gene_trend_figure(fdr=0.05):
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     ax.grid(False)
-    
     plt.savefig(f'figures/WES_gene_trends_dnLoF_analysis.png', bbox_inches='tight', dpi=600)
     plt.close()
 
