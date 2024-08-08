@@ -63,12 +63,9 @@ def main_clinical_validation(only_sibs=False):
     plt.close()
 
 
-def make_bubble_plot(validation_subset, category, y_labels, category_name, ax=None):
-    validation_subset = validation_subset[validation_subset['cluster'] != -1]
-    
+def make_bubble_plot(validation_subset, category, y_labels, category_name, ax=None):    
     colors = ['#FBB040', '#EE2A7B', '#39B54A', '#27AAE1']
     validation_subset['color'] = validation_subset['cluster'].map({0: '#FBB040', 1: '#EE2A7B', 2: '#39B54A', 3: '#27AAE1'})
-    validation_subset['Cluster'] = validation_subset['cluster'].map({0: 'ASD-Lower Support Needs', 1: 'ASD-Higher Support Needs', 2: 'ASD-Social/RRB', 3: 'ASD-Developmentally Delayed'})
     validation_subset['marker'] = validation_subset['cluster'].map({0: 'o', 1: 'o', 2: 'o', 3: 'o'})
         
     for i, row in validation_subset.iterrows():
@@ -130,13 +127,12 @@ def get_fold_enrichment(mixed_data, only_sibs=False):
             fold_enrichment_class1 = (class1_sum/total_in_class1) / background
             fold_enrichment_class2 = (class2_sum/total_in_class2) / background
             fold_enrichment_class3 = (class3_sum/total_in_class3) / background
-            fold_enrichment_sib = (sibs_sum/total_in_sibs) / background_all
 
-            feature_sig_df_high[feature] = [fold_enrichment_sib, fold_enrichment_class0, fold_enrichment_class1, fold_enrichment_class2, fold_enrichment_class3]
+            feature_sig_df_high[feature] = [fold_enrichment_class0, fold_enrichment_class1, fold_enrichment_class2, fold_enrichment_class3]
             feature_vector.append(feature)
     
     feature_sig_norm_high = pd.DataFrame(feature_sig_df_high, columns=feature_vector)
-    feature_sig_norm_high['cluster'] = [-1, 0, 1, 2, 3]
+    feature_sig_norm_high['cluster'] = [0, 1, 2, 3]
 
     return feature_sig_norm_high
 
@@ -176,42 +172,17 @@ def get_feature_enrichments_with_sibs(mixed_data, name, only_sibs=False):
             total_in_class3 = len(class3[feature])
             subset_class3 = int(np.sum(class3[feature]))
             
-            sfsib = binomtest(subset_sibs, n=total_in_sibs, p=background_all, alternative='greater').pvalue
             sf0 = binomtest(subset_class0, n=total_in_class0, p=background, alternative='greater').pvalue
             sf1 = binomtest(subset_class1, n=total_in_class1, p=background, alternative='greater').pvalue
             sf2 = binomtest(subset_class2, n=total_in_class2, p=background, alternative='greater').pvalue
             sf3 = binomtest(subset_class3, n=total_in_class3, p=background, alternative='greater').pvalue
 
-            # if any p-value is 0, change p-value to epsilon
-            if only_sibs:
-                if sfsib == 0:
-                    if name == 'Maternal':
-                        sfsib = 1e-2
-                if sf0 == 0:
-                    if name == 'Maternal':
-                        sf0 = 1e-25
-                if sf1 == 0:
-                    if name == 'Maternal':
-                        sf1 = 1e-25
-                    elif name == 'Daily Living':
-                        sf1 = 1e-240
-                if sf2 == 0:
-                    if name == 'Maternal':
-                        sf2 = 1e-25
-                    elif name == 'Mental Health':
-                        sf2 = 1e-160
-                if sf3 == 0:
-                    if name == 'Maternal':
-                        sf3 = 1e-25
-                    elif name == 'Daily Living':
-                        sf3 = 1e-250
-            
-            feature_sig_df_high[feature] = [sfsib, sf0, sf1, sf2, sf3]
-            feature_sig_df_high[feature] = multipletests(feature_sig_df_high[feature], method='fdr_bh', alpha=0.05)[1]
+            feature_sig_df_high[feature] = [sf0, sf1, sf2, sf3]
+            feature_sig_df_high[feature] = multipletests(feature_sig_df_high[feature], method='fdr_bh')[1]
             feature_vector.append(feature)
 
     feature_sig_norm_high = pd.DataFrame(feature_sig_df_high, columns=feature_vector)
-    feature_sig_norm_high['cluster'] = [-1, 0, 1, 2, 3]
+    feature_sig_norm_high['cluster'] = [0, 1, 2, 3]
     return feature_sig_norm_high
     
 
@@ -255,7 +226,7 @@ def individual_registration_validation():
                         whiskerprops = dict(color = "black", linewidth=2), capprops = dict(color = "black", linewidth=2),
                         medianprops=dict(color='white', linewidth=2), boxprops=dict(edgecolor='white', linewidth=0.5))
         else:
-            sns.barplot(x='mixed_pred', y=var, data=var_data, palette=['#FBB040','#EE2A7B','#39B54A','#27AAE1','dimgray'], dodge=False)
+            sns.barplot(x='mixed_pred', y=var, data=var_data, palette=['#FBB040','#EE2A7B','#39B54A','#27AAE1'], dodge=False)
         
         ax.set_xlabel('')
         if var == 'diagnosis_age':
@@ -401,6 +372,7 @@ def scq_and_developmental_milestones_validation():
     p_vals.append(ttest_ind(class3, sib_scq_data, equal_var=False, alternative='greater').pvalue)
     # FDR correction
     p_vals = multipletests(p_vals, method='fdr_bh')[1]
+    print('SCQ total score')
     print(p_vals)
     data = [sib_scq_data, class0, class1, class2, class3]
     sns.boxplot(data=data, palette=['dimgray','#FBB040','#EE2A7B','#39B54A','#27AAE1'], showfliers=True, whiskerprops = dict(color = "black", linewidth=2), capprops = dict(color = "black", linewidth=2),
