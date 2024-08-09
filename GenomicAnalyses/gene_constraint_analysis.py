@@ -8,6 +8,7 @@ from utils import load_dnvs
 
 
 def gene_constraint_analysis():
+    # load DNVs
     dnvs_pro, dnvs_sibs, zero_pro, zero_sibs = load_dnvs()
     
     # get gene sets
@@ -16,10 +17,12 @@ def gene_constraint_analysis():
     pli_higher = pli[pli['pLI'] >= 0.995]['gene'].tolist()
     pli_lower = pli[(pli['pLI'] >= 0.5) & (pli['pLI'] < 0.995)]['gene'].tolist()
     
+    # define LoF consequences
     consequences_lof = ['stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost', 'transcript_ablation']
     dnvs_pro['consequence'] = dnvs_pro['Consequence'].apply(lambda x: 1 if x in consequences_lof else 0)
     dnvs_sibs['consequence'] = dnvs_sibs['Consequence'].apply(lambda x: 1 if x in consequences_lof else 0)
 
+    # define pLI gene sets
     gene_sets = [pli_higher, pli_lower]
     gene_set_names = ['pli_higher', 'pli_lower']
     for i in range(len(gene_sets)):
@@ -72,15 +75,17 @@ def gene_constraint_analysis():
         class1_pval = ttest_ind(class1, sibs, equal_var=False, alternative='greater')[1]
         class2_pval = ttest_ind(class2, sibs, equal_var=False, alternative='greater')[1]
         class3_pval = ttest_ind(class3, sibs, equal_var=False, alternative='greater')[1]
-        corrected = multipletests([class0_pval, class1_pval, class2_pval, class3_pval], method='fdr_bh', alpha=0.05)[1]
+        corrected = multipletests([class0_pval, class1_pval, class2_pval, class3_pval], method='fdr_bh')[1]
         pvals = {k: pval for k, pval in enumerate(corrected)}
 
+        # compute average dnLoF per offspring for each group
         props.append(np.sum(sibs)/num_sibs)
         props.append(np.sum(class0)/num_class0)
         props.append(np.sum(class1)/num_class1)
         props.append(np.sum(class2)/num_class2)
         props.append(np.sum(class3)/num_class3)
         
+        # compute standard errors for each group
         stds.append(np.std(sibs)/np.sqrt(num_sibs))
         stds.append(np.std(class0)/np.sqrt(num_class0))
         stds.append(np.std(class1)/np.sqrt(num_class1))
@@ -94,18 +99,18 @@ def gene_constraint_analysis():
             ax.errorbar(x_values[i], y_values[i], yerr=stds[i], fmt='o', color=colors[i], markersize=20)
         ax.set_xlabel('')
         if ax == ax1:
-            ax.set_ylabel('dnLoF per offspring', fontsize=16)
+            ax.set_ylabel('dnLoF per offspring', fontsize=18)
         else:
             ax.set_ylabel('')
         ax.set_xticks(x_values)
-        if gene_set == 'pli_highest':
-            ax.set_title('pLI ≥ 0.995', fontsize=19)
-        elif gene_set == 'pli_medium':
-            ax.set_title('0.5 ≤ pLI < 0.995', fontsize=19)
+        if gene_set == 'pli_higher':
+            ax.set_title('pLI ≥ 0.995', fontsize=18)
+        elif gene_set == 'pli_lower':
+            ax.set_title('0.5 ≤ pLI < 0.995', fontsize=18)
         elif gene_set == 'pli_low':
-            ax.set_title('0.5 ≤ pLI < 0.9', fontsize=19)
+            ax.set_title('0.5 ≤ pLI < 0.9', fontsize=18)
         ax.set_axisbelow(True)
-        ax.tick_params(axis='y', labelsize=16)
+        ax.tick_params(axis='y', labelsize=17)
         for axis in ['top','bottom','left','right']:
             ax.spines[axis].set_linewidth(1.5)
             ax.spines[axis].set_color('black')
@@ -127,7 +132,7 @@ def gene_constraint_analysis():
             elif p_value < 0.1:
                 ax.annotate('*', xy=(x_position, ypos), ha='center', size=24, fontweight='bold')
     fig.tight_layout()
-    fig.savefig('figures/WES_gene_constraint_avg_lof_per_offspring.png', bbox_inches='tight')
+    fig.savefig('figures/WES_gene_constraint_avg_lof_per_offspring.png', bbox_inches='tight', dpi=600)
     plt.close()
 
 
