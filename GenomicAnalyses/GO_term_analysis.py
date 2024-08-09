@@ -7,6 +7,9 @@ from utils import load_dnvs, get_gene_sets, pad_lists
 
 
 def get_impacted_genes_per_class():
+    """
+    For each class, get the set of genes impacted by high-impact dnLoF or dnMissense variants.
+    """
     dnvs_pro, _, _, _ = load_dnvs()
     
     # subset to target Consequences 
@@ -46,6 +49,7 @@ def get_impacted_genes_per_class():
     class_to_gene_set_df = pd.DataFrame(padded_class_to_gene_set)
     class_to_gene_set_df.to_csv('data/impacted_genes_per_class.csv', index=False)
 
+    # print the impacted genes for each class
     for class_id in [0,1,2,3]:
         print(f"Impacted genes for class {class_id}: {len(class_to_gene_set[class_id])} genes in total.")
         print(', '.join([f'{gene}' for gene in class_to_gene_set[class_id]]))
