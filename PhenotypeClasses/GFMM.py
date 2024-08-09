@@ -13,15 +13,19 @@ from utils import split_columns, get_feature_enrichments, cohens_d, adjust_pvalu
 
 
 def run_mixture_model_on_phenotypes(ncomp=4, summarize=True):
-    datadf = pd.read_csv('data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)
+    # load unlabeled individual by feature matrix
+    datadf = pd.read_csv('data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0) 
     datadf = datadf.round()
     age = datadf['age_at_eval_years']
     
+    # define covariates and training data
     Z_p = datadf[['sex', 'age_at_eval_years']]
     X = datadf.drop(['sex', 'age_at_eval_years'], axis=1) 
     
+    # split columns into continuous, binary, and categorical features
     continuous_columns, binary_columns, categorical_columns = split_columns(list(X.columns))
 
+    # get mixed data and descriptor
     mixed_data, mixed_descriptor = get_mixed_descriptor(
         dataframe=X,
         continuous=continuous_columns,
@@ -29,15 +33,17 @@ def run_mixture_model_on_phenotypes(ncomp=4, summarize=True):
         categorical=categorical_columns
     )
 
+    # define model
     model = StepMix(n_components=ncomp, measurement=mixed_descriptor,
                     structural='covariate',
                     n_steps=1, n_init=200)
 
+    # fit model and predict classes
     model.fit(mixed_data, Z_p)
     mixed_data['mixed_pred'] = model.predict(mixed_data)
     labels = mixed_data['mixed_pred']
     mixed_data['age'] = age
-    mixed_data.to_csv('data/SPARK_5392_ninit_cohort_GFMM_labeled.csv')
+    mixed_data.to_csv('data/SPARK_5392_ninit_cohort_GFMM_labeled.csv') # save labeled data
     
     # get feature enrichments
     if summarize:
@@ -45,7 +51,7 @@ def run_mixture_model_on_phenotypes(ncomp=4, summarize=True):
     else:
         classification_df, feature_sig_norm_high, feature_sig_norm_low, feature_vector = get_feature_enrichments(mixed_data)
     
-    # pie chart of class proportions
+    # plot pie chart of class proportions (supplementary figure)
     fig, ax = plt.subplots(1,1,figsize=(7,7))
     ax = mixed_data['mixed_pred'].value_counts().plot.pie(autopct='%1.0f%%', startangle=90, colors=['#FBB040','#39B54A','#27AAE1','#EE2A7B'], labels=None)
     for patch in ax.patches:
@@ -57,7 +63,7 @@ def run_mixture_model_on_phenotypes(ncomp=4, summarize=True):
     plt.savefig(f'figures/class_breakdown_pie_chart_{ncomp}comp.png', bbox_inches='tight', dpi=600)
     plt.close()
 
-    # get age and sex breakdown by class
+    # plot age and sex breakdown by class (supplementary figure)
     mixed_data = mixed_data.merge(datadf['sex'], left_index=True, right_index=True)
     get_age_sex_distributions_for_classes(mixed_data, ncomp) 
 
@@ -71,7 +77,7 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments):
     features_to_exclude['class2'] = features_to_exclude['class2'].abs()
     features_to_exclude['class3'] = features_to_exclude['class3'].abs()
     
-    # exclusion criteria:
+    # feature exclusion criteria:
     # (1) features with no significant enrichments in any class
     # (2) features with all cohen's d values < 0.2 or FE < 1.5
     # get features where all classes is nan
@@ -89,7 +95,7 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments):
     features_to_exclude = pd.concat([nan_features, low_features_continuous, low_features_binary])
     features_to_exclude = features_to_exclude['feature'].unique()
 
-    # read in feature_to_category mapping
+    # load feature to category mapping
     features_to_category = pd.read_csv('../PhenotypeValidations/data/feature_to_category_mapping.csv', index_col=None)
     feature_to_category = dict(zip(features_to_category['feature'], features_to_category['category']))
     df = df_enriched_depleted.copy()
@@ -173,7 +179,7 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments):
     proportions_melted['type'] = proportions_melted['class'].apply(lambda x: x.split('_')[1])
     proportions_melted['class'] = proportions_melted['class'].apply(lambda x: x.split('_')[0])
 
-    # plot variation figure
+    # plot variation supplementary figure
     df = prop_df.drop(['class0_max', 'class1_max', 'class2_max', 'class3_max'], axis=1)
     df = df[df.index != 'somatic']
     df = df[df.index != 'other problems']
@@ -201,16 +207,16 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments):
     group_width = n_classes * bar_width + spacing
     bar_positions = np.arange(len(feature_categories)) * group_width
     class_colors = {
-        'class0': ['#FBB040', '#FBB040'],
-        'class1': ['#EE2A7B', '#EE2A7B'],
-        'class2': ['#39B54A', '#39B54A'],
-        'class3': ['#27AAE1', '#27AAE1']
+        'class0': '#FBB040',
+        'class1': '#EE2A7B',
+        'class2': '#39B54A',
+        'class3': '#27AAE1'
     }
     for idx, cls in enumerate(classes):
         enriched = proportions_melted[(proportions_melted['class'] == cls) & (proportions_melted['type'] == 'enriched')]
         depleted = proportions_melted[(proportions_melted['class'] == cls) & (proportions_melted['type'] == 'depleted')]
-        ax.bar(bar_positions + idx * bar_width, depleted['proportion'], width=bar_width, label=f'{cls} depleted', linewidth=0, color=class_colors[cls][0])
-        ax.bar(bar_positions + idx * bar_width, enriched['proportion'], width=bar_width, label=f'{cls} enriched', linewidth=0, color=class_colors[cls][1])
+        ax.bar(bar_positions + idx * bar_width, depleted['proportion'], width=bar_width, label=f'{cls} depleted', linewidth=0, color=class_colors[cls])
+        ax.bar(bar_positions + idx * bar_width, enriched['proportion'], width=bar_width, label=f'{cls} enriched', linewidth=0, color=class_colors[cls])
     ax.axhline(y=0, color='gray', linewidth=2)
     ax.set_xticks(bar_positions + bar_width * 1.5)
     ax.set_xticklabels(['anxiety/mood', 'attention', 'disruptive behavior', 'self-injury', 'restricted/repetitive', 'limited social/communication', 'developmental delay'], rotation=30, ha='right')
@@ -226,7 +232,7 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments):
     plt.savefig('figures/GFMM_variation_figure.png', dpi=600)
     plt.close()
 
-    # Horizontally plot the phenotype categories, have one line per class, y-axis = proportion of significant features
+    # plot main horizontal lineplot figure
     prop_df = prop_df.drop(['class0_enriched', 'class0_depleted', 'class1_enriched', 'class1_depleted', 'class2_enriched', 'class2_depleted', 'class3_enriched', 'class3_depleted'], axis=1)
     prop_df.columns = ['0', '1', '2', '3']
     features_to_visualize = ['anxiety/mood', 'attention', 'disruptive behavior', 'self-injury', 'restricted/repetitive', 'social/communication', 'developmental']

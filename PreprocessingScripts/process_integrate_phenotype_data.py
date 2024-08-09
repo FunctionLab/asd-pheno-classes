@@ -2,6 +2,9 @@ import pandas as pd
 
 
 def get_main_spark_data_for_GFMM():
+    """
+    Retrieve and integrate phenotype data from SPARK dataset.
+    """
     BASE_PHENO_DIR = '../SPARK_collection_v9_2022-12-12'
 
     ### SCQ
