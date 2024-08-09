@@ -1,8 +1,12 @@
 import os
+from collections import defaultdict
 
 import pandas as pd
 import numpy as np
 import pickle as rick
+import hail as hl
+
+from utils import get_gene_sets
 
 
 with open('gene_sets/gene_ensembl_ID_to_name.pkl', 'rb') as f:
@@ -228,7 +232,7 @@ def combine_inherited_vep_files():
         spid_to_num_ptvs[spids[i]] = ptv_counts
         spid_to_num_missense[spids[i]] = missense_counts
         
-    with open('data/spid_to_num_lof_rare_inherited.pkl', 'wb') as f:
+    with open('data/spid_to_num_lof_rare_inherited_gnomad_only.pkl', 'wb') as f:
         rick.dump(spid_to_num_ptvs, f)
-    with open('data/spid_to_num_missense_rare_inherited.pkl', 'wb') as f:
+    with open('data/spid_to_num_missense_rare_inherited_gnomad_only.pkl', 'wb') as f:
         rick.dump(spid_to_num_missense, f)

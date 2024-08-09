@@ -32,8 +32,9 @@ def compute_variant_set_proportions():
     num_class2 = dnvs_pro[dnvs_pro['class'] == 2]['spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 2]['spid'].nunique()
     num_class3 = dnvs_pro[dnvs_pro['class'] == 3]['spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 3]['spid'].nunique()
     num_sibs = dnvs_sibs['spid'].nunique() + zero_sibs['spid'].nunique()
+    print([num_class0, num_class1, num_class2, num_class3, num_sibs])
 
-    gene_sets_to_keep = ['all_genes']
+    gene_sets_to_keep = ['all_genes'] # we want all genes for this analysis
     
     # dnLoF + dnMis 
     props = []
@@ -64,12 +65,14 @@ def compute_variant_set_proportions():
         sibs_mis = dnvs_sibs.groupby('spid')['mis_gene_set&consequence'].sum().tolist()
         sibs = [sum(x) for x in zip(sibs_lof, sibs_mis)] + zero_sibs['count'].astype(int).tolist()
         
+        # compute means
         props.append(np.sum(sibs)/num_sibs)
         props.append(np.sum(class0)/num_class0)
         props.append(np.sum(class1)/num_class1)
         props.append(np.sum(class2)/num_class2)
         props.append(np.sum(class3)/num_class3)
 
+        # compute standard errors
         stds.append(np.std(sibs)/np.sqrt(num_sibs))
         stds.append(np.std(class0)/np.sqrt(num_class0))
         stds.append(np.std(class1)/np.sqrt(num_class1))
@@ -82,8 +85,7 @@ def compute_variant_set_proportions():
         pvals.append(ttest_ind(class2, sibs, equal_var=False, alternative='greater').pvalue)
         pvals.append(ttest_ind(class3, sibs, equal_var=False, alternative='greater').pvalue)
         pvals = multipletests(pvals, method='fdr_bh')[1]
-        pvals = {i: pval for i, pval in enumerate(pvals)}
-        break 
+        pvals = {i: pval for i, pval in enumerate(pvals)} 
         
     fig, ax = plt.subplots(1,2,figsize=(11,4.5))
     x_values = np.arange(len(props))
@@ -95,7 +97,7 @@ def compute_variant_set_proportions():
     ax[0].set_ylabel('Count per offspring', fontsize=16)
     ax[0].set_xticks(x_values)
     ax[0].tick_params(labelsize=16, axis='y')
-    ax[0].set_title('High-impact de novo variants', fontsize=19)
+    ax[0].set_title('High-impact de novo variants', fontsize=17)
     ax[0].set_axisbelow(True)
     for axis in ['top','bottom','left','right']:
         ax[0].spines[axis].set_linewidth(1.5)
@@ -103,8 +105,11 @@ def compute_variant_set_proportions():
     ax[0].spines['top'].set_visible(False)
     ax[0].spines['right'].set_visible(False)
     ax[0].grid(color='gray', linestyle='-', linewidth=0.5)
+    ax[0].set_xticklabels(['']*len(x_values))
 
-    # add significance stars to plot
+    print(f"dn pvals: {pvals}")
+
+    # add significance to plot
     for grpidx in [0,1,2,3]:
         p_value = pvals[grpidx]
         x_position = grpidx+1
@@ -118,12 +123,12 @@ def compute_variant_set_proportions():
         elif p_value < 0.1:
             ax[0].annotate('*', xy=(x_position, ypos), ha='center', size=22, fontweight='bold')
     
-    # inhLoF + inhMis
-    with open('data/spid_to_num_lof_rare_inherited.pkl', 'rb') as f:
+    # gnomAD-filtered rare inherited variants
+    with open('data/spid_to_num_lof_rare_inherited_gnomad_only.pkl', 'rb') as f:
         spid_to_num_ptvs = rick.load(f)
-    with open('data/spid_to_num_missense_rare_inherited.pkl', 'rb') as f:
+    with open('data/spid_to_num_missense_rare_inherited_gnomad_only.pkl', 'rb') as f:
         spid_to_num_missense = rick.load(f)
-
+    
     gfmm_labels = pd.read_csv('../PhenotypeValidations/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=False, header=0)
     sibling_list = '../PhenotypeValidations/data/WES_5392_siblings_spids.txt' 
 
@@ -146,6 +151,7 @@ def compute_variant_set_proportions():
     num_class2 = len([k for k, v in pros_to_num_ptvs.items() if spid_to_class[k] == 2])
     num_class3 = len([k for k, v in pros_to_num_ptvs.items() if spid_to_class[k] == 3])
     num_sibs = len(sibs_to_num_ptvs)
+    print([num_class0, num_class1, num_class2, num_class3, num_sibs])
 
     gene_set_to_index = {gene_set: i for i, gene_set in enumerate(gene_set_names)}
     gene_sets_to_keep = ['all_genes']
@@ -166,17 +172,18 @@ def compute_variant_set_proportions():
         class3_lof = [v[i] for k, v in pros_to_num_ptvs.items() if spid_to_class[k] == 3]
         class3_mis = [v[i] for k, v in pros_to_num_missense.items() if spid_to_class[k] == 3]
         class3 = [sum(x) for x in zip(class3_lof, class3_mis)]
-        all_pros_data = class0 + class1 + class2 + class3
         sibs_lof = [v[i] for k, v in sibs_to_num_ptvs.items()]
         sibs_mis = [v[i] for k, v in sibs_to_num_missense.items()]
         sibs = [sum(x) for x in zip(sibs_lof, sibs_mis)]
 
+        # compute means
         props.append(np.sum(sibs)/num_sibs)
         props.append(np.sum(class0)/num_class0)
         props.append(np.sum(class1)/num_class1)
         props.append(np.sum(class2)/num_class2)
         props.append(np.sum(class3)/num_class3)
 
+        # compute standard errors
         stds.append(np.std(sibs)/np.sqrt(num_sibs))
         stds.append(np.std(class0)/np.sqrt(num_class0))
         stds.append(np.std(class1)/np.sqrt(num_class1))
@@ -191,7 +198,6 @@ def compute_variant_set_proportions():
         pvals.append(ttest_ind(class3, sibs, equal_var=False, alternative='greater').pvalue)
         pvals = multipletests(pvals, method='fdr_bh')[1]
         pvals = {i: pval for i, pval in enumerate(pvals)}
-        break
     
     x_values = np.arange(len(props))
     y_values = props
@@ -201,7 +207,7 @@ def compute_variant_set_proportions():
     ax[1].set_xlabel('')
     ax[1].set_xticks(x_values)
     ax[1].tick_params(labelsize=16, axis='y')
-    ax[1].set_title('High-impact rare inherited variants', fontsize=19)
+    ax[1].set_title('High-impact rare inherited variants', fontsize=17)
     ax[1].set_axisbelow(True)
     for axis in ['top','bottom','left','right']:
         ax[1].spines[axis].set_linewidth(1.5)
@@ -209,8 +215,11 @@ def compute_variant_set_proportions():
     ax[1].spines['top'].set_visible(False)
     ax[1].spines['right'].set_visible(False)
     ax[1].grid(color='gray', linestyle='-', linewidth=0.5)
+    ax[1].set_xticklabels(['']*len(x_values))
 
-    # add significance stars to plot
+    print(f"inh pvals: {pvals}")
+
+    # add significance to plot
     for grpidx in [0,1,2,3]:
         p_value = pvals[grpidx]
         x_position = grpidx+1
@@ -225,7 +234,7 @@ def compute_variant_set_proportions():
             ax[1].annotate('*', xy=(x_position, ypos), ha='center', size=22, fontweight='bold')
     fig.tight_layout()
     fig.subplots_adjust(wspace=0.2)
-    plt.savefig('figures/WES_LoF_combined_Mis_props_scatter.png', bbox_inches='tight')
+    plt.savefig('figures/WES_LoF_combined_Mis_props_scatter.png', bbox_inches='tight', dpi=600)
     plt.close()
 
 
