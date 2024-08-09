@@ -60,7 +60,7 @@ def compute_odds_ratios():
 
         odds_ratios['lof'].append(odds_ratio_lof)
 
-    corrected_lof = multipletests(pvals_lof, method='fdr_bh', alpha=0.05)[1]
+    corrected_lof = multipletests(pvals_lof, method='fdr_bh')[1]
     print(corrected_lof)
 
     odds_ratios_for_plotting = [odds_ratios['lof']]
@@ -158,9 +158,9 @@ def compute_odds_ratios():
         odds_ratios['lof'].append(odds_ratio_lof)
         odds_ratios['syn'].append(odds_ratio_syn)
 
-    # FDR CORRECTION on pvals_lof and pvals_syn
-    corrected_lof = multipletests(pvals_lof, method='fdr_bh', alpha=0.05)[1]
-    corrected_syn = multipletests(pvals_syn, method='fdr_bh', alpha=0.05)[1]
+    # multiple hypothesis correction on pvals_lof and pvals_syn
+    corrected_lof = multipletests(pvals_lof, method='fdr_bh')[1]
+    corrected_syn = multipletests(pvals_syn, method='fdr_bh')[1]
     print(corrected_lof)
     print(corrected_syn)
 
@@ -189,7 +189,7 @@ def compute_odds_ratios():
     ax1.grid(which='both', axis='y', color='gray', linestyle='-')
     ax1.grid(which='both', axis='x', linestyle='')
     plt.tight_layout()
-    plt.savefig('figures/WES_odds_ratios_figure.png', bbox_inches='tight')
+    plt.savefig('figures/WES_odds_ratios_figure.png', bbox_inches='tight', dpi=600)
     plt.close()
 
 
