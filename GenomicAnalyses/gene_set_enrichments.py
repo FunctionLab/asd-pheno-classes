@@ -11,7 +11,7 @@ from utils import load_dnvs, get_gene_sets
 
 def volcano_LoF():
     '''
-    Produce volcano plot for LoF variants.
+    Produce gene set volcano plot for LoF variants.
     '''
     dnvs_pro, dnvs_sibs, zero_pro, zero_sibs = load_dnvs()
     consequences_lof = ['stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost', 'transcript_ablation']
@@ -36,6 +36,7 @@ def volcano_LoF():
 
     FE = []
     pvals = []
+    qvals = []
     ref_colors = ['#FBB040', '#EE2A7B', '#39B54A', '#27AAE1']
     colors = [] # keep track of colors for plot
 
@@ -49,7 +50,7 @@ def volcano_LoF():
         dnvs_sibs[f'{gene_set}&consequence'] = dnvs_sibs[gene_set] * dnvs_sibs['consequence'] * dnvs_sibs['LoF']
 
         class0 = dnvs_pro[dnvs_pro['class'] == 0].groupby('spid')[f'{gene_set}&consequence'].sum().tolist()
-        zero_class0 = zero_pro[zero_pro['mixed_pred'] == 0]['count'].astype(int).tolist() # these probands have no DNVs
+        zero_class0 = zero_pro[zero_pro['mixed_pred'] == 0]['count'].astype(int).tolist()
         class0 = class0 + zero_class0
         class1 = dnvs_pro[dnvs_pro['class'] == 1].groupby('spid')[f'{gene_set}&consequence'].sum().tolist()
         zero_class1 = zero_pro[zero_pro['mixed_pred'] == 1]['count'].astype(int).tolist()
@@ -63,36 +64,41 @@ def volcano_LoF():
         sibs = dnvs_sibs.groupby('spid')[f'{gene_set}&consequence'].sum().tolist()
         sibs = sibs + zero_sibs['count'].astype(int).tolist()
 
-        # pvalue comparing each class to sibs using a t-test
-        background = (np.sum(sibs))/(num_sibs)
+        # compute p-value comparing each class to sibs using a t-test
         class0_pval = ttest_ind(class0, sibs, equal_var=False, alternative='greater')[1]
         class1_pval = ttest_ind(class1, sibs, equal_var=False, alternative='greater')[1]
         class2_pval = ttest_ind(class2, sibs, equal_var=False, alternative='greater')[1]
         class3_pval = ttest_ind(class3, sibs, equal_var=False, alternative='greater')[1]
+        pvals += [class0_pval, class1_pval, class2_pval, class3_pval]
         corrected = multipletests([class0_pval, class1_pval, class2_pval, class3_pval], method='fdr_bh')[1]
         class0_pval = -np.log10(corrected[0])
         class1_pval = -np.log10(corrected[1])
         class2_pval = -np.log10(corrected[2])
         class3_pval = -np.log10(corrected[3])
 
+        # compute fold enrichment of each class compared to sibs
+        background = (np.sum(sibs))/(num_sibs)
         class0_fe = np.log2((np.sum(class0)/num_class0)/background)
         class1_fe = np.log2((np.sum(class1)/num_class1)/background)
         class2_fe = np.log2((np.sum(class2)/num_class2)/background)
         class3_fe = np.log2((np.sum(class3)/num_class3)/background)
 
-        shape = shape_list.pop(0)
+        shape = shape_list.pop(0) # each gene set is associated with a shape
         shapes += [shape, shape, shape, shape]
         FE += [class0_fe, class1_fe, class2_fe, class3_fe]
-        pvals += [class0_pval, class1_pval, class2_pval, class3_pval]
+        qvals += [class0_pval, class1_pval, class2_pval, class3_pval]
         colors += ref_colors
         
+    #corrected = multipletests(pvals, method='fdr_bh')[1]
+    #pvals = [-np.log10(p) for p in corrected]
+    
     plt.style.use('seaborn-v0_8-whitegrid')
     fig, ax = plt.subplots(figsize=(7, 4.5))
     for i in range(len(FE)):
-        if pvals[i] > -np.log10(0.05):
-            ax.scatter(FE[i], pvals[i], c=colors[i], s=90, marker=shapes[i])
+        if qvals[i] > -np.log10(0.05):
+            ax.scatter(FE[i], qvals[i], c=colors[i], s=90, marker=shapes[i])
         else:
-            ax.scatter(FE[i], pvals[i], c='white', s=90, marker=shapes[i], linewidths=1.5, edgecolors=colors[i])
+            ax.scatter(FE[i], qvals[i], c='white', s=90, marker=shapes[i], linewidths=1.5, edgecolors=colors[i])
     legend_elements = [Line2D([0], [0], marker='o', color='w', label='All genes', markerfacecolor='gray', markersize=10),
                         Line2D([0], [0], marker='v', color='w', label='LoF-Intolerant', markerfacecolor='gray', markersize=10),
                         Line2D([0], [0], marker='p', color='w', label='FMRP targets', markerfacecolor='gray', markersize=10),
@@ -116,7 +122,7 @@ def volcano_LoF():
 
 def volcano_missense():
     '''
-    Produce volcano plot for de novo missense variants.
+    Produce gene set volcano plot for de novo missense variants.
     '''
     dnvs_pro, dnvs_sibs, zero_pro, zero_sibs = load_dnvs()
     consequences_missense = ['missense_variant', 'inframe_deletion', 'inframe_insertion', 'protein_altering_variant']
@@ -141,6 +147,7 @@ def volcano_missense():
 
     FE = []
     pvals = []
+    qvals = []
     ref_colors = ['#FBB040', '#EE2A7B', '#39B54A', '#27AAE1']
     colors = []
 
@@ -173,11 +180,11 @@ def volcano_missense():
         class2_rest_of_sample = class0 + class1 + class3 + sibs
         class3_rest_of_sample = class0 + class1 + class2 + sibs
 
-        background = (np.sum(sibs))/(num_sibs)
         class0_pval = ttest_ind(class0, sibs, equal_var=False, alternative='greater')[1]
         class1_pval = ttest_ind(class1, sibs, equal_var=False, alternative='greater')[1]
         class2_pval = ttest_ind(class2, sibs, equal_var=False, alternative='greater')[1]
         class3_pval = ttest_ind(class3, sibs, equal_var=False, alternative='greater')[1]
+        pvals += [class0_pval, class1_pval, class2_pval, class3_pval]
 
         corrected = multipletests([class0_pval, class1_pval, class2_pval, class3_pval], method='fdr_bh')[1]
         class0_pval = -np.log10(corrected[0])
@@ -185,6 +192,7 @@ def volcano_missense():
         class2_pval = -np.log10(corrected[2])
         class3_pval = -np.log10(corrected[3])
         
+        background = (np.sum(sibs))/(num_sibs)
         class0_fe = np.log2((np.sum(class0)/num_class0)/background)
         class1_fe = np.log2((np.sum(class1)/num_class1)/background)
         class2_fe = np.log2((np.sum(class2)/num_class2)/background)
@@ -193,16 +201,19 @@ def volcano_missense():
         shape = shape_list.pop(0)
         shapes += [shape, shape, shape, shape]
         FE += [class0_fe, class1_fe, class2_fe, class3_fe]
-        pvals += [class0_pval, class1_pval, class2_pval, class3_pval]
+        qvals += [class0_pval, class1_pval, class2_pval, class3_pval]
         colors += ref_colors
+
+    #corrected = multipletests(pvals, method='fdr_bh')[1]
+    #pvals = [-np.log10(p) for p in corrected]
 
     plt.style.use('seaborn-v0_8-whitegrid')
     fig, ax = plt.subplots(figsize=(7, 4.5))
     for i in range(len(FE)):
-        if pvals[i] > -np.log10(0.05):
-            ax.scatter(FE[i], pvals[i], c=colors[i], s=90, marker=shapes[i])
+        if qvals[i] > -np.log10(0.05):
+            ax.scatter(FE[i], qvals[i], c=colors[i], s=90, marker=shapes[i])
         else:
-            ax.scatter(FE[i], pvals[i], c='white', s=90, marker=shapes[i], linewidths=1.5, edgecolors=colors[i])
+            ax.scatter(FE[i], qvals[i], c='white', s=90, marker=shapes[i], linewidths=1.5, edgecolors=colors[i])
     ax.set_xlabel('log2 fold change', fontsize=15)
     ax.set_ylabel('-log10(q-value)', fontsize=15)
     ax.set_title('dnMis', fontsize=18)
