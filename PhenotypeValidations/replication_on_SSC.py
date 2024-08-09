@@ -121,28 +121,15 @@ def cross_cohort_replication(ncomp):
     spark_prop_df = prop_df.loc[features_to_visualize]
     spark_prop_df.index = np.arange(len(spark_prop_df))
 
-    # analyze SSC predictions
-    feature_to_pval = dict()
-    feature_sig_df_high = pd.DataFrame()
-    feature_sig_df_low = pd.DataFrame()
-    feature_vector = list()
-
     # rename ssc_pred to mixed_pred
     ssc_labels = ssc_labels.rename({'ssc_pred': 'mixed_pred'}, axis=1)
-
-    ## extract values for classes
-    class0 = ssc_labels[ssc_labels['mixed_pred'] == 0]
-    class1 = ssc_labels[ssc_labels['mixed_pred'] == 1]
-    class2 = ssc_labels[ssc_labels['mixed_pred'] == 2]
-    class3 = ssc_labels[ssc_labels['mixed_pred'] == 3]
 
     # get feature enrichments for SSC
     ssc_pval_classification_df, feature_sig_norm_high, feature_sig_norm_low, feature_vector, summary_df, fold_enrichments = get_feature_enrichments(ssc_labels, summarize=True)
     
     summary_df = summary_df.fillna('NaN')
     summary_df = summary_df.replace(np.nan, 1)
-    summary_df = summary_df.loc[~summary_df['feature'].isin(features_to_exclude)] # remove non-contributory features in ssc
-    ssc_feature_subset = summary_df['feature'].to_list()
+    summary_df = summary_df.loc[~summary_df['feature'].isin(features_to_exclude)] # remove non-contributory features
     
     summary_df['feature_category'] = summary_df['feature'].map(feature_to_category)
     summary_df = summary_df.dropna(subset=['feature_category'])
@@ -267,7 +254,6 @@ def run_spark_model(ncomp):
     ssc_data = ssc_data[common_features]
 
     # train model on SPARK data only
-    age = spark_data['age_at_eval_years']
     Z_p = spark_data[['sex', 'age_at_eval_years']]
 
     X = spark_data.drop(['sex', 'age_at_eval_years'], axis=1)
