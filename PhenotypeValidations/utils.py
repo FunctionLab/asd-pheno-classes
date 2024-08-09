@@ -86,10 +86,6 @@ def awe(model, X, Y=None):
         return -2 * model.score(X, Y) * n + model.n_parameters * (np.log(n) + 1.5)
 
 
-def scramble_column(column):
-    return np.random.permutation(column)
-
-
 def get_cross_cohort_SPARK_data():
     BASE_PHENO_DIR = '../SPARK_collection_v9_2022-12-12'
 

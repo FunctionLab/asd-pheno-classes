@@ -9,6 +9,7 @@ from utils import split_columns
 
 
 def main_clinical_validation(only_sibs=False):
+    # load sample data and class labels
     mixed_data = pd.read_csv('data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0)
 
     # get medical data for validation
@@ -17,23 +18,26 @@ def main_clinical_validation(only_sibs=False):
     bms_data = bmsdf.set_index('subject_sp_id',drop=True)
     bms_data = bms_data.replace(np.nan, 0)
     
+    # compute 'birth_defect' binary feature
     birth_defect_features = ['birth_def_cns', 'birth_def_bone', 'birth_def_fac', 'birth_def_gastro', 'birth_def_thorac', 'birth_def_urogen']
     bms_data['birth_defect'] = np.where(bms_data[birth_defect_features].sum(axis=1) > 0, 1, 0)
     
+    # retrieve features of interest for three categories
     neurodev = ['growth_macroceph', 'growth_microceph', 'dev_id', 'neuro_sz', 'birth_defect', 'dev_lang_dis']
-    maternal = ['birth_ivh', 'birth_pg_inf', 'birth_prem']
     mental_health = ['tics', 'mood_ocd',  'mood_dep', 'mood_anx', 'behav_adhd']
-    daily_living = ['feeding_dx', 'sleep_dx', 'dev_motor']
-    group = neurodev+maternal+mental_health+daily_living
+    cooccurring = ['feeding_dx', 'sleep_dx', 'dev_motor']
+    group = neurodev + mental_health + cooccurring
     subset_validation_data = bms_data[group]
 
-    # get labels for plotting
+    # labels for diagnostic features
     neuro_labels = ['Macrocephaly', 'Microcephaly', 'ID', 'Seizures/Epilepsy', 'Birth Defect', 'Language Delay']
-    maternal_labels = ['IVH', 'Prenatal Infection', 'Premature Birth']
     mental_health_labels = ['Tics', 'OCD', 'Depression', 'Anxiety', 'ADHD']
-    daily_living_labels = ['Feeding Disorder', 'Sleep Disorder', 'Motor Disorder']
+    cooccurring_labels = ['Feeding Disorder', 'Sleep Disorder', 'Motor Disorder']
     
+    # merge with class labels
     mixed_data = pd.merge(mixed_data, subset_validation_data, left_index=True, right_index=True)
+    
+    # retrieve sibling data
     sibs = pd.read_csv('data/spark_siblings_bms_validation.txt', sep='\t', index_col=0)
     sibling_list = 'data/WES_5392_siblings_spids.txt'
     paired_sibs = pd.read_csv(sibling_list, sep='\t', header=None, index_col=0)
@@ -44,10 +48,10 @@ def main_clinical_validation(only_sibs=False):
     mixed_data['mixed_pred'] = mixed_data['mixed_pred'].replace(np.nan, -1)
 
     category_names = ['Neurodevelopmental', 'Mental Health', 'Co-occurring']
-    labels = [neuro_labels, mental_health_labels, daily_living_labels]
+    labels = [neuro_labels, mental_health_labels, cooccurring_labels]
     plt.style.use('seaborn-v0_8-whitegrid')
     fig, ax = plt.subplots(3, 1, figsize=(10.5, 12), sharex=True, gridspec_kw={'height_ratios': [1.7, 1.4, 1]})
-    for i, name, label, category in zip(np.arange(len(category_names)), category_names, labels, [neurodev, mental_health, daily_living]):
+    for i, name, label, category in zip(np.arange(len(category_names)), category_names, labels, [neurodev, mental_health, cooccurring]):
         p_values = get_feature_enrichments_with_sibs(mixed_data[category+['mixed_pred']], name, only_sibs)
         validation_subset = p_values.loc[:,category+['cluster']]
         validation_subset = pd.melt(validation_subset, id_vars=['cluster'])
@@ -64,7 +68,6 @@ def main_clinical_validation(only_sibs=False):
 
 
 def make_bubble_plot(validation_subset, category, y_labels, category_name, ax=None):    
-    colors = ['#FBB040', '#EE2A7B', '#39B54A', '#27AAE1']
     validation_subset['color'] = validation_subset['cluster'].map({0: '#FBB040', 1: '#EE2A7B', 2: '#39B54A', 3: '#27AAE1'})
     validation_subset['marker'] = validation_subset['cluster'].map({0: 'o', 1: 'o', 2: 'o', 3: 'o'})
         
@@ -105,7 +108,7 @@ def get_fold_enrichment(mixed_data, only_sibs=False):
         if len(unique) == 2:  
             total_in_sibs = len(sibs[feature])
             if only_sibs:
-                sibs_sum = int(np.sum(sibs[feature]))+1 # add pseudocount
+                sibs_sum = int(np.sum(sibs[feature])) + 1 # add pseudocount to sibs
             else:
                 sibs_sum = int(np.sum(sibs[feature])) 
             total_in_class0 = len(class0[feature])
