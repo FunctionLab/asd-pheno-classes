@@ -1,6 +1,8 @@
 # Decomposition of phenotypic heterogeneity in autism reveals distinct and coherent genetic programs
 
-Run scripts with conda environment: `conda_requirements.txt`.
+### **System Requirements** 
+
+Run scripts with conda environment: `conda_requirements.txt`, which contains all software dependencies, including version numbers.
 
 ### **Data Availability**
 
