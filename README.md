@@ -1,9 +1,62 @@
 # Decomposition of phenotypic heterogeneity in autism reveals distinct and coherent genetic programs
 
-### **System Requirements** 
+## Repo Contents
 
-Run scripts with conda environment: `conda_requirements.txt`, which contains all software dependencies, including version numbers.
+- [Preprocessing](https://github.com/FunctionLab/asd-pheno-classes/tree/main/PreprocessingScripts)
+- [Constructing Phenotype Classes](https://github.com/FunctionLab/asd-pheno-classes/tree/main/PhenotypeClasses)
+- [Phenotype validation and replication](https://github.com/FunctionLab/asd-pheno-classes/tree/main/PhenotypeValidations)
+- [Polygenic Scores](https://github.com/FunctionLab/asd-pheno-classes/tree/main/PolygenicScores)
+- [Rare Variant Genomic Analyses](https://github.com/FunctionLab/asd-pheno-classes/tree/main/GenomicAnalyses)
 
-### **Data Availability**
+
+# Overview
+
+Unraveling the phenotypic and genetic complexity of autism is extremely challenging yet critical for understanding the biology, inheritance, trajectory, and clinical manifestations of the many forms of the condition. Here, we leveraged broad phenotypic data from a large cohort with matched genetics to characterize classes of autism and their patterns of core, associated, and co-occurring traits, ultimately demonstrating that phenotypic patterns are associated with distinct genetic and molecular programs. We used a generative mixture modeling approach to identify robust, clinically-relevant classes of autism which we validate and replicate in a large independent cohort. We link the phenotypic findings to distinct patterns of de novo and inherited variation which emerge from the deconvolution of these genetic signals, and demonstrate that class-specific common variant scores strongly align with clinical outcomes. We further provide insights into the distinct biological pathways and processes disrupted by the sets of mutations in each class. Remarkably, we discover class-specific differences in the developmental timing of genes that are dysregulated, and these temporal patterns correspond to clinical milestone and outcome differences between the classes. These analyses embrace the phenotypic complexity of children with autism, unraveling genetic and molecular programs underlying their heterogeneity and suggesting specific biological dysregulation patterns and mechanistic hypotheses.
+
+# **System Requirements** 
+
+## Hardware requirements
+
+The code in this repository requires only a standard computer with enough RAM to support the operations defined in the scripts.
+
+## Software requirements
+
+The conda environment used in the testing of all scripts is described in `conda_requirements.txt`, which contains all software dependencies, including version numbers. All code was tested on Linux operating systems. The latest version of the code has been tested on the following system: 
+
+Linux: Rocky 8.10
+
+We recommend starting a new conda environment using the requirements file:
+
+```
+conda create --name asd_env --file conda_requirements.txt
+conda activate asd_env
+conda list # verify the installation
+```
+
+# Installation guide
+
+We recommend cloning the repository to retrieve all scripts, executables, and supplementary data files (e.g. gene sets):
+
+```
+git clone https://github.com/FunctionLab/asd-pheno-classes.git
+```
+
+Cloning/installation time is less than 10s.
+
+If you have access to SPARK and/or SSC data (see data availability statement below), you can execute the scripts by either:
+
+(1) Replacing relative paths with local paths pointing to locations of phenotype and/or genotype datasets, or
+(2) Copying phenotype datasets to the current directory to keep relative path references consistent.
+
+Expected output: figures and tables will be in the figures/ subdirectory in each respective section. Some code may produce intermediate data files.
+
+# Reproduction instruction
+
+Given access to the data from SFARI Base, first resolve the paths using one of two strategies described above.
+
+The scripts should be run in the following order to correctly reproduce the results:
+(1) 
+
+### **Data Availability Statement**
 
 In order to abide by the informed consents that individuals with autism and their family members signed when agreeing to participate in a SFARI cohort (SSC and SPARK), researchers must be approved by SFARI Base (https://base.sfari.org).
