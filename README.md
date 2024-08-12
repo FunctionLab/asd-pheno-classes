@@ -18,6 +18,6 @@ conda activate asd_env
 conda list # verify the installation
 ```
 
-### **Data Availability**
+### **Data Availability Statement**
 
 In order to abide by the informed consents that individuals with autism and their family members signed when agreeing to participate in a SFARI cohort (SSC and SPARK), researchers must be approved by SFARI Base (https://base.sfari.org).
