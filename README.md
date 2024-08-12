@@ -4,7 +4,7 @@
 
 - [Preprocessing](https://github.com/FunctionLab/asd-pheno-classes/tree/main/PreprocessingScripts)
 - [Constructing Phenotype Classes](https://github.com/FunctionLab/asd-pheno-classes/tree/main/PhenotypeClasses)
-- [Phenotype validation and replication](https://github.com/FunctionLab/asd-pheno-classes/tree/main/PhenotypeValidations)
+- [Phenotype Validation and Replication](https://github.com/FunctionLab/asd-pheno-classes/tree/main/PhenotypeValidations)
 - [Polygenic Scores](https://github.com/FunctionLab/asd-pheno-classes/tree/main/PolygenicScores)
 - [Rare Variant Genomic Analyses](https://github.com/FunctionLab/asd-pheno-classes/tree/main/GenomicAnalyses)
 
@@ -55,7 +55,45 @@ Expected output: figures and tables will be in the figures/ subdirectory in each
 Given access to the data from SFARI Base, first resolve the paths using one of two strategies described above.
 
 The scripts should be run in the following order to correctly reproduce the results:
-(1) 
+(1) Execute `PreprocessingScripts/process_integrate_phenotype_data.py` to produce probands by phenotypes matrix. Make sure to correctly reference to SPARK phenotype dataset (`SPARK_collection_vX_date`).
+  (a) Probands by phenotypes matrix can be found in `PhenotypeClasses/data/`.
+(2) Execute `PhenotypeClasses/GFMM.py` to train and apply the model to the probands by phenotypes matrix, and obtain a label for each proband. Please allow some time for this script to run - we train 200 models with different initializations, but this should not take more than a couple of hours to run. This script produces:
+  (a) A file with phenotypes and proband labels in `PhenotypeClasses/data/`.
+  (b) A pie chart of class proportions (in `PhenotypeClasses/figures/`).
+  (c) Age and sex breakdown by class (in `PhenotypeClasses/figures/`).
+  (d) Horizontal lineplot summarizing the classes (in `PhenotypeClasses/figures/`).
+  (e) Figure displaying variation of enrichment patterns in each class (in `PhenotypeClasses/figures/`).
+(3) Execute `PhenotypeValidations/clinical_variable_validation.py`, which will produce:
+  (a) Clinical validation plot (in `PhenotypeValidations/figures/`).
+  (b) Parent-reported individual registration validation (in `PhenotypeValidations/figures/`).
+  (c) SCQ and developmental milestones validation (in `PhenotypeValidations/figures/`).
+4) Given availability of SSC phenotype dataset, execute `PhenotypeValidations/clinical_variable_validation.py` to produce:
+  (a) Replication figures (in `PhenotypeValidations/figures/`).
+5) DNV and inherited variant calling using HAT.
+  (a) Execute `GenomicAnalyses.data_utils.get_WES_trios` to get valid trios (probands and siblings) for variant calling.
+  (a) DNV calling outputs should be directed to `data/WES_V2_data/calling_denovos_data/output/`.
+6) Rare variant analyses can be executed as follows:
+  (a) Run Ensembl's VEP on the variant calls from HAT.
+  (a) Execute `GenomicAnalyses/variant_preprocessing_steps.py` to get all necessary data files for analysis.
+  (b) Execute the rest of the scripts to reproduce figures from the paper:
+    - `GenomicAnalyses/variant_set_enrichments.py`
+    - `GenomicAnalyses/gene_constraint_analysis.py`
+    - `GenomicAnalyses/gene_set_enrichments.py`
+    - `GenomicAnalyses/odds_ratios.py`
+    - `GenomicAnalyses/GO_term_analysis.py`
+    - `GenomicAnalyses/developmental_trends_analysis.py`
+
+## Software packages
+
+We used the following software packages, which are publicly available for installation and use:
+
+- HAT (downloaded from github on 10/11/22).
+- plink v1.9.
+- ShinyGO 0.80.
+- StepMix 1.2.5 was retrieved from PyPI.
+- Ensembl VEP tool (release 111.0)
+- LOFTEE (v.1.0.4)
+- AlphaMissense (VEP plugin)
 
 ### **Data Availability Statement**
 
