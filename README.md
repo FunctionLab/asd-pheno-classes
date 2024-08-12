@@ -55,11 +55,12 @@ Expected output: figures and tables will be in the figures/ subdirectory in each
 Given access to the data from SFARI Base, first resolve the paths using one of two strategies described above.
 
 The scripts should be run in the following order to correctly reproduce the results:
-(1) Execute `PreprocessingScripts/process_integrate_phenotype_data.py` to produce probands by phenotypes matrix. Make sure to correctly reference to SPARK phenotype dataset (`SPARK_collection_vX_date`).
+
+  1) Execute `PreprocessingScripts/process_integrate_phenotype_data.py` to produce probands by phenotypes matrix. Make sure to correctly reference to SPARK phenotype dataset (`SPARK_collection_vX_date`).
 
   - Probands by phenotypes matrix can be found in `PhenotypeClasses/data/`.
 
-(2) Execute `PhenotypeClasses/GFMM.py` to train and apply the model to the probands by phenotypes matrix, and obtain a label for each proband. Please allow some time for this script to run - we train 200 models with different initializations, but this should not take more than a couple of hours to run. This script produces:
+  2) Execute `PhenotypeClasses/GFMM.py` to train and apply the model to the probands by phenotypes matrix, and obtain a label for each proband. Please allow some time for this script to run - we train 200 models with different initializations, but this should not take more than a couple of hours to run. This script produces:
   
   - A file with phenotypes and proband labels in `PhenotypeClasses/data/`.
   
@@ -71,7 +72,7 @@ The scripts should be run in the following order to correctly reproduce the resu
   
   - Figure displaying variation of enrichment patterns in each class (in `PhenotypeClasses/figures/`).
 
-(3) Execute `PhenotypeValidations/clinical_variable_validation.py`, which will produce:
+  3) Execute `PhenotypeValidations/clinical_variable_validation.py`, which will produce:
 
   - Clinical validation plot (in `PhenotypeValidations/figures/`).
   
@@ -79,17 +80,17 @@ The scripts should be run in the following order to correctly reproduce the resu
   
   - SCQ and developmental milestones validation (in `PhenotypeValidations/figures/`).
 
-4) Given availability of SSC phenotype dataset, execute `PhenotypeValidations/clinical_variable_validation.py` to produce:
+  4) Given availability of SSC phenotype dataset, execute `PhenotypeValidations/clinical_variable_validation.py` to produce:
 
   - Replication figures (in `PhenotypeValidations/figures/`).
 
-5) DNV and inherited variant calling using HAT.
+  5) DNV and inherited variant calling using HAT.
 
   - Execute `GenomicAnalyses.data_utils.get_WES_trios` to get valid trios (probands and siblings) for variant calling.
   
   - DNV calling outputs should be directed to `data/WES_V2_data/calling_denovos_data/output/`.
 
-6) Rare variant analyses can be executed as follows:
+  6) Rare variant analyses can be executed as follows:
 
   - Run Ensembl's VEP on the variant calls from HAT.
   
