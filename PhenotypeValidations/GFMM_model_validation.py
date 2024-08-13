@@ -15,7 +15,8 @@ from utils import sabic, c_aic, awe, split_columns
 
 def plot_main_indicators(num_iter=200):
     """
-    Plot the statistical metrics for the GFMM model: LL, AIC, BIC, SABIC, CAIC, LMR-LRT.
+    Plot the statistical metrics for the GFMM model: 
+    LL, AIC, BIC, SABIC, CAIC, LMR-LRT.
     """
     # load the experiment results
     with open(f'pickles/GFMM_AIC_{num_iter}_iterations.pkl', 'rb') as f:
@@ -26,7 +27,8 @@ def plot_main_indicators(num_iter=200):
         ssabic = rick.load(f)
     with open(f'pickles/GFMM_caic_{num_iter}_iterations.pkl', 'rb') as f:
         caic = rick.load(f)
-    with open(f'pickles/GFMM_val_log_likelihood_{num_iter}_iterations.pkl', 'rb') as f:
+    with open(
+        f'pickles/GFMM_val_log_likelihood_{num_iter}_iterations.pkl', 'rb') as f:
         val_log_likelihood = rick.load(f)
     with open(f'pickles/GFMM_LMR_LRT_50_iterations.pkl', 'rb') as f:
         p_vals = rick.load(f)
@@ -38,9 +40,13 @@ def plot_main_indicators(num_iter=200):
     plt.style.use('seaborn-v0_8-whitegrid')
 
     # LL
-    val_log_likelihood_mean = [np.mean(val_log_likelihood[n_components]) for n_components in grid['n_components']]
-    val_log_likelihood_std = [np.std(val_log_likelihood[n_components]) for n_components in grid['n_components']]
-    ax[0, 0].errorbar(grid['n_components'], val_log_likelihood_mean, yerr=val_log_likelihood_std, fmt='o', color='dodgerblue', markersize=12)
+    val_log_likelihood_mean = [
+        np.mean(val_log_likelihood[n_components]) for n_components in grid['n_components']]
+    val_log_likelihood_std = [
+        np.std(val_log_likelihood[n_components]) for n_components in grid['n_components']]
+    ax[0, 0].errorbar(
+        grid['n_components'], val_log_likelihood_mean, yerr=val_log_likelihood_std, 
+        fmt='o', color='dodgerblue', markersize=12)
     ax[0, 0].set_xlabel('Number of Components', fontsize=20)
     ax[0, 0].grid(True)
     for axis in ['top','bottom','left','right']:
@@ -52,7 +58,9 @@ def plot_main_indicators(num_iter=200):
     # AIC
     aic_mean = [np.mean(aic[n_components]) for n_components in grid['n_components']]
     aic_std = [np.std(aic[n_components]) for n_components in grid['n_components']]
-    ax[0, 1].errorbar(grid['n_components'], aic_mean, yerr=aic_std, fmt='o', color='darkgreen', markersize=12)
+    ax[0, 1].errorbar(
+        grid['n_components'], aic_mean, yerr=aic_std, fmt='o', 
+        color='darkgreen', markersize=12)
     ax[0, 1].set_xlabel('Number of Components', fontsize=20)
     ax[0, 1].grid(True)
     for axis in ['top','bottom','left','right']:
@@ -64,7 +72,9 @@ def plot_main_indicators(num_iter=200):
     # BIC
     bic_mean = [np.mean(bic[n_components]) for n_components in grid['n_components']]
     bic_std = [np.std(bic[n_components]) for n_components in grid['n_components']]
-    ax[0, 2].errorbar(grid['n_components'], bic_mean, yerr=bic_std, fmt='o', color='darkorange', markersize=12)
+    ax[0, 2].errorbar(
+        grid['n_components'], bic_mean, yerr=bic_std, fmt='o', 
+        color='darkorange', markersize=12)
     ax[0, 2].set_xlabel('Number of Components', fontsize=20)
     ax[0, 2].grid(True)
     for axis in ['top','bottom','left','right']:
@@ -74,9 +84,13 @@ def plot_main_indicators(num_iter=200):
     ax[0, 2].set_title('BIC', fontsize=20)
 
     # SABIC
-    sabic_mean = [np.mean(ssabic[n_components]) for n_components in grid['n_components']]
-    sabic_std = [np.std(ssabic[n_components]) for n_components in grid['n_components']]
-    ax[1, 0].errorbar(grid['n_components'], sabic_mean, yerr=sabic_std, fmt='o', color='gold', markersize=12)
+    sabic_mean = [
+        np.mean(ssabic[n_components]) for n_components in grid['n_components']]
+    sabic_std = [
+        np.std(ssabic[n_components]) for n_components in grid['n_components']]
+    ax[1, 0].errorbar(
+        grid['n_components'], sabic_mean, yerr=sabic_std, fmt='o', 
+        color='gold', markersize=12)
     ax[1, 0].set_xlabel('Number of Components', fontsize=20)
     ax[1, 0].grid(True)
     for axis in ['top','bottom','left','right']:
@@ -86,9 +100,13 @@ def plot_main_indicators(num_iter=200):
     ax[1, 0].set_title('SABIC', fontsize=20)
 
     # CAIC
-    caic_mean = [np.mean(caic[n_components]) for n_components in grid['n_components']]
-    caic_std = [np.std(caic[n_components]) for n_components in grid['n_components']]
-    ax[1, 1].errorbar(grid['n_components'], caic_mean, yerr=caic_std, fmt='o', color='tomato', markersize=12)
+    caic_mean = [
+        np.mean(caic[n_components]) for n_components in grid['n_components']]
+    caic_std = [
+        np.std(caic[n_components]) for n_components in grid['n_components']]
+    ax[1, 1].errorbar(
+        grid['n_components'], caic_mean, yerr=caic_std, fmt='o', 
+        color='tomato', markersize=12)
     ax[1, 1].set_xlabel('Number of Components', fontsize=20)
     ax[1, 1].grid(True)
     for axis in ['top','bottom','left','right']:
@@ -104,8 +122,13 @@ def plot_main_indicators(num_iter=200):
         if n_components != 6: # skip because nan
             lrm_p_vals.append(np.mean(p_vals[n_components]))
     p_vals_mean = lrm_p_vals
-    p_vals_std = [np.std(p_vals[n_components]) for n_components in grid['n_components'] if n_components != 6]
-    ax[1, 2].errorbar([2,3,4,5,6], p_vals_mean, yerr=p_vals_std, fmt='o', color='magenta', markersize=12)
+    p_vals_std = [
+        np.std(p_vals[n_components]) for n_components in grid['n_components'] 
+        if n_components != 6
+        ]
+    ax[1, 2].errorbar(
+        [2,3,4,5,6], p_vals_mean, yerr=p_vals_std, fmt='o', 
+        color='magenta', markersize=12)
     ax[1, 2].set_xlabel('Number of Components', fontsize=20)
     ax[1, 2].set_ylabel('p-value', fontsize=20)
     ax[1, 2].grid(True)
@@ -122,10 +145,15 @@ def plot_main_indicators(num_iter=200):
 
 
 def compute_LL(ncomp=4, num_iter=200):
-    datadf = pd.read_csv('../PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  
+    datadf = pd.read_csv(
+        '../PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', 
+        sep='\t', 
+        index_col=0
+        )  
     Z_p = datadf[['sex', 'age_at_eval_years']] # covariates
     X = datadf.drop(['sex', 'age_at_eval_years'], axis=1) 
-    continuous_columns, binary_columns, categorical_columns = split_columns(list(X.columns))
+    continuous_columns, binary_columns, categorical_columns = split_columns(
+        list(X.columns))
 
     mixed_data, mixed_descriptor = get_mixed_descriptor(
         dataframe=X,
@@ -138,25 +166,37 @@ def compute_LL(ncomp=4, num_iter=200):
     val_log_likelihood = defaultdict(list)
     for i in range(num_iter):
         random_state_int = np.random.randint(0, 1000)
-        model = StepMix(measurement=mixed_descriptor,
-                        structural='covariate',
-                        n_steps=1, random_state=random_state_int)
+        model = StepMix(
+            measurement=mixed_descriptor,
+            structural='covariate',
+            n_steps=1, 
+            random_state=random_state_int
+            )
         gs = GridSearchCV(estimator=model, cv=3, param_grid=grid)
         gs.fit(mixed_data, Z_p)
         results = pd.DataFrame(gs.cv_results_)
         results["Val_Log_Likelihood"] = results['mean_test_score']
-        for n_components, vll in zip(results['param_n_components'], results['Val_Log_Likelihood']): # zipping two values
-            val_log_likelihood[n_components].append(vll) # add one value from one iteration, and keep adding values from each iteration
+        for n_components, vll in zip(
+            results['param_n_components'], 
+            results['Val_Log_Likelihood']):
+            val_log_likelihood[n_components].append(vll) 
         
-    with open(f'pickles/GFMM_val_log_likelihood_{num_iter}_iterations.pkl', 'wb') as f:
+    with open(
+        f'pickles/GFMM_val_log_likelihood_{num_iter}_iterations.pkl', 'wb'
+        ) as f:
         rick.dump(val_log_likelihood, f)
 
 
 def get_AWE(num_iter=50):
-    datadf = pd.read_csv('../PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  
+    datadf = pd.read_csv(
+        '../PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', 
+        sep='\t', 
+        index_col=0
+        )  
     Z_p = datadf[['sex', 'age_at_eval_years']] # covariates
     X = datadf.drop(['sex', 'age_at_eval_years'], axis=1) 
-    continuous_columns, binary_columns, categorical_columns = split_columns(list(X.columns))
+    continuous_columns, binary_columns, categorical_columns = split_columns(
+        list(X.columns))
 
     mixed_data, mixed_descriptor = get_mixed_descriptor(
         dataframe=X,
@@ -170,8 +210,13 @@ def get_AWE(num_iter=50):
     for i in range(num_iter):
         random_state_int = np.random.randint(0, 1000)
         for g in ParameterGrid(grid):
-            model = StepMix(n_components=g['n_components'], measurement=mixed_descriptor,
-                    structural='covariate', n_steps=1, random_state=random_state_int)
+            model = StepMix(
+                n_components=g['n_components'], 
+                measurement=mixed_descriptor,
+                structural='covariate', 
+                n_steps=1, 
+                random_state=random_state_int
+                )
             model.fit(mixed_data, Z_p)
             awe_dict[g['n_components']].append(awe(model, mixed_data, Z_p))
     
@@ -179,7 +224,8 @@ def get_AWE(num_iter=50):
         rick.dump(awe_dict, f)
     
     for n_components in grid['n_components']:
-        print(f"Mean AWE for {n_components} components: {np.mean(awe_dict[n_components])}")
+        print(f"Mean AWE for {n_components} components: 
+              {np.mean(awe_dict[n_components])}")
     
     # plot AWE
     plt.style.use('dark_background')
@@ -194,10 +240,15 @@ def get_AWE(num_iter=50):
         
 
 def get_class_sizes(num_iter=50):
-    datadf = pd.read_csv('../PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  
+    datadf = pd.read_csv(
+        '../PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', 
+        sep='\t', 
+        index_col=0
+        )  
     Z_p = datadf[['sex', 'age_at_eval_years']] # covariates
     X = datadf.drop(['sex', 'age_at_eval_years'], axis=1) 
-    continuous_columns, binary_columns, categorical_columns = split_columns(list(X.columns))
+    continuous_columns, binary_columns, categorical_columns = split_columns(
+        list(X.columns))
 
     mixed_data, mixed_descriptor = get_mixed_descriptor(
         dataframe=X,
@@ -213,8 +264,13 @@ def get_class_sizes(num_iter=50):
     for i in range(num_iter):
         random_state_int = np.random.randint(0, 1000)
         for g in ParameterGrid(grid):
-            model = StepMix(n_components=g['n_components'], measurement=mixed_descriptor,
-                    structural='covariate', n_steps=1, random_state=random_state_int)
+            model = StepMix(
+                n_components=g['n_components'], 
+                measurement=mixed_descriptor,
+                structural='covariate', 
+                n_steps=1, 
+                random_state=random_state_int
+                )
             model.fit(mixed_data, Z_p)
             pred = model.predict(mixed_data)
             class_probs = model.predict_proba(mixed_data)
@@ -232,19 +288,27 @@ def get_class_sizes(num_iter=50):
         rick.dump(alcpp, f)
     
     for n_components in grid['n_components']:
-        print(f"Min smallest_n for {n_components} components: {np.min(smallest_n[n_components])}")
-        print(f"Min smallest_prop for {n_components} components: {np.min(smallest_prop[n_components])}")
-        print(f"Mean ALCPP for {n_components} components: {np.mean(alcpp[n_components])}")
+        print(f"Min smallest_n for {n_components} components: 
+              {np.min(smallest_n[n_components])}")
+        print(f"Min smallest_prop for {n_components} components: 
+              {np.min(smallest_prop[n_components])}")
+        print(f"Mean ALCPP for {n_components} components: 
+              {np.mean(alcpp[n_components])}")
 
 
 def compute_main_indicators(num_iter=200):
     '''
     Compute AIC, BIC, SABIC, CAIC, and entropy for the GFMM model.
     '''
-    datadf = pd.read_csv('../PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  
+    datadf = pd.read_csv(
+        '../PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', 
+        sep='\t', 
+        index_col=0
+        )  
     Z_p = datadf[['sex', 'age_at_eval_years']] # covariates
     X = datadf.drop(['sex', 'age_at_eval_years'], axis=1) 
-    continuous_columns, binary_columns, categorical_columns = split_columns(list(X.columns))
+    continuous_columns, binary_columns, categorical_columns = split_columns(
+        list(X.columns))
 
     mixed_data, mixed_descriptor = get_mixed_descriptor(
         dataframe=X,
@@ -262,14 +326,19 @@ def compute_main_indicators(num_iter=200):
     for i in range(num_iter):
         random_state_int = np.random.randint(0, 1000)
         for g in ParameterGrid(grid):
-            model = StepMix(n_components=g['n_components'], measurement=mixed_descriptor,
-                    structural='covariate',
-                    n_steps=1, random_state=random_state_int)
+            model = StepMix(
+                n_components=g['n_components'], 
+                measurement=mixed_descriptor,
+                structural='covariate',
+                n_steps=1, 
+                random_state=random_state_int
+                )
             model.fit(mixed_data, Z_p)
             ssabic[g['n_components']].append(sabic(model, mixed_data, Z_p))
             aic[g['n_components']].append(model.aic(mixed_data, Z_p))
             bic[g['n_components']].append(model.bic(mixed_data, Z_p))
-            entropy[g['n_components']].append(model.relative_entropy(mixed_data, Z_p))
+            entropy[g['n_components']].append(model.relative_entropy(
+                mixed_data, Z_p))
             caic[g['n_components']].append(c_aic(model, mixed_data, Z_p))
         
     # save the val log likelihood, AIC, BIC, and entropy dicts to pkl
@@ -286,10 +355,15 @@ def compute_main_indicators(num_iter=200):
 
 
 def lmr_likelihood_ratio_test(n_iter=50):
-    datadf = pd.read_csv('../PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0)  
+    datadf = pd.read_csv(
+        '../PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', 
+        sep='\t', 
+        index_col=0
+        )  
     Z_p = datadf[['sex', 'age_at_eval_years']] # covariates
     X = datadf.drop(['sex', 'age_at_eval_years'], axis=1) 
-    continuous_columns, binary_columns, categorical_columns = split_columns(list(X.columns))
+    continuous_columns, binary_columns, categorical_columns = split_columns(
+        list(X.columns))
 
     mixed_data, mixed_descriptor = get_mixed_descriptor(
         dataframe=X,
@@ -298,14 +372,21 @@ def lmr_likelihood_ratio_test(n_iter=50):
         categorical=categorical_columns
     )
 
-    model = StepMix(measurement=mixed_descriptor, structural='covariate', n_steps=1)
+    model = StepMix(
+        measurement=mixed_descriptor, 
+        structural='covariate', 
+        n_steps=1
+        )
     grid = {'n_components': [1, 2, 3, 4, 5, 6]}
     p_vals = defaultdict(list)
     for i in range(n_iter):
-        random_state_int = np.random.randint(0, 1000) # pick random state using random seed
-        model = StepMix(measurement=mixed_descriptor,
-                        structural='covariate',
-                        n_steps=1, random_state=random_state_int)
+        random_state_int = np.random.randint(0, 1000) # random state
+        model = StepMix(
+            measurement=mixed_descriptor,
+            structural='covariate',
+            n_steps=1, 
+            random_state=random_state_int
+            )
         gs = GridSearchCV(estimator=model, cv=3, param_grid=grid)
         gs.fit(mixed_data, Z_p)
         results = pd.DataFrame(gs.cv_results_)
@@ -338,7 +419,8 @@ def lmr_likelihood_ratio_test(n_iter=50):
 
 if __name__ == "__main__":
     # plot figure
-    plot_main_indicators(); exit()
+    plot_main_indicators()
+    exit()
 
     # compute statistical metrics
     compute_LL()
