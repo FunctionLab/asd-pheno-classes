@@ -10,27 +10,45 @@ from utils import load_dnvs, get_gene_sets
 
 def compute_variant_set_proportions():
     dnvs_pro, dnvs_sibs, zero_pro, zero_sibs = load_dnvs()
-    consequences_missense = ['missense_variant', 'inframe_deletion', 'inframe_insertion', 'protein_altering_variant']
-    consequences_lof = ['stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost', 'transcript_ablation']
+    consequences_missense = ['missense_variant', 'inframe_deletion', 
+                             'inframe_insertion', 'protein_altering_variant']
+    consequences_lof = ['stop_gained', 'frameshift_variant', 
+                        'splice_acceptor_variant', 'splice_donor_variant', 
+                        'start_lost', 'stop_lost', 'transcript_ablation']
     
     # annotate dnvs_pro and dnvs_sibs with consequence (binary)
-    dnvs_pro['lof_consequence'] = dnvs_pro['Consequence'].apply(lambda x: 1 if x in consequences_lof else 0)
-    dnvs_sibs['lof_consequence'] = dnvs_sibs['Consequence'].apply(lambda x: 1 if x in consequences_lof else 0)
-    dnvs_pro['mis_consequence'] = dnvs_pro['Consequence'].apply(lambda x: 1 if x in consequences_missense else 0)
-    dnvs_sibs['mis_consequence'] = dnvs_sibs['Consequence'].apply(lambda x: 1 if x in consequences_missense else 0)
+    dnvs_pro['lof_consequence'] = dnvs_pro['Consequence'].apply(
+        lambda x: 1 if x in consequences_lof else 0)
+    dnvs_sibs['lof_consequence'] = dnvs_sibs['Consequence'].apply(
+        lambda x: 1 if x in consequences_lof else 0)
+    dnvs_pro['mis_consequence'] = dnvs_pro['Consequence'].apply(
+        lambda x: 1 if x in consequences_missense else 0)
+    dnvs_sibs['mis_consequence'] = dnvs_sibs['Consequence'].apply(
+        lambda x: 1 if x in consequences_missense else 0)
     
     gene_sets, gene_set_names = get_gene_sets()
 
-    # for each gene set, annotate dnvs_pro and dnvs_sibs with gene set membership (binary)
+    # for each gene set, annotate dnvs_pro and dnvs_sibs with 
+    # gene set membership (binary)
     for i in range(len(gene_sets)):
-        dnvs_pro[gene_set_names[i]] = dnvs_pro['name'].apply(lambda x: 1 if x in gene_sets[i] else 0)
-        dnvs_sibs[gene_set_names[i]] = dnvs_sibs['name'].apply(lambda x: 1 if x in gene_sets[i] else 0)
+        dnvs_pro[gene_set_names[i]] = dnvs_pro['name'].apply(
+            lambda x: 1 if x in gene_sets[i] else 0)
+        dnvs_sibs[gene_set_names[i]] = dnvs_sibs['name'].apply(
+            lambda x: 1 if x in gene_sets[i] else 0)
 
     # get number of spids in each class
-    num_class0 = dnvs_pro[dnvs_pro['class'] == 0]['spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 0]['spid'].nunique()
-    num_class1 = dnvs_pro[dnvs_pro['class'] == 1]['spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 1]['spid'].nunique()
-    num_class2 = dnvs_pro[dnvs_pro['class'] == 2]['spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 2]['spid'].nunique()
-    num_class3 = dnvs_pro[dnvs_pro['class'] == 3]['spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 3]['spid'].nunique()
+    num_class0 = dnvs_pro[
+        dnvs_pro['class'] == 0]['spid'].nunique() + zero_pro[
+            zero_pro['mixed_pred'] == 0]['spid'].nunique()
+    num_class1 = dnvs_pro[
+        dnvs_pro['class'] == 1]['spid'].nunique() + zero_pro[
+            zero_pro['mixed_pred'] == 1]['spid'].nunique()
+    num_class2 = dnvs_pro[
+        dnvs_pro['class'] == 2]['spid'].nunique() + zero_pro[
+            zero_pro['mixed_pred'] == 2]['spid'].nunique()
+    num_class3 = dnvs_pro[
+        dnvs_pro['class'] == 3]['spid'].nunique() + zero_pro[
+            zero_pro['mixed_pred'] == 3]['spid'].nunique()
     num_sibs = dnvs_sibs['spid'].nunique() + zero_sibs['spid'].nunique()
     print([num_class0, num_class1, num_class2, num_class3, num_sibs])
 
@@ -40,30 +58,49 @@ def compute_variant_set_proportions():
     props = []
     stds = []
     for gene_set in gene_sets_to_keep:
-        dnvs_pro['lof_gene_set&consequence'] = dnvs_pro[gene_set] * dnvs_pro['lof_consequence'] * dnvs_pro['LoF'] #* dnvs_pro['LoF_flags'] 
-        dnvs_sibs['lof_gene_set&consequence'] = dnvs_sibs[gene_set] * dnvs_sibs['lof_consequence'] * dnvs_sibs['LoF'] #* dnvs_sibs['LoF_flags']
-        dnvs_pro['mis_gene_set&consequence'] = dnvs_pro[gene_set] * dnvs_pro['mis_consequence'] * dnvs_pro['am_class']
-        dnvs_sibs['mis_gene_set&consequence'] = dnvs_sibs[gene_set] * dnvs_sibs['mis_consequence'] * dnvs_sibs['am_class']
+        dnvs_pro['lof_gene_set&consequence'] = dnvs_pro[gene_set] * \
+            dnvs_pro['lof_consequence'] * dnvs_pro['LoF']
+        dnvs_sibs['lof_gene_set&consequence'] = dnvs_sibs[gene_set] * \
+            dnvs_sibs['lof_consequence'] * dnvs_sibs['LoF']
+        dnvs_pro['mis_gene_set&consequence'] = dnvs_pro[gene_set] * \
+            dnvs_pro['mis_consequence'] * dnvs_pro['am_class']
+        dnvs_sibs['mis_gene_set&consequence'] = dnvs_sibs[gene_set] * \
+            dnvs_sibs['mis_consequence'] * dnvs_sibs['am_class']
 
-        class0_lof = dnvs_pro[dnvs_pro['class'] == 0].groupby('spid')['lof_gene_set&consequence'].sum().tolist()
-        class0_mis = dnvs_pro[dnvs_pro['class'] == 0].groupby('spid')['mis_gene_set&consequence'].sum().tolist()
-        zero_class0 = zero_pro[zero_pro['mixed_pred'] == 0]['count'].astype(int).tolist()
+        class0_lof = dnvs_pro[dnvs_pro['class'] == 0].groupby(
+            'spid')['lof_gene_set&consequence'].sum().tolist()
+        class0_mis = dnvs_pro[dnvs_pro['class'] == 0].groupby(
+            'spid')['mis_gene_set&consequence'].sum().tolist()
+        zero_class0 = zero_pro[
+            zero_pro['mixed_pred'] == 0]['count'].astype(int).tolist()
         class0 = [sum(x) for x in zip(class0_lof, class0_mis)] + zero_class0
-        class1_lof = dnvs_pro[dnvs_pro['class'] == 1].groupby('spid')['lof_gene_set&consequence'].sum().tolist()
-        class1_mis = dnvs_pro[dnvs_pro['class'] == 1].groupby('spid')['mis_gene_set&consequence'].sum().tolist()
-        zero_class1 = zero_pro[zero_pro['mixed_pred'] == 1]['count'].astype(int).tolist()
+        class1_lof = dnvs_pro[dnvs_pro['class'] == 1].groupby(
+            'spid')['lof_gene_set&consequence'].sum().tolist()
+        class1_mis = dnvs_pro[dnvs_pro['class'] == 1].groupby(
+            'spid')['mis_gene_set&consequence'].sum().tolist()
+        zero_class1 = zero_pro[
+            zero_pro['mixed_pred'] == 1]['count'].astype(int).tolist()
         class1 = [sum(x) for x in zip(class1_lof, class1_mis)] + zero_class1
-        class2_lof = dnvs_pro[dnvs_pro['class'] == 2].groupby('spid')['lof_gene_set&consequence'].sum().tolist()
-        class2_mis = dnvs_pro[dnvs_pro['class'] == 2].groupby('spid')['mis_gene_set&consequence'].sum().tolist()
-        zero_class2 = zero_pro[zero_pro['mixed_pred'] == 2]['count'].astype(int).tolist()
+        class2_lof = dnvs_pro[dnvs_pro['class'] == 2].groupby(
+            'spid')['lof_gene_set&consequence'].sum().tolist()
+        class2_mis = dnvs_pro[dnvs_pro['class'] == 2].groupby(
+            'spid')['mis_gene_set&consequence'].sum().tolist()
+        zero_class2 = zero_pro[
+            zero_pro['mixed_pred'] == 2]['count'].astype(int).tolist()
         class2 = [sum(x) for x in zip(class2_lof, class2_mis)] + zero_class2
-        class3_lof = dnvs_pro[dnvs_pro['class'] == 3].groupby('spid')['lof_gene_set&consequence'].sum().tolist()
-        class3_mis = dnvs_pro[dnvs_pro['class'] == 3].groupby('spid')['mis_gene_set&consequence'].sum().tolist()
-        zero_class3 = zero_pro[zero_pro['mixed_pred'] == 3]['count'].astype(int).tolist()
+        class3_lof = dnvs_pro[dnvs_pro['class'] == 3].groupby(
+            'spid')['lof_gene_set&consequence'].sum().tolist()
+        class3_mis = dnvs_pro[dnvs_pro['class'] == 3].groupby(
+            'spid')['mis_gene_set&consequence'].sum().tolist()
+        zero_class3 = zero_pro[
+            zero_pro['mixed_pred'] == 3]['count'].astype(int).tolist()
         class3 = [sum(x) for x in zip(class3_lof, class3_mis)] + zero_class3
-        sibs_lof = dnvs_sibs.groupby('spid')['lof_gene_set&consequence'].sum().tolist()
-        sibs_mis = dnvs_sibs.groupby('spid')['mis_gene_set&consequence'].sum().tolist()
-        sibs = [sum(x) for x in zip(sibs_lof, sibs_mis)] + zero_sibs['count'].astype(int).tolist()
+        sibs_lof = dnvs_sibs.groupby(
+            'spid')['lof_gene_set&consequence'].sum().tolist()
+        sibs_mis = dnvs_sibs.groupby(
+            'spid')['mis_gene_set&consequence'].sum().tolist()
+        sibs = [sum(x) for x in zip(sibs_lof, sibs_mis)] + \
+                zero_sibs['count'].astype(int).tolist()
         
         # compute means
         props.append(np.sum(sibs)/num_sibs)
@@ -80,19 +117,28 @@ def compute_variant_set_proportions():
         stds.append(np.std(class3)/np.sqrt(num_class3))
 
         pvals = []
-        pvals.append(ttest_ind(class0, sibs, equal_var=False, alternative='greater').pvalue)
-        pvals.append(ttest_ind(class1, sibs, equal_var=False, alternative='greater').pvalue)
-        pvals.append(ttest_ind(class2, sibs, equal_var=False, alternative='greater').pvalue)
-        pvals.append(ttest_ind(class3, sibs, equal_var=False, alternative='greater').pvalue)
+        pvals.append(ttest_ind(
+            class0, sibs, equal_var=False, alternative='greater').pvalue)
+        pvals.append(ttest_ind(
+            class1, sibs, equal_var=False, alternative='greater').pvalue)
+        pvals.append(ttest_ind(
+            class2, sibs, equal_var=False, alternative='greater').pvalue)
+        pvals.append(ttest_ind(
+            class3, sibs, equal_var=False, alternative='greater').pvalue)
         pvals = multipletests(pvals, method='fdr_bh')[1]
         pvals = {i: pval for i, pval in enumerate(pvals)} 
         
+    print(props)
+    print(stds)
+
     fig, ax = plt.subplots(1,2,figsize=(11,4.5))
     x_values = np.arange(len(props))
     y_values = props
     colors = ['dimgray', '#FBB040', '#EE2A7B', '#39B54A', '#27AAE1']
     for i in range(len(x_values)):
-        ax[0].errorbar(x_values[i], y_values[i], yerr=stds[i], fmt='o', color=colors[i], markersize=20)
+        ax[0].errorbar(
+            x_values[i], y_values[i], yerr=stds[i], 
+            fmt='o', color=colors[i], markersize=20)
     ax[0].set_xlabel('')
     ax[0].set_ylabel('Count per offspring', fontsize=16)
     ax[0].set_xticks(x_values)
@@ -117,11 +163,14 @@ def compute_variant_set_proportions():
         se_value = stds[grpidx+1]
         ypos = y_position + se_value - 0.001
         if p_value < 0.01:
-            ax[0].annotate('***', xy=(x_position, ypos), ha='center', size=22, fontweight='bold')
+            ax[0].annotate('***', xy=(x_position, ypos), 
+                           ha='center', size=22, fontweight='bold')
         elif p_value < 0.05:
-            ax[0].annotate('**', xy=(x_position, ypos), ha='center', size=22, fontweight='bold')
+            ax[0].annotate('**', xy=(x_position, ypos), 
+                           ha='center', size=22, fontweight='bold')
         elif p_value < 0.1:
-            ax[0].annotate('*', xy=(x_position, ypos), ha='center', size=22, fontweight='bold')
+            ax[0].annotate('*', xy=(x_position, ypos), 
+                           ha='center', size=22, fontweight='bold')
     
     # gnomAD-filtered rare inherited variants
     with open('data/spid_to_num_lof_rare_inherited_gnomad_only.pkl', 'rb') as f:
@@ -129,27 +178,40 @@ def compute_variant_set_proportions():
     with open('data/spid_to_num_missense_rare_inherited_gnomad_only.pkl', 'rb') as f:
         spid_to_num_missense = rick.load(f)
     
-    gfmm_labels = pd.read_csv('../PhenotypeValidations/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=False, header=0)
+    gfmm_labels = pd.read_csv(
+        '../PhenotypeValidations/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', 
+        index_col=False, 
+        header=0
+        )
     sibling_list = '../PhenotypeValidations/data/WES_5392_siblings_spids.txt' 
 
-    gfmm_labels = gfmm_labels.rename(columns={'subject_sp_id': 'spid'})
+    gfmm_labels = gfmm_labels.rename(
+        columns={'subject_sp_id': 'spid'})
     spid_to_class = dict(zip(gfmm_labels['spid'], gfmm_labels['mixed_pred']))
 
-    pros_to_num_ptvs = {k: v for k, v in spid_to_num_ptvs.items() if k in spid_to_class}
-    pros_to_num_missense = {k: v for k, v in spid_to_num_missense.items() if k in spid_to_class}
+    pros_to_num_ptvs = {k: v for k, v in spid_to_num_ptvs.items() 
+                        if k in spid_to_class}
+    pros_to_num_missense = {k: v for k, v in spid_to_num_missense.items() 
+                            if k in spid_to_class}
     sibling_list = pd.read_csv(sibling_list, sep='\t', header=None)
     sibling_list.columns = ['spid']
     sibling_list = sibling_list['spid'].tolist()
-    sibs_to_num_ptvs = {k: v for k, v in spid_to_num_ptvs.items() if k in sibling_list}
-    sibs_to_num_missense = {k: v for k, v in spid_to_num_missense.items() if k in sibling_list}
+    sibs_to_num_ptvs = {k: v for k, v in spid_to_num_ptvs.items() 
+                        if k in sibling_list}
+    sibs_to_num_missense = {k: v for k, v in spid_to_num_missense.items() 
+                            if k in sibling_list}
 
     gene_sets, gene_set_names = get_gene_sets()
 
     # get number of spids in each class from spid_to_num_ptvs
-    num_class0 = len([k for k, v in pros_to_num_ptvs.items() if spid_to_class[k] == 0])
-    num_class1 = len([k for k, v in pros_to_num_ptvs.items() if spid_to_class[k] == 1])
-    num_class2 = len([k for k, v in pros_to_num_ptvs.items() if spid_to_class[k] == 2])
-    num_class3 = len([k for k, v in pros_to_num_ptvs.items() if spid_to_class[k] == 3])
+    num_class0 = len([k for k, v in pros_to_num_ptvs.items() 
+                      if spid_to_class[k] == 0])
+    num_class1 = len([k for k, v in pros_to_num_ptvs.items() 
+                      if spid_to_class[k] == 1])
+    num_class2 = len([k for k, v in pros_to_num_ptvs.items() 
+                      if spid_to_class[k] == 2])
+    num_class3 = len([k for k, v in pros_to_num_ptvs.items() 
+                      if spid_to_class[k] == 3])
     num_sibs = len(sibs_to_num_ptvs)
     print([num_class0, num_class1, num_class2, num_class3, num_sibs])
 
@@ -160,17 +222,25 @@ def compute_variant_set_proportions():
     props = []
     stds = []
     for i in gene_set_indices:
-        class0_lof = [v[i] for k, v in pros_to_num_ptvs.items() if spid_to_class[k] == 0]
-        class0_mis = [v[i] for k, v in pros_to_num_missense.items() if spid_to_class[k] == 0]
+        class0_lof = [v[i] for k, v in pros_to_num_ptvs.items() 
+                      if spid_to_class[k] == 0]
+        class0_mis = [v[i] for k, v in pros_to_num_missense.items() 
+                      if spid_to_class[k] == 0]
         class0 = [sum(x) for x in zip(class0_lof, class0_mis)]
-        class1_lof = [v[i] for k, v in pros_to_num_ptvs.items() if spid_to_class[k] == 1]
-        class1_mis = [v[i] for k, v in pros_to_num_missense.items() if spid_to_class[k] == 1]
+        class1_lof = [v[i] for k, v in pros_to_num_ptvs.items() 
+                      if spid_to_class[k] == 1]
+        class1_mis = [v[i] for k, v in pros_to_num_missense.items() 
+                      if spid_to_class[k] == 1]
         class1 = [sum(x) for x in zip(class1_lof, class1_mis)]
-        class2_lof = [v[i] for k, v in pros_to_num_ptvs.items() if spid_to_class[k] == 2]
-        class2_mis = [v[i] for k, v in pros_to_num_missense.items() if spid_to_class[k] == 2]
+        class2_lof = [v[i] for k, v in pros_to_num_ptvs.items() 
+                      if spid_to_class[k] == 2]
+        class2_mis = [v[i] for k, v in pros_to_num_missense.items() 
+                      if spid_to_class[k] == 2]
         class2 = [sum(x) for x in zip(class2_lof, class2_mis)]
-        class3_lof = [v[i] for k, v in pros_to_num_ptvs.items() if spid_to_class[k] == 3]
-        class3_mis = [v[i] for k, v in pros_to_num_missense.items() if spid_to_class[k] == 3]
+        class3_lof = [v[i] for k, v in pros_to_num_ptvs.items() 
+                      if spid_to_class[k] == 3]
+        class3_mis = [v[i] for k, v in pros_to_num_missense.items() 
+                      if spid_to_class[k] == 3]
         class3 = [sum(x) for x in zip(class3_lof, class3_mis)]
         sibs_lof = [v[i] for k, v in sibs_to_num_ptvs.items()]
         sibs_mis = [v[i] for k, v in sibs_to_num_missense.items()]
@@ -192,18 +262,26 @@ def compute_variant_set_proportions():
 
         # hypothesis testing
         pvals = []
-        pvals.append(ttest_ind(class0, sibs, equal_var=False, alternative='greater').pvalue)
-        pvals.append(ttest_ind(class1, sibs, equal_var=False, alternative='greater').pvalue)
-        pvals.append(ttest_ind(class2, sibs, equal_var=False, alternative='greater').pvalue)
-        pvals.append(ttest_ind(class3, sibs, equal_var=False, alternative='greater').pvalue)
+        pvals.append(ttest_ind(
+            class0, sibs, equal_var=False, alternative='greater').pvalue)
+        pvals.append(ttest_ind(
+            class1, sibs, equal_var=False, alternative='greater').pvalue)
+        pvals.append(ttest_ind(
+            class2, sibs, equal_var=False, alternative='greater').pvalue)
+        pvals.append(ttest_ind(
+            class3, sibs, equal_var=False, alternative='greater').pvalue)
         pvals = multipletests(pvals, method='fdr_bh')[1]
         pvals = {i: pval for i, pval in enumerate(pvals)}
+    
+    print(props)
+    print(stds)
     
     x_values = np.arange(len(props))
     y_values = props
     colors = ['dimgray', '#FBB040', '#EE2A7B', '#39B54A', '#27AAE1']
     for i in range(len(x_values)):
-        ax[1].errorbar(x_values[i], y_values[i], yerr=stds[i], fmt='o', color=colors[i], markersize=20)
+        ax[1].errorbar(x_values[i], y_values[i], yerr=stds[i], 
+                       fmt='o', color=colors[i], markersize=20)
     ax[1].set_xlabel('')
     ax[1].set_xticks(x_values)
     ax[1].tick_params(labelsize=16, axis='y')
@@ -227,14 +305,21 @@ def compute_variant_set_proportions():
         se_value = stds[grpidx+1]
         ypos = y_position + se_value-0.05
         if p_value < 0.01:
-            ax[1].annotate('***', xy=(x_position, ypos), ha='center', size=22, fontweight='bold')
+            ax[1].annotate('***', xy=(x_position, ypos), 
+                           ha='center', size=22, fontweight='bold')
         elif p_value < 0.05:
-            ax[1].annotate('**', xy=(x_position, ypos), ha='center', size=22, fontweight='bold')
+            ax[1].annotate('**', xy=(x_position, ypos), 
+                           ha='center', size=22, fontweight='bold')
         elif p_value < 0.1:
-            ax[1].annotate('*', xy=(x_position, ypos), ha='center', size=22, fontweight='bold')
+            ax[1].annotate('*', xy=(x_position, ypos), 
+                           ha='center', size=22, fontweight='bold')
     fig.tight_layout()
     fig.subplots_adjust(wspace=0.2)
-    plt.savefig('figures/WES_LoF_combined_Mis_props_scatter.png', bbox_inches='tight', dpi=600)
+    plt.savefig(
+        'figures/WES_LoF_combined_Mis_props_scatter.png', 
+        bbox_inches='tight', 
+        dpi=600
+        )
     plt.close()
 
 
