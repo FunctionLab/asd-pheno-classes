@@ -60,9 +60,8 @@ def get_impacted_genes_per_class():
 
     # print the impacted genes for each class
     for class_id in [0,1,2,3]:
-        print(
-            f"Impacted genes for class {class_id}: {len(class_to_gene_set[class_id])} genes in total."
-            )
+        print(f"Impacted genes for class {class_id}: \
+                {len(class_to_gene_set[class_id])} genes in total.")
         print(', '.join([f'{gene}' for gene in class_to_gene_set[class_id]]))
 
 
@@ -143,10 +142,12 @@ def GO_term_analysis(num_top_terms=3):
                xmax=class0_enrich['Fold Enrichment']-1.4, 
                color='black',linewidth=2.5, alpha=0.8)
     sns.scatterplot(x='Fold Enrichment', y='Pathway', palette='black', 
-                    color='black', s=class0_enrich['Enrichment FDR'] * max_bubble_size, 
+                    color='black', 
+                    s=class0_enrich['Enrichment FDR'] * max_bubble_size, 
                     data=class0_enrich, ax=ax0)
     for i in range(3):
-        ax0.scatter([], [], s=(i + 1) * max_bubble_size, c='black', label=str(i + 1))
+        ax0.scatter([], [], s=(i + 1) * max_bubble_size, 
+                    c='black', label=str(i + 1))
     ax0.legend(scatterpoints=1, labelspacing=1.1, title='-log10(FDR)', 
                title_fontsize=23, fontsize=18, loc='upper left', 
                bbox_to_anchor=(1, 1))
@@ -165,7 +166,8 @@ def GO_term_analysis(num_top_terms=3):
                xmax=class1_enrich['Fold Enrichment']-2.6, color='black', 
                linewidth=2.5, alpha=0.8)
     sns.scatterplot(x='Fold Enrichment', y='Pathway', palette='black', 
-                    color='black', s=class1_enrich['Enrichment FDR'] * max_bubble_size, 
+                    color='black', 
+                    s=class1_enrich['Enrichment FDR'] * max_bubble_size, 
                     data=class1_enrich, ax=ax1)
     ax1.set_xlim([0,100])
     ax1.set_title('Broadly Impacted', fontsize=22)
@@ -182,7 +184,8 @@ def GO_term_analysis(num_top_terms=3):
                xmax=class2_enrich['Fold Enrichment']-3, color='black', 
                linewidth=2.5, alpha=0.8)
     sns.scatterplot(x='Fold Enrichment', y='Pathway', palette='black', 
-                    color='black', s=class2_enrich['Enrichment FDR'] * max_bubble_size, 
+                    color='black', 
+                    s=class2_enrich['Enrichment FDR'] * max_bubble_size, 
                     data=class2_enrich, ax=ax2)
     ax2.set_title('Social/Behavioral', fontsize=22)
     ax2.tick_params(labelsize=18)
@@ -199,7 +202,8 @@ def GO_term_analysis(num_top_terms=3):
                xmax=class3_enrich['Fold Enrichment']-1, color='black', 
                linewidth=2.5, alpha=0.8)
     sns.scatterplot(x='Fold Enrichment', y='Pathway', palette='black', 
-                    color='black', s=class3_enrich['Enrichment FDR'] * max_bubble_size, 
+                    color='black', 
+                    s=class3_enrich['Enrichment FDR'] * max_bubble_size, 
                     data=class3_enrich, ax=ax3)
     ax3.set_title('Mixed ASD with DD', fontsize=22)
     ax3.set_xlim([0,34])
@@ -214,7 +218,8 @@ def GO_term_analysis(num_top_terms=3):
 
     fig.suptitle('Enrichment of pathways and processes', fontsize=26)
     fig.tight_layout()
-    plt.savefig('figures/GO_enrichment_figure.png', bbox_inches='tight', dpi=600)
+    plt.savefig('figures/GO_enrichment_figure.png', 
+                bbox_inches='tight', dpi=600)
     plt.close()
 
 

@@ -34,14 +34,14 @@ def volcano_LoF():
             lambda x: 1 if x in gene_sets[i] else 0)
     
     # get number of spids in each class
-    num_class0 = dnvs_pro[dnvs_pro['class'] == 0][
-        'spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 0]['spid'].nunique()
-    num_class1 = dnvs_pro[dnvs_pro['class'] == 1][
-        'spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 1]['spid'].nunique()
-    num_class2 = dnvs_pro[dnvs_pro['class'] == 2][
-        'spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 2]['spid'].nunique()
-    num_class3 = dnvs_pro[dnvs_pro['class'] == 3][
-        'spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 3]['spid'].nunique()
+    num_class0 = dnvs_pro[dnvs_pro['class'] == 0]['spid'].nunique() + \
+        zero_pro[zero_pro['mixed_pred'] == 0]['spid'].nunique()
+    num_class1 = dnvs_pro[dnvs_pro['class'] == 1]['spid'].nunique() + \
+        zero_pro[zero_pro['mixed_pred'] == 1]['spid'].nunique()
+    num_class2 = dnvs_pro[dnvs_pro['class'] == 2]['spid'].nunique() + \
+        zero_pro[zero_pro['mixed_pred'] == 2]['spid'].nunique()
+    num_class3 = dnvs_pro[dnvs_pro['class'] == 3]['spid'].nunique() + \
+        zero_pro[zero_pro['mixed_pred'] == 3]['spid'].nunique()
     num_sibs = dnvs_sibs['spid'].nunique() + zero_sibs['spid'].nunique()
 
     FE = []
@@ -58,8 +58,12 @@ def volcano_LoF():
     shape_list = shape_list[0:len(gene_set_order)]
 
     for gene_set in gene_set_order:
-        dnvs_pro[f'{gene_set}&consequence'] = dnvs_pro[gene_set] * dnvs_pro['consequence'] * dnvs_pro['LoF'] 
-        dnvs_sibs[f'{gene_set}&consequence'] = dnvs_sibs[gene_set] * dnvs_sibs['consequence'] * dnvs_sibs['LoF']
+        dnvs_pro[f'{gene_set}&consequence'] = dnvs_pro[gene_set] * \
+                                              dnvs_pro['consequence'] * \
+                                              dnvs_pro['LoF'] 
+        dnvs_sibs[f'{gene_set}&consequence'] = dnvs_sibs[gene_set] * \
+                                               dnvs_sibs['consequence'] * \
+                                               dnvs_sibs['LoF']
 
         class0 = dnvs_pro[dnvs_pro['class'] == 0].groupby('spid')[
             f'{gene_set}&consequence'].sum().tolist()
@@ -178,14 +182,14 @@ def volcano_missense():
             lambda x: 1 if x in gene_sets[i] else 0)
 
     # get number of spids in each class
-    num_class0 = dnvs_pro[dnvs_pro['class'] == 0][
-        'spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 0]['spid'].nunique()
-    num_class1 = dnvs_pro[dnvs_pro['class'] == 1][
-        'spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 1]['spid'].nunique()
-    num_class2 = dnvs_pro[dnvs_pro['class'] == 2][
-        'spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 2]['spid'].nunique()
-    num_class3 = dnvs_pro[dnvs_pro['class'] == 3][
-        'spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 3]['spid'].nunique()
+    num_class0 = dnvs_pro[dnvs_pro['class'] == 0]['spid'].nunique() + \
+        zero_pro[zero_pro['mixed_pred'] == 0]['spid'].nunique()
+    num_class1 = dnvs_pro[dnvs_pro['class'] == 1]['spid'].nunique() + \
+        zero_pro[zero_pro['mixed_pred'] == 1]['spid'].nunique()
+    num_class2 = dnvs_pro[dnvs_pro['class'] == 2]['spid'].nunique() + \
+        zero_pro[zero_pro['mixed_pred'] == 2]['spid'].nunique()
+    num_class3 = dnvs_pro[dnvs_pro['class'] == 3]['spid'].nunique() + \
+        zero_pro[zero_pro['mixed_pred'] == 3]['spid'].nunique()
     num_sibs = dnvs_sibs['spid'].nunique() + zero_sibs['spid'].nunique()
 
     FE = []
@@ -201,8 +205,12 @@ def volcano_missense():
     shape_list = ['o', 'v', 'p', '^', 'd', "P", 's', '>', '*', 'X', 'D']
     shape_list = shape_list[0:len(gene_set_order)]
     for gene_set in gene_set_order:
-        dnvs_pro['gene_set&consequence'] = dnvs_pro[gene_set] * dnvs_pro['consequence'] * dnvs_pro['am_class']
-        dnvs_sibs['gene_set&consequence'] = dnvs_sibs[gene_set] * dnvs_sibs['consequence'] * dnvs_sibs['am_class']
+        dnvs_pro['gene_set&consequence'] = dnvs_pro[gene_set] * \
+                                           dnvs_pro['consequence'] * \
+                                           dnvs_pro['am_class']
+        dnvs_sibs['gene_set&consequence'] = dnvs_sibs[gene_set] * \
+                                            dnvs_sibs['consequence'] * \
+                                            dnvs_sibs['am_class']
 
         class0 = dnvs_pro[dnvs_pro['class'] == 0].groupby(
             'spid')['gene_set&consequence'].sum().tolist()
@@ -279,7 +287,10 @@ def volcano_missense():
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     fig.savefig(
-        'figures/WES_volcano_plot_dnMis.png', bbox_inches='tight', dpi=600)
+        'figures/WES_volcano_plot_dnMis.png', 
+        bbox_inches='tight', 
+        dpi=600
+        )
     plt.close()
 
 
@@ -331,11 +342,13 @@ def volcano_inherited():
     ref_colors = ['#FBB040', '#EE2A7B', '#39B54A', '#27AAE1']
     colors = []
 
-    gene_set_to_index = {gene_set: i for i, gene_set in enumerate(gene_set_names)}
+    gene_set_to_index = {gene_set: i for i, gene_set in \
+                         enumerate(gene_set_names)}
     gene_set_order = ['all_genes', 'lof_genes', 'fmrp_genes', 
                       'asd_risk_genes', 'sfari_genes1', 'satterstrom', 
                       'brain_expressed_genes']
-    gene_set_indices = [gene_set_to_index[gene_set] for gene_set in gene_set_order]
+    gene_set_indices = [gene_set_to_index[gene_set] for \
+                        gene_set in gene_set_order]
     shapes = []
     shape_list = ['o', 'v', 'p', '^', 'd', "P", 's', '>', '*', 'X', 'D']
     shape_list = shape_list[0:len(gene_set_order)]
@@ -400,7 +413,8 @@ def volcano_inherited():
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     fig.savefig(
-        'figures/WES_volcano_plot_inhLoF.png', bbox_inches='tight', dpi=600)
+        'figures/WES_volcano_plot_inhLoF.png', 
+        bbox_inches='tight', dpi=600)
     plt.close()
 
     # rare inherited missense variants
@@ -415,7 +429,6 @@ def volcano_inherited():
     shape_list = shape_list[0:len(gene_set_order)]
 
     for i in gene_set_indices:
-        gene_set = gene_set_names[i]
         class0 = [v[i] for k, v in pros_to_num_missense.items() 
                   if spid_to_class[k] == 0]
         class1 = [v[i] for k, v in pros_to_num_missense.items() 
@@ -466,7 +479,8 @@ def volcano_inherited():
     ax.set_xlabel('log2 fold change', fontsize=15)
     ax.set_ylabel('-log10(q-value)', fontsize=15)
     ax.set_title('inhMis', fontsize=18)
-    ax.axhline(y=-np.log10(0.05), color='gray', linestyle='--', linewidth=1)
+    ax.axhline(y=-np.log10(0.05), color='gray', 
+               linestyle='--', linewidth=1)
     for i, txt in enumerate(tick_labels):
         ax.annotate(txt, (FE[i], pvals[i]), fontsize=11)
     for axis in ['top','bottom','left','right']:
@@ -475,7 +489,9 @@ def volcano_inherited():
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     fig.savefig(
-        'figures/WES_volcano_plot_inhMis.png', bbox_inches='tight', dpi=600
+        'figures/WES_volcano_plot_inhMis.png', 
+        bbox_inches='tight', 
+        dpi=600
         )
     plt.close()
 

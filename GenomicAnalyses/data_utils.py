@@ -17,7 +17,8 @@ def get_WES_trios():
     wes_spids = '../Mastertables/SPARK.iWES_v2.mastertable.2023_01.tsv'
     wes_spids = pd.read_csv(wes_spids, sep='\t')
     wes_spids = wes_spids[['father', 'mother', 'spid']]
-    wes_spids = wes_spids[(wes_spids['father'] != '0') & (wes_spids['mother'] != '0')]
+    wes_spids = wes_spids[(wes_spids['father'] != '0') 
+                          & (wes_spids['mother'] != '0')]
 
     deepvar_dir = 'SFARI/SPARK/pub/iWES_v2/variants/deepvariant/gvcf/'
     gatk_dir = 'SFARI/SPARK/pub/iWES_v2/variants/gatk/gvcf/'
@@ -61,7 +62,9 @@ def get_WES_trios():
                 ids = ids[ids['SPID'] != spid]
         
     ids.to_csv(
-        'data/processed_spark_trios_WES2.txt', sep='\t', header=False, index=False
+        'data/processed_spark_trios_WES2.txt', 
+        sep='\t', 
+        header=False, index=False
         )
 
 
@@ -104,9 +107,15 @@ def process_DNVs():
     spids = []
     missing = 0
     for subdir in subdirs:
-        if os.path.exists(f'{data_dir}{subdir}/{subdir}.glnexus.family.combined_intersection_filtered_gq_20_depth_10.vcf'):
+        if os.path.exists(
+            f'{data_dir}{subdir}/{subdir}.glnexus.family.combined_intersection_filtered_gq_20_depth_10.vcf'):
             try:
-                dnv = pd.read_csv(f'{data_dir}{subdir}/{subdir}.glnexus.family.combined_intersection_filtered_gq_20_depth_10.vcf', sep='\t', comment='#', header=None)
+                dnv = pd.read_csv(
+                    f'{data_dir}{subdir}/{subdir}.glnexus.family.combined_intersection_filtered_gq_20_depth_10.vcf', 
+                    sep='\t', 
+                    comment='#', 
+                    header=None
+                    )
                 for i, row in dnv.iterrows():
                     var_id = row[2]
                     spid = str(subdir)
@@ -130,8 +139,10 @@ def process_DNVs():
     print(f'SD: {sd}')
     threshold = mean + 3*sd
     # FILTER: remove SPIDs with more than 3SD DNVs above the mean
-    spid_to_count = {k: v for k, v in spid_to_count.items() if v <= threshold}
-    SPID_to_vars = {k: v for k, v in SPID_to_vars.items() if k in spid_to_count.keys()}
+    spid_to_count = {k: v for k, v in spid_to_count.items() 
+                     if v <= threshold}
+    SPID_to_vars = {k: v for k, v in SPID_to_vars.items() 
+                    if k in spid_to_count.keys()}
 
     # iterate through SPID_to_vars and remove non-singleton variants
     for spid, vars in SPID_to_vars.items():
@@ -148,11 +159,13 @@ def process_DNVs():
         for var in vars:
             var_to_spid[var] = spid
     
-    spid_to_count = pd.DataFrame.from_dict(spid_to_count, orient='index')
+    spid_to_count = pd.DataFrame.from_dict(
+        spid_to_count, orient='index')
     spid_to_count.columns = ['count']
     spid_to_count.index.name = 'SPID'
     spid_to_count = spid_to_count.reset_index()
-    spid_to_count.to_csv('data/SPID_to_DNV_count.txt', sep='\t', index=False)
+    spid_to_count.to_csv('data/SPID_to_DNV_count.txt', 
+                         sep='\t', index=False)
 
     with open('data/var_to_spid.pkl', 'wb') as f:
         rick.dump(var_to_spid, f)
@@ -170,13 +183,15 @@ def fetch_rare_vars_with_hail():
     rare_variants_ht = gnomad_v4.filter(gnomad_v4.freq[0].AF < 0.01)
 
     rare_variants_ht = rare_variants_ht.annotate(
-        variant_id = hl.str("chr") + hl.str(rare_variants_ht.locus.contig) + "_" + 
+        variant_id = hl.str("chr") + hl.str(rare_variants_ht.locus.contig) + \
+                    "_" + \
                     hl.str(rare_variants_ht.locus.position) + "_" + 
                     hl.str(rare_variants_ht.alleles[0]) + "_" + 
                     hl.str(rare_variants_ht.alleles[1])
     )
 
-    rare_variants_ht = rare_variants_ht.select('variant_id', AF=rare_variants_ht.freq[0].AF)
+    rare_variants_ht = rare_variants_ht.select('variant_id', 
+                                               AF=rare_variants_ht.freq[0].AF)
     rare_variants_ht = rare_variants_ht.key_by('variant_id')
 
     output_tsv_path = 'data/rare_variants.tsv.bgz'
@@ -188,9 +203,11 @@ def combine_inherited_vep_files():
     rare_variants_df = pd.read_csv(
         'data/rare_variants.tsv.bgz', sep='\t', compression='gzip'
         )
-    variant_to_af = dict(zip(rare_variants_df['variant_id'], rare_variants_df['AF']))
+    variant_to_af = dict(
+        zip(rare_variants_df['variant_id'], rare_variants_df['AF']))
 
-    directory = 'inherited_vep_predictions_plugins_filtered/' # filtered repeats + centromeres
+    # directory with data filtered for repeats + centromeres
+    directory = 'inherited_vep_predictions_plugins_filtered/' 
     files = [f for f in os.listdir(directory) if f.endswith('.vcf')]
     spids = [f.split('.')[0] for f in files]
 
@@ -200,9 +217,11 @@ def combine_inherited_vep_files():
     gene_sets, gene_set_names = get_gene_sets()
     consequences_lof = [
         'stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 
-        'splice_donor_variant', 'start_lost', 'stop_lost', 'transcript_ablation']
+        'splice_donor_variant', 'start_lost', 'stop_lost', 
+        'transcript_ablation']
     consequences_missense = [
-        'missense_variant', 'inframe_deletion', 'inframe_insertion', 'protein_altering_variant']
+        'missense_variant', 'inframe_deletion', 'inframe_insertion', 
+        'protein_altering_variant']
 
     gfmm_labels = pd.read_csv(
         '../PhenotypeValidations/data/SPARK_SSC_combined_cohort_phenotypes.csv', 
@@ -220,14 +239,19 @@ def combine_inherited_vep_files():
     for i in range(len(files)):
         if spids[i] not in gfmm_ids:
             continue
-        cols = ['Uploaded_variation', 'Location', 'Allele', 'Gene', 'Feature', 'Feature_type', 'Consequence', 'cDNA_position', 'CDS_position', 'Protein_position', 'Amino_acids', 'Codons', 'Existing_variation', 'Extra']
+        cols = ['Uploaded_variation', 'Location', 'Allele', 'Gene', 
+                'Feature', 'Feature_type', 'Consequence', 'cDNA_position', 
+                'CDS_position', 'Protein_position', 'Amino_acids', 'Codons', 
+                'Existing_variation', 'Extra']
         df = pd.read_csv(
-            directory + files[i], sep='\t', comment='#', header=None, names=cols, index_col=False
+            directory + files[i], sep='\t', comment='#', header=None, 
+            names=cols, index_col=False
             )
         
         df = df[['Uploaded_variation', 'Gene', 'Consequence', 'Extra']]
         df['AF'] = df['Uploaded_variation'].map(variant_to_af)
-        df = df.dropna(subset=['AF']) # only keep rare variants (af<0.01 from gnomAD exomes)
+        # only keep rare variants (af<0.01 from gnomAD)
+        df = df.dropna(subset=['AF']) 
         
         # filter PTVs and missense variants with plugins LOFTEE, AM
         df['am_class'] = df['Extra'].str.extract(r'am_class=(.*?);')
@@ -255,7 +279,11 @@ def combine_inherited_vep_files():
         spid_to_num_ptvs[spids[i]] = ptv_counts
         spid_to_num_missense[spids[i]] = missense_counts
         
-    with open('data/spid_to_num_lof_rare_inherited_gnomad_only.pkl', 'wb') as f:
+    with open(
+        'data/spid_to_num_lof_rare_inherited_gnomad_only.pkl', 'wb'
+        ) as f:
         rick.dump(spid_to_num_ptvs, f)
-    with open('data/spid_to_num_missense_rare_inherited_gnomad_only.pkl', 'wb') as f:
+    with open(
+        'data/spid_to_num_missense_rare_inherited_gnomad_only.pkl', 'wb'
+        ) as f:
         rick.dump(spid_to_num_missense, f)

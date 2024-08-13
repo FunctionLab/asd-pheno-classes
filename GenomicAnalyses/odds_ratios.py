@@ -35,14 +35,14 @@ def compute_odds_ratios():
             dnvs_sibs[gene_set_names[i]] = dnvs_sibs['name'].apply(
                 lambda x: 1 if x in gene_sets[i] else 0)
 
-    num_class0 = dnvs_pro[dnvs_pro['class'] == 0][
-        'spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 0]['spid'].nunique()
-    num_class1 = dnvs_pro[dnvs_pro['class'] == 1][
-        'spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 1]['spid'].nunique()
-    num_class2 = dnvs_pro[dnvs_pro['class'] == 2][
-        'spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 2]['spid'].nunique()
-    num_class3 = dnvs_pro[dnvs_pro['class'] == 3][
-        'spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 3]['spid'].nunique()
+    num_class0 = dnvs_pro[dnvs_pro['class'] == 0]['spid'].nunique() + \
+        zero_pro[zero_pro['mixed_pred'] == 0]['spid'].nunique()
+    num_class1 = dnvs_pro[dnvs_pro['class'] == 1]['spid'].nunique() + \
+        zero_pro[zero_pro['mixed_pred'] == 1]['spid'].nunique()
+    num_class2 = dnvs_pro[dnvs_pro['class'] == 2]['spid'].nunique() + \
+        zero_pro[zero_pro['mixed_pred'] == 2]['spid'].nunique()
+    num_class3 = dnvs_pro[dnvs_pro['class'] == 3]['spid'].nunique() + \
+        zero_pro[zero_pro['mixed_pred'] == 3]['spid'].nunique()
     num_sibs = dnvs_sibs['spid'].nunique() + zero_sibs['spid'].nunique()
 
     dnvs_pro['lof_final_consequence'] = dnvs_pro['lof'] * dnvs_pro['LoF']
@@ -126,14 +126,14 @@ def compute_odds_ratios():
             dnvs_sibs[gene_set_names[i]] = dnvs_sibs['name'].apply(
                 lambda x: 1 if x in gene_sets[i] else 0)
 
-    num_class0 = dnvs_pro[dnvs_pro['class'] == 0][
-        'spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 0]['spid'].nunique()
-    num_class1 = dnvs_pro[dnvs_pro['class'] == 1][
-        'spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 1]['spid'].nunique()
-    num_class2 = dnvs_pro[dnvs_pro['class'] == 2][
-        'spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 2]['spid'].nunique()
-    num_class3 = dnvs_pro[dnvs_pro['class'] == 3][
-        'spid'].nunique() + zero_pro[zero_pro['mixed_pred'] == 3]['spid'].nunique()
+    num_class0 = dnvs_pro[dnvs_pro['class'] == 0]['spid'].nunique() + \
+        zero_pro[zero_pro['mixed_pred'] == 0]['spid'].nunique()
+    num_class1 = dnvs_pro[dnvs_pro['class'] == 1]['spid'].nunique() + \
+        zero_pro[zero_pro['mixed_pred'] == 1]['spid'].nunique()
+    num_class2 = dnvs_pro[dnvs_pro['class'] == 2]['spid'].nunique() + \
+        zero_pro[zero_pro['mixed_pred'] == 2]['spid'].nunique()
+    num_class3 = dnvs_pro[dnvs_pro['class'] == 3]['spid'].nunique() + \
+        zero_pro[zero_pro['mixed_pred'] == 3]['spid'].nunique()
     num_sibs = dnvs_sibs['spid'].nunique() + zero_sibs['spid'].nunique()
 
     dnvs_pro['syn_final_consequence'] = dnvs_pro['synonymous']

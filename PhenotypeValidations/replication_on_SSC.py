@@ -7,7 +7,11 @@ from stepmix.utils import get_mixed_descriptor
 from scipy import stats
 from statsmodels.stats.multitest import multipletests
 
-from utils import get_cross_cohort_SPARK_data, generate_ssc_data, split_columns, get_feature_enrichments
+from utils import \
+    get_cross_cohort_SPARK_data, \
+    generate_ssc_data, \
+    split_columns, \
+    get_feature_enrichments
 
 
 def cross_cohort_replication(ncomp):
@@ -55,13 +59,17 @@ def cross_cohort_replication(ncomp):
     low_features_continuous = features_to_exclude.loc[
         ~features_to_exclude['feature'].isin(binary_features)]
     low_features_continuous = features_to_exclude.loc[
-        (features_to_exclude['class0'] < 0.2) & (features_to_exclude['class1'] < 0.2) 
-        & (features_to_exclude['class2'] < 0.2) & (features_to_exclude['class3'] < 0.2)] 
+        (features_to_exclude['class0'] < 0.2) 
+        & (features_to_exclude['class1'] < 0.2) 
+        & (features_to_exclude['class2'] < 0.2) 
+        & (features_to_exclude['class3'] < 0.2)] 
     low_features_binary = features_to_exclude.loc[
         features_to_exclude['feature'].isin(binary_features)]
     low_features_binary = low_features_binary.loc[
-        (low_features_binary['class0'] < 1.5) & (low_features_binary['class1'] < 1.5)
-        & (low_features_binary['class2'] < 1.5) & (low_features_binary['class3'] < 1.5)]
+        (low_features_binary['class0'] < 1.5) 
+        & (low_features_binary['class1'] < 1.5)
+        & (low_features_binary['class2'] < 1.5) 
+        & (low_features_binary['class3'] < 1.5)]
     features_to_exclude = pd.concat(
         [nan_features, low_features_continuous, low_features_binary]
         )
@@ -70,7 +78,8 @@ def cross_cohort_replication(ncomp):
     features_to_category = pd.read_csv(
         'data/feature_to_category_mapping.csv', index_col=None)
     feature_to_category = dict(zip(
-        features_to_category['feature'], features_to_category['category']))
+        features_to_category['feature'], 
+        features_to_category['category']))
 
     df = df_enriched_depleted.copy()
     df = df.fillna('NaN')
@@ -124,33 +133,33 @@ def cross_cohort_replication(ncomp):
         'q38_pay_attention', 'q39_imaginative_games', 'q40_cooperatively_games']
     
     for row in flip_rows:
-        df.loc[df['feature'] == row, ['class0_enriched', 'class0_depleted']] = df.loc[
-            df['feature'] == row, ['class0_depleted', 'class0_enriched']].values
-        df.loc[df['feature'] == row, ['class1_enriched', 'class1_depleted']] = df.loc[
-            df['feature'] == row, ['class1_depleted', 'class1_enriched']].values
-        df.loc[df['feature'] == row, ['class2_enriched', 'class2_depleted']] = df.loc[
-            df['feature'] == row, ['class2_depleted', 'class2_enriched']].values
-        df.loc[df['feature'] == row, ['class3_enriched', 'class3_depleted']] = df.loc[
-            df['feature'] == row, ['class3_depleted', 'class3_enriched']].values
+        df.loc[df['feature'] == row, ['class0_enriched', 'class0_depleted']] = \
+            df.loc[df['feature'] == row, ['class0_depleted', 'class0_enriched']].values
+        df.loc[df['feature'] == row, ['class1_enriched', 'class1_depleted']] = \
+            df.loc[df['feature'] == row, ['class1_depleted', 'class1_enriched']].values
+        df.loc[df['feature'] == row, ['class2_enriched', 'class2_depleted']] = \
+            df.loc[df['feature'] == row, ['class2_depleted', 'class2_enriched']].values
+        df.loc[df['feature'] == row, ['class3_enriched', 'class3_depleted']] = \
+            df.loc[df['feature'] == row, ['class3_depleted', 'class3_enriched']].values
     
     # create new dataframe with the proportions of significant features in each category
     prop_df = pd.DataFrame()
-    prop_df['class0_enriched'] = df.groupby(['feature_category'])[
-        'class0_enriched'].sum()/df.groupby(['feature_category'])['class0_enriched'].count()
-    prop_df['class0_depleted'] = df.groupby(['feature_category'])[
-        'class0_depleted'].sum()/df.groupby(['feature_category'])['class0_depleted'].count()
-    prop_df['class1_enriched'] = df.groupby(['feature_category'])[
-        'class1_enriched'].sum()/df.groupby(['feature_category'])['class1_enriched'].count()
-    prop_df['class1_depleted'] = df.groupby(['feature_category'])[
-        'class1_depleted'].sum()/df.groupby(['feature_category'])['class1_depleted'].count()
-    prop_df['class2_enriched'] = df.groupby(['feature_category'])[
-        'class2_enriched'].sum()/df.groupby(['feature_category'])['class2_enriched'].count()
-    prop_df['class2_depleted'] = df.groupby(['feature_category'])[
-        'class2_depleted'].sum()/df.groupby(['feature_category'])['class2_depleted'].count()
-    prop_df['class3_enriched'] = df.groupby(['feature_category'])[
-        'class3_enriched'].sum()/df.groupby(['feature_category'])['class3_enriched'].count()
-    prop_df['class3_depleted'] = df.groupby(['feature_category'])[
-        'class3_depleted'].sum()/df.groupby(['feature_category'])['class3_depleted'].count()
+    prop_df['class0_enriched'] = df.groupby(['feature_category'])['class0_enriched'].sum() \
+        /df.groupby(['feature_category'])['class0_enriched'].count()
+    prop_df['class0_depleted'] = df.groupby(['feature_category'])['class0_depleted'].sum() \
+        /df.groupby(['feature_category'])['class0_depleted'].count()
+    prop_df['class1_enriched'] = df.groupby(['feature_category'])['class1_enriched'].sum() \
+        /df.groupby(['feature_category'])['class1_enriched'].count()
+    prop_df['class1_depleted'] = df.groupby(['feature_category'])['class1_depleted'].sum() \
+        /df.groupby(['feature_category'])['class1_depleted'].count()
+    prop_df['class2_enriched'] = df.groupby(['feature_category'])['class2_enriched'].sum() \
+        /df.groupby(['feature_category'])['class2_enriched'].count()
+    prop_df['class2_depleted'] = df.groupby(['feature_category'])['class2_depleted'].sum() \
+        /df.groupby(['feature_category'])['class2_depleted'].count()
+    prop_df['class3_enriched'] = df.groupby(['feature_category'])['class3_enriched'].sum() \
+        /df.groupby(['feature_category'])['class3_enriched'].count()
+    prop_df['class3_depleted'] = df.groupby(['feature_category'])['class3_depleted'].sum() \
+        /df.groupby(['feature_category'])['class3_depleted'].count()
     
     # negate depleted columns
     prop_df['class0_depleted'] = -prop_df['class0_depleted']
@@ -224,30 +233,22 @@ def cross_cohort_replication(ncomp):
     # create new dataframe with the proportions of significant features 
     # in each category
     prop_df = pd.DataFrame()
-    prop_df['class0_enriched'] = summary_df.groupby(['feature_category'])[
-        'class0_enriched'].sum()/summary_df.groupby(['feature_category'])[
-            'class0_enriched'].count()
-    prop_df['class0_depleted'] = summary_df.groupby(['feature_category'])[
-        'class0_depleted'].sum()/summary_df.groupby(['feature_category'])[
-            'class0_depleted'].count()
-    prop_df['class1_enriched'] = summary_df.groupby(['feature_category'])[
-        'class1_enriched'].sum()/summary_df.groupby(['feature_category'])[
-            'class1_enriched'].count()
-    prop_df['class1_depleted'] = summary_df.groupby(['feature_category'])[
-        'class1_depleted'].sum()/summary_df.groupby(['feature_category'])[
-            'class1_depleted'].count()
-    prop_df['class2_enriched'] = summary_df.groupby(['feature_category'])[
-        'class2_enriched'].sum()/summary_df.groupby(['feature_category'])[
-            'class2_enriched'].count()
-    prop_df['class2_depleted'] = summary_df.groupby(['feature_category'])[
-        'class2_depleted'].sum()/summary_df.groupby(['feature_category'])[
-            'class2_depleted'].count()
-    prop_df['class3_enriched'] = summary_df.groupby(['feature_category'])[
-        'class3_enriched'].sum()/summary_df.groupby(['feature_category'])[
-            'class3_enriched'].count()
-    prop_df['class3_depleted'] = summary_df.groupby(['feature_category'])[
-        'class3_depleted'].sum()/summary_df.groupby(['feature_category'])[
-            'class3_depleted'].count()
+    prop_df['class0_enriched'] = summary_df.groupby(['feature_category'])['class0_enriched'].sum() \
+        /summary_df.groupby(['feature_category'])['class0_enriched'].count()
+    prop_df['class0_depleted'] = summary_df.groupby(['feature_category'])['class0_depleted'].sum() \
+        /summary_df.groupby(['feature_category'])['class0_depleted'].count()
+    prop_df['class1_enriched'] = summary_df.groupby(['feature_category'])['class1_enriched'].sum() \
+        /summary_df.groupby(['feature_category'])['class1_enriched'].count()
+    prop_df['class1_depleted'] = summary_df.groupby(['feature_category'])['class1_depleted'].sum() \
+        /summary_df.groupby(['feature_category'])['class1_depleted'].count()
+    prop_df['class2_enriched'] = summary_df.groupby(['feature_category'])['class2_enriched'].sum() \
+        /summary_df.groupby(['feature_category'])['class2_enriched'].count()
+    prop_df['class2_depleted'] = summary_df.groupby(['feature_category'])['class2_depleted'].sum() \
+        /summary_df.groupby(['feature_category'])['class2_depleted'].count()
+    prop_df['class3_enriched'] = summary_df.groupby(['feature_category'])['class3_enriched'].sum() \
+        /summary_df.groupby(['feature_category'])['class3_enriched'].count()
+    prop_df['class3_depleted'] = summary_df.groupby(['feature_category'])['class3_depleted'].sum() \
+        /summary_df.groupby(['feature_category'])['class3_depleted'].count()
     
     # negate depleted columns
     prop_df['class0_depleted'] = -prop_df['class0_depleted']
@@ -267,8 +268,8 @@ def cross_cohort_replication(ncomp):
 
     # drop the enriched and depleted columns
     features_to_visualize = ['anxiety/mood', 'attention', 'disruptive behavior', 
-                             'self-injury', 'social/communication', 'restricted/repetitive', 
-                             'developmental'] 
+                             'self-injury', 'social/communication', 
+                             'restricted/repetitive', 'developmental'] 
     prop_df = prop_df.drop(['class0_enriched', 'class0_depleted', 'class1_enriched', 
                             'class1_depleted', 'class2_enriched', 'class2_depleted', 
                             'class3_enriched', 'class3_depleted'], axis=1)
@@ -296,15 +297,12 @@ def cross_cohort_replication(ncomp):
     correlations = []
     pvals = []
     for i, feature in enumerate(features_to_visualize):
-        corr_matrix[i, i] = stats.pearsonr(polar.loc[
-            polar["variable"] == i, "ssc_value"], polar.loc[
-                polar["variable"] == i, "spark_value"])[0] # get the correlation value
-        correlations.append(stats.pearsonr(polar.loc[
-            polar["variable"] == i, "ssc_value"], polar.loc[
-                polar["variable"] == i, "spark_value"])[0])
-        pvals.append(stats.pearsonr(polar.loc[
-            polar["variable"] == i, "ssc_value"], polar.loc[
-                polar["variable"] == i, "spark_value"])[1])
+        corr_matrix[i, i] = stats.pearsonr(polar.loc[polar["variable"] == i, "ssc_value"], \
+                                           polar.loc[polar["variable"] == i, "spark_value"])[0]
+        correlations.append(stats.pearsonr(polar.loc[polar["variable"] == i, "ssc_value"], \
+                                           polar.loc[polar["variable"] == i, "spark_value"])[0])
+        pvals.append(stats.pearsonr(polar.loc[polar["variable"] == i, "ssc_value"], \
+                                    polar.loc[polar["variable"] == i, "spark_value"])[1])
 
     # correction of pvals
     pvals = multipletests(pvals, method='fdr_bh')[1]

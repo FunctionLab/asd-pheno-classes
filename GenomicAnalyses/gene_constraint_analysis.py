@@ -37,18 +37,14 @@ def gene_constraint_analysis():
             lambda x: 1 if x in gene_sets[i] else 0)
 
     # get number of spids in each class
-    num_class0 = dnvs_pro[
-        dnvs_pro['class'] == 0]['spid'].nunique() + zero_pro[
-            zero_pro['mixed_pred'] == 0]['spid'].nunique()
-    num_class1 = dnvs_pro[
-        dnvs_pro['class'] == 1]['spid'].nunique() + zero_pro[
-            zero_pro['mixed_pred'] == 1]['spid'].nunique()
-    num_class2 = dnvs_pro[
-        dnvs_pro['class'] == 2]['spid'].nunique() + zero_pro[
-            zero_pro['mixed_pred'] == 2]['spid'].nunique()
-    num_class3 = dnvs_pro[
-        dnvs_pro['class'] == 3]['spid'].nunique() + zero_pro[
-            zero_pro['mixed_pred'] == 3]['spid'].nunique()
+    num_class0 = dnvs_pro[dnvs_pro['class'] == 0]['spid'].nunique() + \
+        zero_pro[zero_pro['mixed_pred'] == 0]['spid'].nunique()
+    num_class1 = dnvs_pro[dnvs_pro['class'] == 1]['spid'].nunique() + \
+        zero_pro[zero_pro['mixed_pred'] == 1]['spid'].nunique()
+    num_class2 = dnvs_pro[dnvs_pro['class'] == 2]['spid'].nunique() + \
+        zero_pro[zero_pro['mixed_pred'] == 2]['spid'].nunique()
+    num_class3 = dnvs_pro[dnvs_pro['class'] == 3]['spid'].nunique() + \
+        zero_pro[zero_pro['mixed_pred'] == 3]['spid'].nunique()
     num_sibs = dnvs_sibs['spid'].nunique() + zero_sibs['spid'].nunique()
 
     plt.style.use('seaborn-v0_8-whitegrid')
@@ -56,24 +52,32 @@ def gene_constraint_analysis():
     for gene_set, ax in zip(['pli_higher', 'pli_lower'], (ax1, ax2)):
         props = []
         stds = []
-        dnvs_pro['gene_set&consequence'] = dnvs_pro[gene_set] * dnvs_pro['consequence'] * dnvs_pro['LoF']
-        dnvs_sibs['gene_set&consequence'] = dnvs_sibs[gene_set] * dnvs_sibs['consequence'] * dnvs_sibs['LoF']
+        dnvs_pro['gene_set&consequence'] = dnvs_pro[gene_set] * \
+                                           dnvs_pro['consequence'] * \
+                                           dnvs_pro['LoF']
+        dnvs_sibs['gene_set&consequence'] = dnvs_sibs[gene_set] * \
+                                            dnvs_sibs['consequence'] * \
+                                            dnvs_sibs['LoF']
 
-        class0 = dnvs_pro[dnvs_pro['class'] == 0].groupby('spid')[
-            'gene_set&consequence'].sum().tolist()
-        zero_class0 = zero_pro[zero_pro['mixed_pred'] == 0]['count'].astype(int).tolist()
+        class0 = dnvs_pro[dnvs_pro['class'] == 0].groupby(
+            'spid')['gene_set&consequence'].sum().tolist()
+        zero_class0 = zero_pro[
+            zero_pro['mixed_pred'] == 0]['count'].astype(int).tolist()
         class0 = class0 + zero_class0
-        class1 = dnvs_pro[dnvs_pro['class'] == 1].groupby('spid')[
-            'gene_set&consequence'].sum().tolist()
-        zero_class1 = zero_pro[zero_pro['mixed_pred'] == 1]['count'].astype(int).tolist()
+        class1 = dnvs_pro[dnvs_pro['class'] == 1].groupby(
+            'spid')['gene_set&consequence'].sum().tolist()
+        zero_class1 = zero_pro[
+            zero_pro['mixed_pred'] == 1]['count'].astype(int).tolist()
         class1 = class1 + zero_class1
-        class2 = dnvs_pro[dnvs_pro['class'] == 2].groupby('spid')[
-            'gene_set&consequence'].sum().tolist()
-        zero_class2 = zero_pro[zero_pro['mixed_pred'] == 2]['count'].astype(int).tolist()
+        class2 = dnvs_pro[dnvs_pro['class'] == 2].groupby(
+            'spid')['gene_set&consequence'].sum().tolist()
+        zero_class2 = zero_pro[
+            zero_pro['mixed_pred'] == 2]['count'].astype(int).tolist()
         class2 = class2 + zero_class2
-        class3 = dnvs_pro[dnvs_pro['class'] == 3].groupby('spid')[
-            'gene_set&consequence'].sum().tolist()
-        zero_class3 = zero_pro[zero_pro['mixed_pred'] == 3]['count'].astype(int).tolist()
+        class3 = dnvs_pro[dnvs_pro['class'] == 3].groupby(
+            'spid')['gene_set&consequence'].sum().tolist()
+        zero_class3 = zero_pro[
+            zero_pro['mixed_pred'] == 3]['count'].astype(int).tolist()
         class3 = class3 + zero_class3
         sibs = dnvs_sibs.groupby('spid')['gene_set&consequence'].sum().tolist()
         sibs = sibs + zero_sibs['count'].astype(int).tolist()

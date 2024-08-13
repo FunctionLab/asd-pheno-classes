@@ -45,31 +45,26 @@ def make_gene_trend_figure(fdr=0.05):
             lambda x: 1 if x in gene_sets[i] else 0)
     
     # get number of participants in each class
-    num_class0 = dnvs_pro[
-        dnvs_pro['class'] == 0]['spid'].nunique() + zero_pro[
-            zero_pro['mixed_pred'] == 0]['spid'].nunique()
-    num_class1 = dnvs_pro[
-        dnvs_pro['class'] == 1]['spid'].nunique() + zero_pro[
-            zero_pro['mixed_pred'] == 1]['spid'].nunique()
-    num_class2 = dnvs_pro[
-        dnvs_pro['class'] == 2]['spid'].nunique() + zero_pro[
-            zero_pro['mixed_pred'] == 2]['spid'].nunique()
-    num_class3 = dnvs_pro[
-        dnvs_pro['class'] == 3]['spid'].nunique() + zero_pro[
-            zero_pro['mixed_pred'] == 3]['spid'].nunique()
+    num_class0 = dnvs_pro[dnvs_pro['class'] == 0]['spid'].nunique() + \
+        zero_pro[zero_pro['mixed_pred'] == 0]['spid'].nunique()
+    num_class1 = dnvs_pro[dnvs_pro['class'] == 1]['spid'].nunique() + \
+        zero_pro[zero_pro['mixed_pred'] == 1]['spid'].nunique()
+    num_class2 = dnvs_pro[dnvs_pro['class'] == 2]['spid'].nunique() + \
+        zero_pro[zero_pro['mixed_pred'] == 2]['spid'].nunique()
+    num_class3 = dnvs_pro[dnvs_pro['class'] == 3]['spid'].nunique() + \
+        zero_pro[zero_pro['mixed_pred'] == 3]['spid'].nunique()
     num_sibs = dnvs_sibs['spid'].nunique() + zero_sibs['spid'].nunique()
     all_spids = num_class0 + num_class1 + num_class2 + num_class3
 
     # compute enrichments for each gene set
-    celltype_to_enrichment = {}
-    class_to_go_enrichment = {}
     validation_subset = pd.DataFrame()
-    prop_table = pd.DataFrame()
     for gene_set, trend, category in zip(gene_set_names, trends, cell_type_categories):
-        dnvs_pro['gene_set&consequence'] = dnvs_pro[gene_set] * dnvs_pro[
-            'consequence'] * dnvs_pro['LoF'] 
-        dnvs_sibs['gene_set&consequence'] = dnvs_sibs[gene_set] * dnvs_sibs[
-            'consequence'] * dnvs_sibs['LoF']
+        dnvs_pro['gene_set&consequence'] = dnvs_pro[gene_set] * \
+                                           dnvs_pro['consequence'] * \
+                                           dnvs_pro['LoF'] 
+        dnvs_sibs['gene_set&consequence'] = dnvs_sibs[gene_set] * \
+                                            dnvs_sibs['consequence'] * \
+                                            dnvs_sibs['LoF']
     
         class0 = dnvs_pro[dnvs_pro['class'] == 0].groupby(
             'spid')['gene_set&consequence'].sum().tolist()
@@ -91,23 +86,29 @@ def make_gene_trend_figure(fdr=0.05):
         zero_class3 = zero_pro[
             zero_pro['mixed_pred'] == 3]['count'].astype(int).tolist()
         class3 = class3 + zero_class3
-        sibs = dnvs_sibs.groupby('spid')[
-            'gene_set&consequence'].sum().tolist()
+        sibs = dnvs_sibs.groupby(
+            'spid')['gene_set&consequence'].sum().tolist()
         sibs = sibs + zero_sibs['count'].astype(int).tolist()
         all_pros_data = class0 + class1 + class2 + class3
 
         # get p-values comparing each class to sibs using a t-test
         sibs_rest_of_sample = class0 + class1 + class2 + class3
-        class0_pval = ttest_ind(class0, sibs, alternative='greater')[1]
-        class1_pval = ttest_ind(class1, sibs, alternative='greater')[1]
-        class2_pval = ttest_ind(class2, sibs, alternative='greater')[1]
-        class3_pval = ttest_ind(class3, sibs, alternative='greater')[1]
-        sibs_pval = ttest_ind(sibs, sibs_rest_of_sample, alternative='greater')[1]
-        all_pros_pval = ttest_ind(all_pros_data, sibs, alternative='greater')[1]
+        class0_pval = ttest_ind(
+            class0, sibs, alternative='greater')[1]
+        class1_pval = ttest_ind(
+            class1, sibs, alternative='greater')[1]
+        class2_pval = ttest_ind(
+            class2, sibs, alternative='greater')[1]
+        class3_pval = ttest_ind(
+            class3, sibs, alternative='greater')[1]
+        sibs_pval = ttest_ind(
+            sibs, sibs_rest_of_sample, alternative='greater')[1]
+        all_pros_pval = ttest_ind(
+            all_pros_data, sibs, alternative='greater')[1]
         
         # multiple testing correction
-        corrected = multipletests([class0_pval, class1_pval, 
-                                   class2_pval, class3_pval, sibs_pval, all_pros_pval], 
+        corrected = multipletests([class0_pval, class1_pval, class2_pval, 
+                                   class3_pval, sibs_pval, all_pros_pval], 
                                    method='fdr_bh')[1]
         class0_pval = -np.log10(corrected[0])
         class1_pval = -np.log10(corrected[1])
@@ -205,9 +206,12 @@ def make_gene_trend_figure(fdr=0.05):
                bbox_to_anchor=(1, 1))
     plt.yticks(fontsize=18)
     plt.xticks(fontsize=20, rotation=35, ha='right')
-    yticklabels = ['Inhibitory Interneuron MGE', 'Inhibitory Interneuron MGE', 
-                   'Principal Excitatory Neuron', 'Principal Excitatory Neuron', 
-                   'Glia', 'Inhibitory Interneuron CGE', 'Inhibitory Interneuron MGE', 
+    yticklabels = ['Inhibitory Interneuron MGE', 
+                   'Inhibitory Interneuron MGE', 
+                   'Principal Excitatory Neuron', 
+                   'Principal Excitatory Neuron', 
+                   'Glia', 'Inhibitory Interneuron CGE', 
+                   'Inhibitory Interneuron MGE', 
                    'Principal Excitatory Neuron'][::-1]
     plt.yticks(ticks=range(8), labels=yticklabels, fontsize=18)
     for axis in ['top','bottom','left','right']:
@@ -217,7 +221,9 @@ def make_gene_trend_figure(fdr=0.05):
     ax.spines['right'].set_visible(False)
     ax.grid(False)
     plt.savefig(
-        f'figures/WES_gene_trends_dnLoF_analysis.png', bbox_inches='tight', dpi=600
+        f'figures/WES_gene_trends_dnLoF_analysis.png', 
+        bbox_inches='tight', 
+        dpi=600
         )
     plt.close()
 
