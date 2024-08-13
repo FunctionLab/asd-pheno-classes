@@ -154,6 +154,7 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments):
     df['feature_category'] = df['feature'].map(feature_to_category)
     df = df.dropna(subset=['feature_category']).replace('NaN', 1)
     
+    # mark features as enriched or depleted based on p-value threshold
     for cls in range(4):
         df[f'class{cls}_enriched'] = df[f'class{cls}_enriched'].astype(float).apply(
             lambda x: 1 if x < 0.05 else 0
@@ -174,13 +175,14 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments):
         'q39_imaginative_games', 'q40_cooperatively_games'
     ]
     
-    for row in flip_rows:
+    for row in flip_rows: # flip enriched and depleted columns
         for cls in range(4):
             df.loc[df['feature'] == row, [f'class{cls}_enriched', f'class{cls}_depleted']] = \
             df.loc[df['feature'] == row, [f'class{cls}_depleted', f'class{cls}_enriched']].values
     
     prop_df = pd.DataFrame()
     
+    # calculate proportion of enriched and depleted features by category
     for cls in range(4):
         prop_df[f'class{cls}_enriched'] = df.groupby(['feature_category'])[f'class{cls}_enriched'].sum() / \
                                           df.groupby(['feature_category'])[f'class{cls}_enriched'].count()
@@ -216,6 +218,7 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments):
     proportions_melted['type'] = proportions_melted['class'].apply(lambda x: x.split('_')[1])
     proportions_melted['class'] = proportions_melted['class'].apply(lambda x: x.split('_')[0])
 
+    # plot variation figure (supplementary figure)
     fig, ax = plt.subplots(figsize=(12, 5))    
     feature_categories = proportions['feature_category'].unique()
     classes = ['class0', 'class1', 'class2', 'class3']
@@ -333,6 +336,9 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments):
 
 
 def get_age_sex_distributions_for_classes(mixed_data, ncomp):
+    """
+    Plot sex and age distributions by class.
+    """
     colors = ['#FBB040','#EE2A7B','green','#27AAE1']
     fig, ax = plt.subplots(2,2,figsize=(10,6))
     

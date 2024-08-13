@@ -132,6 +132,9 @@ def split_columns(feature_subset):
 
 
 def get_feature_enrichments(mixed_data, summarize=False):
+    """
+    Compute feature enrichments and depletions for each class.
+    """
     feature_to_pval = dict()
     feature_sig_df_high = pd.DataFrame()
     feature_sig_df_low = pd.DataFrame()
@@ -139,6 +142,7 @@ def get_feature_enrichments(mixed_data, summarize=False):
     fold_enrichments = pd.DataFrame()
     mean_values = pd.DataFrame()
 
+    # isolate the four classes
     class0 = mixed_data[mixed_data['mixed_pred'] == 0]
     class1 = mixed_data[mixed_data['mixed_pred'] == 1]
     class2 = mixed_data[mixed_data['mixed_pred'] == 2]
@@ -148,7 +152,7 @@ def get_feature_enrichments(mixed_data, summarize=False):
     for feature in mixed_data.drop(['mixed_pred'],axis=1).columns:
 
         unique = mixed_data[feature].unique()
-        if len(unique) == 2:  ## binary
+        if len(unique) == 2:  ## binary feature
             binary_features.append(feature)
             background_prob = int(np.sum(mixed_data[feature]))
             total = len(mixed_data[feature])
@@ -161,6 +165,7 @@ def get_feature_enrichments(mixed_data, summarize=False):
             total_in_class3 = len(class3[feature])
             subset_class3 = int(np.sum(class3[feature]))
 
+            # binomial hypothesis test in both directions
             sf0 = binomtest(
                 subset_class0, n=total_in_class0, p=background_prob/total, 
                 alternative='greater').pvalue
@@ -189,17 +194,20 @@ def get_feature_enrichments(mixed_data, summarize=False):
                 subset_class3, n=total_in_class3, p=background_prob/total, 
                 alternative='less').pvalue
 
+            # compute fold enrichment
             background = background_prob/total
             fe0 = (subset_class0/total_in_class0)/background
             fe1 = (subset_class1/total_in_class1)/background
             fe2 = (subset_class2/total_in_class2)/background
             fe3 = (subset_class3/total_in_class3)/background
 
+            # compute mean values
             mean0 = np.mean(class0[feature])
             mean1 = np.mean(class1[feature])
             mean2 = np.mean(class2[feature])
             mean3 = np.mean(class3[feature])
 
+            # store results for feature
             feature_to_pval[feature] = [sf0, sf1, sf2, sf3]
             feature_sig_df_high[feature] = [sf0, sf1, sf2, sf3]
             feature_sig_df_low[feature] = [sf0_less, sf1_less, sf2_less, sf3_less]
@@ -207,7 +215,8 @@ def get_feature_enrichments(mixed_data, summarize=False):
             fold_enrichments[feature] = [fe0, fe1, fe2, fe3]
             mean_values[feature] = [mean0, mean1, mean2, mean3]
 
-        elif len(unique) > 2:  ## continuous or categorical
+        elif len(unique) > 2:  ## continuous or categorical feature
+            #  t-test hypothesis testing in both directions
             pval_class0 = ttest_ind(class0[feature],
                             pd.concat([class1[feature], class2[feature], class3[feature]],
                                     ignore_index=True, sort=False), equal_var=False,
@@ -238,17 +247,20 @@ def get_feature_enrichments(mixed_data, summarize=False):
                 [class0[feature], class1[feature], class2[feature]], ignore_index=True, sort=False),
                                                equal_var=False, alternative='less').pvalue
             
+            # compute Cohen's d
             total = mixed_data[feature]
             fe0 = cohens_d(class0[feature], total)
             fe1 = cohens_d(class1[feature], total)
             fe2 = cohens_d(class2[feature], total)
             fe3 = cohens_d(class3[feature], total)
 
+            # compute mean values
             mean0 = np.mean(class0[feature])
             mean1 = np.mean(class1[feature])
             mean2 = np.mean(class2[feature])
             mean3 = np.mean(class3[feature])
 
+            # store results for feature
             feature_to_pval[feature] = [pval_class0, pval_class1, pval_class2, pval_class3]
             feature_sig_df_high[feature] = [pval_class0, pval_class1, pval_class2, pval_class3]
             feature_sig_df_low[feature] = [pval_class0_less, pval_class1_less, pval_class2_less, 
@@ -260,6 +272,7 @@ def get_feature_enrichments(mixed_data, summarize=False):
         else:
             continue
     
+    # format results
     feature_sig_norm_high = pd.DataFrame(feature_sig_df_high, columns=feature_vector)
     feature_sig_norm_high['cluster'] = [0, 1, 2, 3]
     feature_sig_norm_low = pd.DataFrame(feature_sig_df_low, columns=feature_vector)
@@ -269,11 +282,11 @@ def get_feature_enrichments(mixed_data, summarize=False):
     pval_df = pd.DataFrame(columns=np.arange(4), index=mixed_data.columns)
     pval_classification_df = pd.DataFrame(columns=np.arange(4), index=mixed_data.columns)
 
+    # perform multiple testing correction for each class and direction
     for tested_class in range(4):
         enriched_class_high = feature_sig_norm_high[
             feature_sig_norm_high['cluster'] == tested_class].drop('cluster',
-                                                                                                           axis=1).T.dropna(
-            axis=0)
+                        axis=1).T.dropna(axis=0)
         adjusted_pvals = list(adjust_pvalues(list(enriched_class_high.iloc[:, 0]), 'fdr_bh'))
         enriched_class_high[f'{tested_class}_corrected'] = adjusted_pvals
         enriched_class_high_dict = enriched_class_high[
