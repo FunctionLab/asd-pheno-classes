@@ -60,14 +60,18 @@ def get_WES_trios():
             elif i == 10:
                 ids = ids[ids['SPID'] != spid]
         
-    ids.to_csv('data/processed_spark_trios_WES2.txt', sep='\t', header=False, index=False)
+    ids.to_csv(
+        'data/processed_spark_trios_WES2.txt', sep='\t', header=False, index=False
+        )
 
 
 def get_paired_sibs():
     file = '../Mastertables/SPARK.iWES_v2.mastertable.2023_01.tsv'
     wes = pd.read_csv(file, sep='\t')
     sibs = wes[wes['asd'] == 1]
-    spids_for_model = pd.read_csv('../PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0) # 5280 PROBANDS
+    spids_for_model = pd.read_csv(
+        '../PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', 
+        index_col=0)
     probands = spids_for_model.index.tolist()
     sibling_spids = []
     for i, row in wes.iterrows():
@@ -82,7 +86,8 @@ def get_paired_sibs():
             elif mid == '0':
                 siblings = sibs[sibs['father'] == fid]['spid'].tolist()
             else:
-                siblings = sibs[(sibs['father'] == fid) & (sibs['mother'] == mid)]['spid'].tolist()
+                siblings = sibs[(sibs['father'] == fid) & 
+                                (sibs['mother'] == mid)]['spid'].tolist()
             sibling_spids.extend(siblings)
     sibling_spids = list(set(sibling_spids))
     with open('../PhenotypeClasses/data/WES_5392_siblings_spids.txt', 'w') as f:
@@ -158,7 +163,9 @@ def process_DNVs():
 def fetch_rare_vars_with_hail():
     hl.init()
 
-    gnomad_v4 = hl.read_table('gs://gcp-public-data--gnomad/release/4.1/ht/exomes/gnomad.exomes.v4.1.sites.ht')
+    gnomad_v4 = hl.read_table(
+        'gs://gcp-public-data--gnomad/release/4.1/ht/exomes/gnomad.exomes.v4.1.sites.ht'
+        )
 
     rare_variants_ht = gnomad_v4.filter(gnomad_v4.freq[0].AF < 0.01)
 
@@ -178,7 +185,9 @@ def fetch_rare_vars_with_hail():
 
 
 def combine_inherited_vep_files():
-    rare_variants_df = pd.read_csv('data/rare_variants.tsv.bgz', sep='\t', compression='gzip')
+    rare_variants_df = pd.read_csv(
+        'data/rare_variants.tsv.bgz', sep='\t', compression='gzip'
+        )
     variant_to_af = dict(zip(rare_variants_df['variant_id'], rare_variants_df['AF']))
 
     directory = 'inherited_vep_predictions_plugins_filtered/' # filtered repeats + centromeres
@@ -189,10 +198,15 @@ def combine_inherited_vep_files():
     spid_to_num_missense = {}
 
     gene_sets, gene_set_names = get_gene_sets()
-    consequences_lof = ['stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 'splice_donor_variant', 'start_lost', 'stop_lost', 'transcript_ablation']
-    consequences_missense = ['missense_variant', 'inframe_deletion', 'inframe_insertion', 'protein_altering_variant']
+    consequences_lof = [
+        'stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 
+        'splice_donor_variant', 'start_lost', 'stop_lost', 'transcript_ablation']
+    consequences_missense = [
+        'missense_variant', 'inframe_deletion', 'inframe_insertion', 'protein_altering_variant']
 
-    gfmm_labels = pd.read_csv('../PhenotypeValidations/data/SPARK_SSC_combined_cohort_phenotypes.csv', index_col=False, header=0)
+    gfmm_labels = pd.read_csv(
+        '../PhenotypeValidations/data/SPARK_SSC_combined_cohort_phenotypes.csv', 
+        index_col=False, header=0)
     gfmm_ids = gfmm_labels.iloc[:, 0].tolist()
 
     sibling_list = '../PhenotypeValidations/data/WES_5392_siblings_spids.txt'
@@ -207,7 +221,9 @@ def combine_inherited_vep_files():
         if spids[i] not in gfmm_ids:
             continue
         cols = ['Uploaded_variation', 'Location', 'Allele', 'Gene', 'Feature', 'Feature_type', 'Consequence', 'cDNA_position', 'CDS_position', 'Protein_position', 'Amino_acids', 'Codons', 'Existing_variation', 'Extra']
-        df = pd.read_csv(directory + files[i], sep='\t', comment='#', header=None, names=cols, index_col=False)
+        df = pd.read_csv(
+            directory + files[i], sep='\t', comment='#', header=None, names=cols, index_col=False
+            )
         
         df = df[['Uploaded_variation', 'Gene', 'Consequence', 'Extra']]
         df['AF'] = df['Uploaded_variation'].map(variant_to_af)
@@ -215,7 +231,8 @@ def combine_inherited_vep_files():
         
         # filter PTVs and missense variants with plugins LOFTEE, AM
         df['am_class'] = df['Extra'].str.extract(r'am_class=(.*?);')
-        df['am_class'] = df['am_class'].apply(lambda x: 1 if x in ['likely_pathogenic'] else 0)
+        df['am_class'] = df['am_class'].apply(
+            lambda x: 1 if x in ['likely_pathogenic'] else 0)
         df['LoF'] = df['Extra'].str.extract(r'LoF=(.*?);')
         df['LoF'] = df['LoF'].apply(lambda x: 1 if x == 'HC' else 0)
         df = df.drop('Extra', axis=1)
@@ -225,8 +242,14 @@ def combine_inherited_vep_files():
         ptv_counts = []
         missense_counts = []
         for gene_set in gene_sets:
-            num_ptvs = df[(df['name'].isin(gene_set)) & (df['Consequence'].isin(consequences_lof)) & (df['LoF'] == 1)].shape[0]
-            num_missense = df[(df['name'].isin(gene_set)) & (df['Consequence'].isin(consequences_missense)) & (df['am_class'] == 1)].shape[0]
+            num_ptvs = df[
+                (df['name'].isin(gene_set)) & 
+                (df['Consequence'].isin(consequences_lof)) & 
+                (df['LoF'] == 1)].shape[0]
+            num_missense = df[
+                (df['name'].isin(gene_set)) & 
+                (df['Consequence'].isin(consequences_missense)) & 
+                (df['am_class'] == 1)].shape[0]
             ptv_counts.append(num_ptvs)
             missense_counts.append(num_missense)
         spid_to_num_ptvs[spids[i]] = ptv_counts
