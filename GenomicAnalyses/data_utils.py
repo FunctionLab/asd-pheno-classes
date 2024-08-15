@@ -9,7 +9,7 @@ import hail as hl
 from utils import get_gene_sets
 
 
-with open('gene_sets/gene_ensembl_ID_to_name.pkl', 'rb') as f:
+with open('data/gene_ensembl_ID_to_name.pkl', 'rb') as f:
         ENSEMBL_TO_GENE_NAME = rick.load(f)
 
 
