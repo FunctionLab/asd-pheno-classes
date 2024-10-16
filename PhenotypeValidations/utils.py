@@ -525,6 +525,8 @@ def get_feature_enrichments(mixed_data, summarize=False):
 def match_class_labels(gt_df, exp_df):
     """
     Match class labels from experimental run to ground truth based on overlap.
+    If a class gets assigned twice, the class with the highest proportion overlap keeps the assignment,
+    and the remaining unmatched class is assigned to the class that remained unassigned.
 
     Parameters:
     gt_df (pd.DataFrame): DataFrame with ground truth labels, must have a column named 'mixed_pred'.
@@ -549,25 +551,51 @@ def match_class_labels(gt_df, exp_df):
     for exp_class in np.arange(len(exp_classes)):
         for gt_class in np.arange(len(gt_classes)):
             overlap = len(gt_df[gt_df['mixed_pred'] == gt_class].index.intersection(exp_df[exp_df['mixed_pred'] == exp_class].index))
-            exp_class_size = len(exp_df[exp_df['mixed_pred'] == exp_class].index) # normalize by class size
-            gt_class_size = len(gt_df[gt_df['mixed_pred'] == gt_class].index)
+            exp_class_size = len(exp_df[exp_df['mixed_pred'] == exp_class].index)  # normalize by class size
             overlap = overlap / exp_class_size
             overlap_dict[exp_class][gt_class] = overlap
-    
+
     # Create a mapping for experimental classes to ground truth classes based on max overlap
     label_mapping = {}
-    for exp_class, overlaps in overlap_dict.items():
-        # Find the ground truth class with the maximum overlap
-        max_gt_class = max(overlaps, key=overlaps.get)
-        label_mapping[exp_class] = max_gt_class
+    assigned_gt_classes = {}
     
+    for exp_class, overlaps in overlap_dict.items():
+        max_gt_class = max(overlaps, key=overlaps.get)
+        
+        # If the max_gt_class is already assigned to another exp_class
+        if max_gt_class in assigned_gt_classes:
+            # Compare the overlaps of the conflicting classes
+            other_exp_class = assigned_gt_classes[max_gt_class]
+            if overlap_dict[other_exp_class][max_gt_class] < overlap_dict[exp_class][max_gt_class]:
+                # Assign max_gt_class to the current exp_class
+                label_mapping[exp_class] = max_gt_class
+                # The previous assignment gets unassigned
+                del label_mapping[other_exp_class]
+            else:
+                # Keep the previous assignment and unassign the current exp_class
+                continue
+        else:
+            label_mapping[exp_class] = max_gt_class
+        
+        # Track which experimental classes were assigned to ground truth
+        assigned_gt_classes[max_gt_class] = exp_class
+
+    # Handle any unassigned experimental or ground truth classes
+    unassigned_exp_classes = set(exp_classes) - set(label_mapping.keys())
+    unassigned_gt_classes = set(gt_classes) - set(label_mapping.values())
+
+    # Assign remaining experimental class to remaining unassigned ground truth class
+    if unassigned_exp_classes and unassigned_gt_classes:
+        for exp_class, gt_class in zip(unassigned_exp_classes, unassigned_gt_classes):
+            label_mapping[exp_class] = gt_class
+
     # Reassign experimental labels based on the mapping
     exp_df['matched_labels'] = exp_df['mixed_pred'].map(label_mapping)
     exp_df = exp_df.drop('mixed_pred', axis=1)
     exp_df.rename(columns={'matched_labels': 'mixed_pred'}, inplace=True)
 
     return exp_df
-    
+
 
 def get_correlation(spark_labels, ssc_labels):
     # get feature enrichments
@@ -648,11 +676,12 @@ def get_correlation(spark_labels, ssc_labels):
                 'q38_pay_attention', 'q39_imaginative_games', 'q40_cooperatively_games']
     
     for row in flip_rows:
-        df.loc[df['feature'] == row, ['class0_enriched', 'class0_depleted']] = df.loc[df['feature'] == row, ['class0_depleted', 'class0_enriched']].values
-        df.loc[df['feature'] == row, ['class1_enriched', 'class1_depleted']] = df.loc[df['feature'] == row, ['class1_depleted', 'class1_enriched']].values
-        df.loc[df['feature'] == row, ['class2_enriched', 'class2_depleted']] = df.loc[df['feature'] == row, ['class2_depleted', 'class2_enriched']].values
-        df.loc[df['feature'] == row, ['class3_enriched', 'class3_depleted']] = df.loc[df['feature'] == row, ['class3_depleted', 'class3_enriched']].values
-    
+        if row in df['feature'].values:
+            df.loc[df['feature'] == row, ['class0_enriched', 'class0_depleted']] = df.loc[df['feature'] == row, ['class0_depleted', 'class0_enriched']].values
+            df.loc[df['feature'] == row, ['class1_enriched', 'class1_depleted']] = df.loc[df['feature'] == row, ['class1_depleted', 'class1_enriched']].values
+            df.loc[df['feature'] == row, ['class2_enriched', 'class2_depleted']] = df.loc[df['feature'] == row, ['class2_depleted', 'class2_enriched']].values
+            df.loc[df['feature'] == row, ['class3_enriched', 'class3_depleted']] = df.loc[df['feature'] == row, ['class3_depleted', 'class3_enriched']].values
+        
     # create new dataframe with the proportions of significant features in each category
     prop_df = pd.DataFrame()
     prop_df['class0_enriched'] = df.groupby(['feature_category'])['class0_enriched'].sum()/df.groupby(['feature_category'])['class0_enriched'].count()
@@ -679,10 +708,7 @@ def get_correlation(spark_labels, ssc_labels):
     prop_df = prop_df.drop(['class0_enriched', 'class0_depleted', 'class1_enriched', 'class1_depleted', 'class2_enriched', 'class2_depleted', 'class3_enriched', 'class3_depleted'], axis=1)
     prop_df.columns = ['0', '1', '2', '3']
     features_to_visualize = ['anxiety/mood', 'attention', 'disruptive behavior', 'self-injury', 'social/communication', 'restricted/repetitive', 'developmental'] 
-    try:
-        spark_prop_df = prop_df.loc[features_to_visualize, :]
-    except KeyError:
-        return np.nan
+    spark_prop_df = prop_df.loc[features_to_visualize]
         
     spark_prop_df.index = np.arange(len(spark_prop_df))
 
@@ -729,7 +755,14 @@ def get_correlation(spark_labels, ssc_labels):
     summary_df['class2_depleted'] = summary_df['class2_depleted'].apply(lambda x: 1 if x < 0.05 else 0)
     summary_df['class3_enriched'] = summary_df['class3_enriched'].apply(lambda x: 1 if x < 0.05 else 0)
     summary_df['class3_depleted'] = summary_df['class3_depleted'].apply(lambda x: 1 if x < 0.05 else 0)
-    
+
+    for row in flip_rows:
+        if row in summary_df['feature'].values:
+            summary_df.loc[summary_df['feature'] == row, ['class0_enriched', 'class0_depleted']] = summary_df.loc[summary_df['feature'] == row, ['class0_depleted', 'class0_enriched']].values
+            summary_df.loc[summary_df['feature'] == row, ['class1_enriched', 'class1_depleted']] = summary_df.loc[summary_df['feature'] == row, ['class1_depleted', 'class1_enriched']].values
+            summary_df.loc[summary_df['feature'] == row, ['class2_enriched', 'class2_depleted']] = summary_df.loc[summary_df['feature'] == row, ['class2_depleted', 'class2_enriched']].values
+            summary_df.loc[summary_df['feature'] == row, ['class3_enriched', 'class3_depleted']] = summary_df.loc[summary_df['feature'] == row, ['class3_depleted', 'class3_enriched']].values
+        
     # create new dataframe with the proportions of significant features in each category
     prop_df = pd.DataFrame()
     prop_df['class0_enriched'] = summary_df.groupby(['feature_category'])['class0_enriched'].sum()/summary_df.groupby(['feature_category'])['class0_enriched'].count()
@@ -778,7 +811,6 @@ def get_correlation(spark_labels, ssc_labels):
 
     # merge spark and ssc dataframes
     polar = pd.merge(polar, spark, on=['cluster', 'variable'], how='inner')
-    print(polar)
 
     r, p = pearsonr(polar['ssc_value'], polar['spark_value'])
 
@@ -786,7 +818,7 @@ def get_correlation(spark_labels, ssc_labels):
     for i, feature in enumerate(features_to_visualize):
         category_correlations.append(pearsonr(polar.loc[polar["variable"] == i, "ssc_value"], \
                                            polar.loc[polar["variable"] == i, "spark_value"])[0])
-    print(category_correlations); exit()
+
     return r, category_correlations
 
 

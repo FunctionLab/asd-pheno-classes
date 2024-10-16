@@ -383,6 +383,7 @@ def individual_registration_validation():
                     compute_fold_enrichment(classes[2], classes[3]),
                     compute_fold_enrichment(classes[2], classes[1]),
                     compute_fold_enrichment(classes[0], classes[3])]
+            
             # multiple hypothesis correction with Benjamini-Hochberg
             uncorrected_pvals = pvals
             pvals = multipletests(pvals, method='fdr_bh')[1]
@@ -454,6 +455,7 @@ def individual_registration_validation():
                     compute_fold_enrichment(classes[1], classes[2]),
                     compute_fold_enrichment(classes[3], classes[0]),
                     compute_fold_enrichment(classes[3], classes[2])]
+            
             # multiple hypothesis correction with Benjamini-Hochberg
             uncorrected_pvals = pvals
             pvals = multipletests(pvals, method='fdr_bh')[1]
@@ -491,10 +493,10 @@ def individual_registration_validation():
                     cohens_d(classes[2], classes[1]),
                     cohens_d(classes[0], classes[3]),
                     cohens_d(classes[0], classes[1])]
+            
             # multiple hypothesis correction with Benjamini-Hochberg
             uncorrected_pvals = pvals
             pvals = multipletests(pvals, method='fdr_bh')[1]
-            
             supp_table = supp_table.append(pd.DataFrame(
                 {'variable': var, 'group1': [class_names[2], class_names[2], class_names[1], class_names[2], class_names[0], class_names[0]],
                 'vs': [class_names[3], class_names[0], class_names[3], class_names[1], class_names[3], class_names[1]],
@@ -658,6 +660,7 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
     cohens_d_list = [cohens_d(cls, sib_bh_data[milestone]) for cls in classes]
     comparisons += [('class0', 'siblings'), ('class1', 'siblings'), ('class2', 'siblings'), ('class3', 'siblings')]
 
+    # compute pvals, cohen's d
     pvals.append(ttest_ind(classes[1], classes[0], equal_var=False, alternative='greater').pvalue)
     comparisons.append(('class1', 'class0'))
     cohens_d_list.append(cohens_d(classes[1], classes[0]))
@@ -676,6 +679,8 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
     pvals.append(ttest_ind(classes[3], classes[2], equal_var=False, alternative='greater').pvalue)
     comparisons.append(('class3', 'class2'))
     cohens_d_list.append(cohens_d(classes[3], classes[2]))
+    
+    # multiple hypothesis correction with Benjamini-Hochberg
     uncorrected_pvals = pvals
     pvals = multipletests(pvals, method='fdr_bh')[1]
     print(milestone)
@@ -759,6 +764,7 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
     cohens_d_list = [cohens_d(cls, sib_bh_data[milestone]) for cls in classes]
     comparisons += (('class0', 'siblings'), ('class1', 'siblings'), ('class2', 'siblings'), ('class3', 'siblings'))
 
+    # compute pvals, cohen's d
     pvals.append(ttest_ind(classes[1], classes[0], equal_var=False, alternative='greater').pvalue)
     comparisons.append(('class1', 'class0'))
     cohens_d_list.append(cohens_d(classes[1], classes[0]))
@@ -777,6 +783,8 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
     pvals.append(ttest_ind(classes[3], classes[2], equal_var=False, alternative='greater').pvalue)
     comparisons.append(('class3', 'class2'))
     cohens_d_list.append(cohens_d(classes[3], classes[2]))
+    
+    # multiple hypothesis correction with Benjamini-Hochberg
     uncorrected_pvals = pvals
     pvals = multipletests(pvals, method='fdr_bh')[1]
     print(milestone)
@@ -806,7 +814,7 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
     axs[1].spines['top'].set_visible(False)
     axs[1].spines['right'].set_visible(False)
 
-
+    # plot significance stars
     y_values = [43, 43, 43, 43]
     for grpidx in range(ncomp):
         p_value = pvals[grpidx]
@@ -854,7 +862,7 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
     classes = [final_score[final_score['mixed_pred'] == i]['final_score'].dropna().astype(int).to_list() for i in range(ncomp)]
     comparisons = []
 
-    # Hypothesis testing
+    # compute pvals, cohen's d
     pvals = [ttest_ind(cls, sib_scq_data, equal_var=False, alternative='greater').pvalue for cls in classes]
     cohens_d_list = [cohens_d(cls, sib_scq_data) for cls in classes]
     comparisons += (('siblings', 'class0'), ('siblings', 'class1'), ('siblings', 'class2'), ('siblings', 'class3'))
@@ -876,6 +884,8 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
     pvals.append(ttest_ind(classes[3], classes[2], equal_var=False, alternative='greater').pvalue)
     comparisons.append(('class3', 'class2'))
     cohens_d_list.append(cohens_d(classes[3], classes[2]))
+    
+    # multiple hypothesis correction with Benjamini-Hochberg
     uncorrected_pvals = pvals
     pvals = multipletests(pvals, method='fdr_bh')[1]
     print('SCQ total score')
@@ -903,6 +913,7 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
     axs[2].spines['top'].set_visible(False)
     axs[2].spines['right'].set_visible(False)
 
+    # plot significance stars
     y_values = [39, 39, 39, 39]
     for grpidx in range(ncomp):
         p_value = pvals[grpidx]
@@ -940,7 +951,7 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
     supp_table.to_csv(f'../supp_tables/Supp_Table_{ncomp}classes_pheno_comparisons.csv')
 
 
-def test_BMS_features():
+def hypothesis_testing_BMS_features():
     mixed_data = pd.read_csv(
         'data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', 
         index_col=0, 
@@ -1003,16 +1014,17 @@ def test_BMS_features():
     mixed_data['mixed_pred'] = mixed_data['mixed_pred'].replace(np.nan, -1)
 
     class_names = ['Siblings', 'Moderate Challenges', 'Broadly Impacted', 'Social/Behavioral', 'Mixed ASD with DD']
-    # compare each feature across classes
+    
+    # compare each feature between classes
     supp_table = pd.DataFrame()
-    for feature in neurodev+mental_health+cooccurring:
+    for feature in neurodev + mental_health + cooccurring:
         print(feature)
         classes = [mixed_data[mixed_data['mixed_pred'] == i][feature].astype(float) for i in range(-1, 4)]
         
         pvals = []
         fold_changes = []
-        # first compare to sibs
-        # BINOMIAL TEST PLEASE
+
+        # first compare to siblings
         for i in range(1, 5):
             # Count the number of successes in the class i
             successes = int(sum(classes[i]))  # Assuming binary data: 1 for success, 0 for failure
@@ -1075,7 +1087,6 @@ def test_BMS_features():
         # Binomial test: classes[4] vs concatenation of [classes[1], classes[2], classes[3]] (less)
         pvals.append(binomtest(successes, total, expected_proportion, alternative='less').pvalue)
 
-
         fold_changes += [compute_fold_enrichment(classes[1], np.concatenate([classes[2],classes[3],classes[4]])),
                             compute_fold_enrichment(np.concatenate([classes[2],classes[3],classes[4]]), classes[1]),
                             compute_fold_enrichment(classes[2], np.concatenate([classes[1],classes[3],classes[4]])),
@@ -1133,12 +1144,12 @@ def test_BMS_features():
 
             uncorrected_pvals = pvals
             pvals = multipletests(pvals, method='fdr_bh')[1]
-            print(pvals)
             supp_table = supp_table.append(pd.DataFrame(
                 {'feature': feature, 'group1': [class_names[1], class_names[2], class_names[3], class_names[4], class_names[1], 'All other probands', class_names[2], 'All other probands', class_names[3], 'All other probands', class_names[4], 'All other probands', class_names[2], class_names[2], class_names[2], class_names[4], class_names[4], class_names[3]],
                 'vs': ['siblings', 'siblings', 'siblings', 'siblings', 'All other probands', class_names[1], 'All other probands', class_names[2], 'All other probands', class_names[3], 'All other probands', class_names[4], class_names[1], class_names[3], class_names[4], class_names[3], class_names[1], class_names[1]],
                 'p': uncorrected_pvals, 'fdr': pvals, 'fold_change': fold_changes}
                 ))
+        
         elif feature in ['dev_lang_dis']:
             # Binomial test: classes[2] vs classes[1] (greater)
             successes = int(sum(classes[2]))
@@ -1190,6 +1201,7 @@ def test_BMS_features():
                 'vs': ['siblings', 'siblings', 'siblings', 'siblings', 'All other probands', class_names[1], 'All other probands', class_names[2], 'All other probands', class_names[3], 'All other probands', class_names[4], class_names[1], class_names[3], class_names[2], class_names[3], class_names[1], class_names[1]],
                 'p': uncorrected_pvals, 'fdr': pvals, 'fold_change': fold_changes}
                 ))
+        
         elif feature in ['sleep_dx']:
             # Binomial test: classes[2] vs classes[1] (greater)
             successes = int(sum(classes[2]))
@@ -1236,12 +1248,12 @@ def test_BMS_features():
 
             uncorrected_pvals = pvals
             pvals = multipletests(pvals, method='fdr_bh')[1]
-            print(pvals)
             supp_table = supp_table.append(pd.DataFrame(
                 {'feature': feature, 'group1': [class_names[1], class_names[2], class_names[3], class_names[4], class_names[1], 'All other probands', class_names[2], 'All other probands', class_names[3], 'All other probands', class_names[4], 'All other probands', class_names[2], class_names[2], class_names[2], class_names[3], class_names[4], class_names[3]],
                 'vs': ['siblings', 'siblings', 'siblings', 'siblings', 'All other probands', class_names[1], 'All other probands', class_names[2], 'All other probands', class_names[3], 'All other probands', class_names[4], class_names[1], class_names[3], class_names[4], class_names[4], class_names[1], class_names[1]],
                 'p': uncorrected_pvals, 'fdr': pvals, 'fold_change': fold_changes}
                 ))
+
         elif feature in ['behav_adhd', 'mood_dep']:
             successes = int(sum(classes[2]))
             total = len(classes[2])
@@ -1287,7 +1299,6 @@ def test_BMS_features():
 
             uncorrected_pvals = pvals
             pvals = multipletests(pvals, method='fdr_bh')[1]
-            print(pvals)
             supp_table = supp_table.append(pd.DataFrame(
                 {'feature': feature, 'group1': [class_names[1], class_names[2], class_names[3], class_names[4], class_names[1], 'All other probands', class_names[2], 'All other probands', class_names[3], 'All other probands', class_names[4], 'All other probands', class_names[2], class_names[3], class_names[2], class_names[3], class_names[1], class_names[3]],
                 'vs': ['siblings', 'siblings', 'siblings', 'siblings', 'All other probands', class_names[1], 'All other probands', class_names[2], 'All other probands', class_names[3], 'All other probands', class_names[4], class_names[1], class_names[2], class_names[4], class_names[4], class_names[4], class_names[1]],
@@ -1340,14 +1351,13 @@ def test_BMS_features():
 
             uncorrected_pvals = pvals
             pvals = multipletests(pvals, method='fdr_bh')[1]
-            print(pvals)
             supp_table = supp_table.append(pd.DataFrame(
                 {'feature': feature, 'group1': [class_names[1], class_names[2], class_names[3], class_names[4], class_names[1], 'All other probands', class_names[2], 'All other probands', class_names[3], 'All other probands', class_names[4], 'All other probands', class_names[2], class_names[2], class_names[2], class_names[3], class_names[1], class_names[3]],
                 'vs': ['siblings', 'siblings', 'siblings', 'siblings', 'All other probands', class_names[1], 'All other probands', class_names[2], 'All other probands', class_names[3], 'All other probands', class_names[4], class_names[1], class_names[3], class_names[4], class_names[4], class_names[4], class_names[1]],
                 'p': uncorrected_pvals, 'fdr': pvals, 'fold_change': fold_changes}
                 ))
 
-    supp_table.to_csv('../supp_tables/Supp_Table_group_BMS_enrichments.csv')
+    supp_table.to_csv('../supp_tables/Supp_Table_BMS_enrichments.csv')
 
 
 if __name__ == "__main__":
@@ -1357,7 +1367,7 @@ if __name__ == "__main__":
         header=0
         )
     
-    # scq_and_developmental_milestones_validation(gfmm_labels, ncomp=4)
+    scq_and_developmental_milestones_validation(gfmm_labels, ncomp=4)
     individual_registration_validation()
-    #main_clinical_validation(only_sibs=True)
-    # test_BMS_features()
+    main_clinical_validation(only_sibs=True)
+    hypothesis_testing_BMS_features()
