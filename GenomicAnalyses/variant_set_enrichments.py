@@ -1,15 +1,64 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.stats import ttest_ind
+from scipy.stats import ttest_ind, sem
 from statsmodels.stats.multitest import multipletests
 import pickle as rick
+import scipy.stats as st
 
 from utils import load_dnvs, get_gene_sets
 
 
+def get_star_labels(pvalues, thresholds):
+    """
+    Generate star labels for p-values based on given thresholds.
+
+    Parameters:
+    - pvalues: List of p-values to evaluate.
+    - thresholds: Dictionary mapping thresholds to star labels.
+
+    Returns:
+    - List of star labels corresponding to the p-values.
+    """
+    star_labels = []
+    for pvalue in pvalues:
+        # Determine the appropriate star label for each p-value
+        for threshold, label in thresholds.items():
+            if pvalue < threshold:
+                star_labels.append(label)
+                break
+        else:
+            # If no threshold is met, default to 'ns'
+            star_labels.append('ns')
+    return star_labels
+
+
+def draw_lines_and_stars(ax, pairs, y_positions, star_labels, line_color='black', star_size=19, line_width=1.5, scaling=1):
+    """
+    Draws lines and stars between specified pairs of x-values on a given axes.
+    
+    Parameters:
+    - ax: The axes on which to draw.
+    - pairs: A list of tuples where each tuple contains the x indices of the pair to connect.
+    - y_positions: A list of y positions for the stars above the lines.
+    - star_labels: A list of labels (e.g., '*', '**', '***') to place at the y positions.
+    - line_color: Color of the lines (default is black).
+    - star_size: Size of the star annotations (default is 20).
+    - line_width: Width of the lines (default is 2).
+    """
+    for (x1, x2), y_pos, label in zip(pairs, y_positions, star_labels):
+        # Draw a line between the two x-values
+        ax.plot([x1, x2], [y_pos, y_pos], color=line_color, linewidth=line_width)
+        # Annotate with stars at the specified y position
+        if label == 'ns':
+            ax.annotate(label, xy=((x1 + x2) / 2, y_pos*1.002), ha='center', size=16)
+        else:
+            ax.annotate(label, xy=((x1 + x2) / 2, y_pos*scaling), ha='center', size=star_size, fontweight='bold')
+
+
 def compute_variant_set_proportions():
     dnvs_pro, dnvs_sibs, zero_pro, zero_sibs = load_dnvs()
+
     consequences_missense = ['missense_variant', 'inframe_deletion', 
                              'inframe_insertion', 'protein_altering_variant']
     consequences_lof = ['stop_gained', 'frameshift_variant', 
@@ -50,13 +99,17 @@ def compute_variant_set_proportions():
         dnvs_pro['class'] == 3]['spid'].nunique() + zero_pro[
             zero_pro['mixed_pred'] == 3]['spid'].nunique()
     num_sibs = dnvs_sibs['spid'].nunique() + zero_sibs['spid'].nunique()
-    print([num_class0, num_class1, num_class2, num_class3, num_sibs])
 
     gene_sets_to_keep = ['all_genes'] # we want all genes for this analysis
     
+    supp_table = pd.DataFrame()
+    class_names = ['Moderate Challenges', 'Broadly Impacted', 'Social/Behavioral', 'Mixed ASD/DD']
+
     # dnLoF + dnMis 
     props = []
     stds = []
+    confidence_intervals = []
+    fold_changes = []
     for gene_set in gene_sets_to_keep:
         dnvs_pro['lof_gene_set&consequence'] = dnvs_pro[gene_set] * \
             dnvs_pro['lof_consequence'] * dnvs_pro['LoF']
@@ -110,11 +163,23 @@ def compute_variant_set_proportions():
         props.append(np.sum(class3)/num_class3)
 
         # compute standard errors
-        stds.append(np.std(sibs)/np.sqrt(num_sibs))
-        stds.append(np.std(class0)/np.sqrt(num_class0))
-        stds.append(np.std(class1)/np.sqrt(num_class1))
-        stds.append(np.std(class2)/np.sqrt(num_class2))
-        stds.append(np.std(class3)/np.sqrt(num_class3))
+        stds.append(sem(sibs))
+        stds.append(sem(class0))
+        stds.append(sem(class1))
+        stds.append(sem(class2))
+        stds.append(sem(class3))
+
+        # compute 95% confidence intervals
+        confidence_intervals.append(st.t.interval(
+            confidence=0.95, df=len(sibs)-1, loc=np.mean(sibs), scale=st.sem(sibs)))
+        confidence_intervals.append(st.t.interval(
+            confidence=0.95, df=len(class0)-1, loc=np.mean(class0), scale=st.sem(class0)))
+        confidence_intervals.append(st.t.interval(
+            confidence=0.95, df=len(class1)-1, loc=np.mean(class1), scale=st.sem(class1)))
+        confidence_intervals.append(st.t.interval(
+            confidence=0.95, df=len(class2)-1, loc=np.mean(class2), scale=st.sem(class2)))
+        confidence_intervals.append(st.t.interval(
+            confidence=0.95, df=len(class3)-1, loc=np.mean(class3), scale=st.sem(class3)))
 
         pvals = []
         pvals.append(ttest_ind(
@@ -125,29 +190,86 @@ def compute_variant_set_proportions():
             class2, sibs, equal_var=False, alternative='greater').pvalue)
         pvals.append(ttest_ind(
             class3, sibs, equal_var=False, alternative='greater').pvalue)
-        pvals = multipletests(pvals, method='fdr_bh')[1]
-        pvals = {i: pval for i, pval in enumerate(pvals)} 
-        
-    print(props)
-    print(stds)
 
+        fold_changes.append((np.sum(class0)/num_class0)/(np.sum(sibs)/num_sibs))
+        fold_changes.append((np.sum(class1)/num_class1)/(np.sum(sibs)/num_sibs))
+        fold_changes.append((np.sum(class2)/num_class2)/(np.sum(sibs)/num_sibs))
+        fold_changes.append((np.sum(class3)/num_class3)/(np.sum(sibs)/num_sibs))
+
+        # additional hypothesis testing between case-groups
+        pvals.append(ttest_ind(
+            class1, class0, equal_var=False, alternative='greater').pvalue)
+        pvals.append(ttest_ind(
+            class1, class2, equal_var=False, alternative='greater').pvalue)
+        pvals.append(ttest_ind(
+            class1, class3, equal_var=False, alternative='greater').pvalue) 
+        pvals.append(ttest_ind(
+            class0, class2, equal_var=False, alternative='greater').pvalue)
+        pvals.append(ttest_ind(
+            class3, class2, equal_var=False, alternative='greater').pvalue) 
+        pvals.append(ttest_ind(
+            class0, class3, equal_var=False, alternative='greater').pvalue) 
+
+        fold_changes.append((np.sum(class1)/num_class1)/(np.sum(class0)/num_class0))
+        fold_changes.append((np.sum(class1)/num_class1)/(np.sum(class2)/num_class2))
+        fold_changes.append((np.sum(class1)/num_class1)/(np.sum(class3)/num_class3))
+        fold_changes.append((np.sum(class0)/num_class0)/(np.sum(class2)/num_class2))
+        fold_changes.append((np.sum(class3)/num_class3)/(np.sum(class2)/num_class2))
+        fold_changes.append((np.sum(class0)/num_class0)/(np.sum(class3)/num_class3))  
+
+        uncorrected_pvals = pvals
+        pvals = multipletests(pvals, method='fdr_bh')[1]
+
+        # add to supp table - one row per comparison
+        index_group1 = [class_names[0], class_names[1], class_names[2], class_names[3], class_names[1], class_names[1], class_names[1], class_names[0], class_names[3], class_names[0]]
+        index_vs = ['siblings', 'siblings', 'siblings', 'siblings', class_names[0], class_names[2], class_names[3], class_names[2], class_names[2], class_names[3]]
+        for i in range(10):
+            supp_table = supp_table.append({
+                'variant type': 'dnLoF + dnMis',
+                'group1': index_group1[i],
+                'vs.': index_vs[i],
+                'p': uncorrected_pvals[i],
+                'fdr': pvals[i],
+                'fold change': fold_changes[i]
+            }, ignore_index=True)
+        
+        pvals = {i: pval for i, pval in enumerate(pvals)} 
+        print(pvals)
+      
     fig, ax = plt.subplots(1,2,figsize=(11,4.5))
     x_values = np.arange(len(props))
     y_values = props
     colors = ['dimgray', '#FBB040', '#EE2A7B', '#39B54A', '#27AAE1']
+    
+    # plot with SEM
+    #for i in range(len(x_values)):
+    #    ax[0].errorbar(
+    #        x_values[i], y_values[i], yerr=stds[i], 
+    #        fmt='o', color=colors[i], markersize=20)
+    
+    # plot with 95% confidence intervals
     for i in range(len(x_values)):
+        lower_err = y_values[i] - confidence_intervals[i][0]  # Difference from lower bound
+        upper_err = confidence_intervals[i][1] - y_values[i]  # Difference from upper bound
+        yerr = np.array([[lower_err], [upper_err]])
+
+        # Plot with error bars
         ax[0].errorbar(
-            x_values[i], y_values[i], yerr=stds[i], 
+            x_values[i], y_values[i], yerr=yerr, 
             fmt='o', color=colors[i], markersize=20)
+
     ax[0].set_xlabel('')
     ax[0].set_ylabel('Count per offspring', fontsize=16)
     ax[0].set_xticks(x_values)
     ax[0].tick_params(labelsize=16, axis='y')
     ax[0].set_title('High-impact de novo variants', fontsize=17)
     ax[0].set_axisbelow(True)
+    y_min, y_max = ax[0].get_ylim()
+    ax[0].set_ylim([y_min, y_max * 1.2])
+    plt.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.95)
     for axis in ['top','bottom','left','right']:
         ax[0].spines[axis].set_linewidth(1.5)
-        ax[0].spines[axis].set_color('black')
+        # ax[0].spines[axis].set_color('black')
     ax[0].spines['top'].set_visible(False)
     ax[0].spines['right'].set_visible(False)
     ax[0].grid(color='gray', linestyle='-', linewidth=0.5)
@@ -161,30 +283,42 @@ def compute_variant_set_proportions():
         x_position = grpidx+1
         y_position = y_values[grpidx+1]
         se_value = stds[grpidx+1]
-        ypos = y_position + se_value - 0.001
+        #ypos = y_position + se_value - 0.001 # sem
+        ypos = confidence_intervals[grpidx+1][1] - 0.007 # 95% CI
         if p_value < 0.01:
             ax[0].annotate('***', xy=(x_position, ypos), 
-                           ha='center', size=22, fontweight='bold')
+                           ha='center', size=20, fontweight='bold')
         elif p_value < 0.05:
             ax[0].annotate('**', xy=(x_position, ypos), 
-                           ha='center', size=22, fontweight='bold')
+                           ha='center', size=20, fontweight='bold')
         elif p_value < 0.1:
             ax[0].annotate('*', xy=(x_position, ypos), 
-                           ha='center', size=22, fontweight='bold')
-    
-    # gnomAD-filtered rare inherited variants
-    with open('data/spid_to_num_lof_rare_inherited_gnomad_only.pkl', 'rb') as f:
-        spid_to_num_ptvs = rick.load(f)
-    with open('data/spid_to_num_missense_rare_inherited_gnomad_only.pkl', 'rb') as f:
-        spid_to_num_missense = rick.load(f)
-    
-    gfmm_labels = pd.read_csv(
-        '../PhenotypeValidations/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', 
-        index_col=False, 
-        header=0
-        )
-    sibling_list = '../PhenotypeValidations/data/WES_5392_siblings_spids.txt' 
+                           ha='center', size=20, fontweight='bold')
 
+    custom_thresholds = {
+        0.01: '***',
+        0.05: '**',
+        0.1: '*',
+        1: 'ns'
+    }
+
+    custom_pvalues = list(pvals.values())[4:7]
+    star_labels = get_star_labels(custom_pvalues, custom_thresholds)
+    pairs = [(1, 2), (2, 3), (2, 4)] 
+    y_positions = [0.6, 0.635, 0.67] 
+
+    # Call the function to draw lines and stars
+    draw_lines_and_stars(ax[0], pairs, y_positions, star_labels)
+
+    # inhLoF + inhMis
+    # gnomAD-filtered rare inherited variants from 
+    # WES V3 
+    with open('data/spid_to_num_lof_rare_inherited_gnomad_wes_v3.pkl', 'rb') as f:
+        spid_to_num_ptvs = rick.load(f)
+    with open('data/spid_to_num_missense_rare_inherited_gnomad_wes_v3.pkl', 'rb') as f:
+        spid_to_num_missense = rick.load(f)
+
+    gfmm_labels = pd.read_csv('../PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv')
     gfmm_labels = gfmm_labels.rename(
         columns={'subject_sp_id': 'spid'})
     spid_to_class = dict(zip(gfmm_labels['spid'], gfmm_labels['mixed_pred']))
@@ -193,6 +327,8 @@ def compute_variant_set_proportions():
                         if k in spid_to_class}
     pros_to_num_missense = {k: v for k, v in spid_to_num_missense.items() 
                             if k in spid_to_class}
+
+    sibling_list = '../PhenotypeClasses/data/WES_5392_paired_siblings_sfid.txt'
     sibling_list = pd.read_csv(sibling_list, sep='\t', header=None)
     sibling_list.columns = ['spid']
     sibling_list = sibling_list['spid'].tolist()
@@ -213,7 +349,6 @@ def compute_variant_set_proportions():
     num_class3 = len([k for k, v in pros_to_num_ptvs.items() 
                       if spid_to_class[k] == 3])
     num_sibs = len(sibs_to_num_ptvs)
-    print([num_class0, num_class1, num_class2, num_class3, num_sibs])
 
     gene_set_to_index = {gene_set: i for i, gene_set in enumerate(gene_set_names)}
     gene_sets_to_keep = ['all_genes']
@@ -221,6 +356,8 @@ def compute_variant_set_proportions():
     
     props = []
     stds = []
+    confidence_intervals = []
+    fold_changes = []
     for i in gene_set_indices:
         class0_lof = [v[i] for k, v in pros_to_num_ptvs.items() 
                       if spid_to_class[k] == 0]
@@ -260,8 +397,22 @@ def compute_variant_set_proportions():
         stds.append(np.std(class2)/np.sqrt(num_class2))
         stds.append(np.std(class3)/np.sqrt(num_class3))
 
+        # compute 95% confidence intervals
+        confidence_intervals.append(st.t.interval(
+            confidence=0.95, df=len(sibs)-1, loc=np.mean(sibs), scale=st.sem(sibs)))
+        confidence_intervals.append(st.t.interval(
+            confidence=0.95, df=len(class0)-1, loc=np.mean(class0), scale=st.sem(class0)))
+        confidence_intervals.append(st.t.interval(
+            confidence=0.95, df=len(class1)-1, loc=np.mean(class1), scale=st.sem(class1)))
+        confidence_intervals.append(st.t.interval(
+            confidence=0.95, df=len(class2)-1, loc=np.mean(class2), scale=st.sem(class2)))
+        confidence_intervals.append(st.t.interval(
+            confidence=0.95, df=len(class3)-1, loc=np.mean(class3), scale=st.sem(class3)))
+
         # hypothesis testing
         pvals = []
+        
+        # siblings vs. case-groups
         pvals.append(ttest_ind(
             class0, sibs, equal_var=False, alternative='greater').pvalue)
         pvals.append(ttest_ind(
@@ -270,23 +421,72 @@ def compute_variant_set_proportions():
             class2, sibs, equal_var=False, alternative='greater').pvalue)
         pvals.append(ttest_ind(
             class3, sibs, equal_var=False, alternative='greater').pvalue)
+
+        fold_changes.append((np.sum(class0)/num_class0)/(np.sum(sibs)/num_sibs))
+        fold_changes.append((np.sum(class1)/num_class1)/(np.sum(sibs)/num_sibs))
+        fold_changes.append((np.sum(class2)/num_class2)/(np.sum(sibs)/num_sibs))
+        fold_changes.append((np.sum(class3)/num_class3)/(np.sum(sibs)/num_sibs))
+        
+        # case-group comparisons
+        pvals.append(ttest_ind(
+            class3, class0, equal_var=False, alternative='greater').pvalue)
+        pvals.append(ttest_ind(
+            class3, class2, equal_var=False, alternative='greater').pvalue)
+        pvals.append(ttest_ind(
+            class0, class2, equal_var=False, alternative='greater').pvalue)
+        pvals.append(ttest_ind(
+            class3, class1, equal_var=False, alternative='greater').pvalue)
+        pvals.append(ttest_ind(
+            class1, class2, equal_var=False, alternative='greater').pvalue)
+        pvals.append(ttest_ind(
+            class1, class0, equal_var=False, alternative='greater').pvalue)
+        
+        fold_changes.append((np.sum(class3)/num_class3)/(np.sum(class0)/num_class0))
+        fold_changes.append((np.sum(class3)/num_class3)/(np.sum(class2)/num_class2))
+        fold_changes.append((np.sum(class0)/num_class0)/(np.sum(class2)/num_class2))
+        fold_changes.append((np.sum(class3)/num_class3)/(np.sum(class1)/num_class1))
+        fold_changes.append((np.sum(class1)/num_class1)/(np.sum(class2)/num_class2))
+        fold_changes.append((np.sum(class1)/num_class1)/(np.sum(class0)/num_class0))
+        
+        uncorrected_pvals = pvals
         pvals = multipletests(pvals, method='fdr_bh')[1]
+        group1_names = [class_names[0], class_names[1], class_names[2], class_names[3], class_names[3], class_names[3], class_names[0], class_names[3], class_names[1], class_names[1]]
+        vs_names = ['siblings', 'siblings', 'siblings', 'siblings', class_names[0], class_names[2], class_names[2], class_names[1], class_names[2], class_names[0]]
+        for i in range(10):
+            supp_table = supp_table.append({
+                'variant type': 'inhLoF + inhMis',
+                'group1': group1_names[i],
+                'vs.': vs_names[i],
+                'p': uncorrected_pvals[i],
+                'fdr': pvals[i],
+                'fold change': fold_changes[i]
+            }, ignore_index=True)
         pvals = {i: pval for i, pval in enumerate(pvals)}
+        print(pvals)
     
-    print(props)
-    print(stds)
+    supp_table.to_csv('../supp_tables/Supp_Table_intergroup_variant_set_enrichments.csv', index=False)
     
     x_values = np.arange(len(props))
     y_values = props
     colors = ['dimgray', '#FBB040', '#EE2A7B', '#39B54A', '#27AAE1']
+    
+    #for i in range(len(x_values)):
+    #    ax[1].errorbar(x_values[i], y_values[i], yerr=stds[i], 
+    #                   fmt='o', color=colors[i], markersize=20)
+    
     for i in range(len(x_values)):
-        ax[1].errorbar(x_values[i], y_values[i], yerr=stds[i], 
+        # Get lower and upper bounds from confidence intervals
+        lower_err = y_values[i] - confidence_intervals[i][0]
+        upper_err = confidence_intervals[i][1] - y_values[i]
+        yerr = np.array([[lower_err], [upper_err]])
+        ax[1].errorbar(x_values[i], y_values[i], yerr=yerr, 
                        fmt='o', color=colors[i], markersize=20)
     ax[1].set_xlabel('')
     ax[1].set_xticks(x_values)
     ax[1].tick_params(labelsize=16, axis='y')
     ax[1].set_title('High-impact rare inherited variants', fontsize=17)
     ax[1].set_axisbelow(True)
+    
     for axis in ['top','bottom','left','right']:
         ax[1].spines[axis].set_linewidth(1.5)
         ax[1].spines[axis].set_color('black')
@@ -303,22 +503,40 @@ def compute_variant_set_proportions():
         x_position = grpidx+1
         y_position = y_values[grpidx+1]
         se_value = stds[grpidx+1]
-        ypos = y_position + se_value-0.05
+        #ypos = y_position + se_value-0.05
+        ypos = confidence_intervals[grpidx+1][1] - 0.11
         if p_value < 0.01:
             ax[1].annotate('***', xy=(x_position, ypos), 
-                           ha='center', size=22, fontweight='bold')
+                           ha='center', size=20, fontweight='bold')
         elif p_value < 0.05:
             ax[1].annotate('**', xy=(x_position, ypos), 
-                           ha='center', size=22, fontweight='bold')
+                           ha='center', size=20, fontweight='bold')
         elif p_value < 0.1:
             ax[1].annotate('*', xy=(x_position, ypos), 
-                           ha='center', size=22, fontweight='bold')
+                           ha='center', size=20, fontweight='bold')
+
+    custom_thresholds = {
+        0.01: '***',
+        0.05: '**',
+        0.1: '*',
+        1: 'ns'
+    }
+
+    custom_pvalues = list(pvals.values())[4:7] 
+    custom_pvalues.append(list(pvals.values())[8])
+    star_labels = get_star_labels(custom_pvalues, custom_thresholds)
+    pairs = [(1, 4), (3, 4), (1,3), (2,4)] 
+    y_positions = [52, 52.6, 53.2, 53.8] 
+
+    # Call the function to draw lines and stars
+    draw_lines_and_stars(ax[1], pairs, y_positions, star_labels)
+
     fig.tight_layout()
     fig.subplots_adjust(wspace=0.2)
     plt.savefig(
         'figures/WES_LoF_combined_Mis_props_scatter.png', 
         bbox_inches='tight', 
-        dpi=600
+        dpi=900
         )
     plt.close()
 
