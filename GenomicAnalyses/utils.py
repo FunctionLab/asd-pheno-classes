@@ -3,32 +3,13 @@ import pickle as rick
 import numpy as np
 
 
-with open('data/gene_ensembl_ID_to_name.pkl', 'rb') as f:
+with open('gene_sets/gene_ensembl_ID_to_name.pkl', 'rb') as f:
         ENSEMBL_TO_GENE_NAME = rick.load(f)
-
-
-def load_AF():
-    '''
-    Load allele frequencies for WES variants.
-    '''
-    af = pd.read_csv(
-        'SPARK/pub/iWES_v2/variants/deepvariant/iWES_v2.deepvariant.pvcf_variants.tsv', 
-        sep='\t', 
-        header=0, 
-        index_col=None
-        )
-    af['id'] = af['chrom'].astype(str) + '_' + \
-        af['pos'].astype(str) + '_' + \
-            af['ref'].astype(str) + '_' + \
-                af['alt'].astype(str)
-    af = af.drop(['chrom', 'pos', 'ref', 'alt'], axis=1)
-    af['af'] = pd.to_numeric(af['af'], errors='coerce')
-    return af
 
 
 def load_dnvs():
     # load DNV data with filtered out centromeres and repeats
-    file = 'data/VEP_most_severe_consequence_LOFTEE_DNV_calls_filtered_WES_v2.vcf' 
+    file = 'data/VEP_most_severe_consequence_DNV_calls_filtered_WES_v3.vcf'
     dnvs = pd.read_csv(file, sep='\t', comment='#', header=0, index_col=None)
     dnvs = dnvs[['Uploaded_variation', 'Consequence', 'Gene', 'Extra']]
     dnvs['Consequence'] = dnvs['Consequence'].str.split(',').str[0]
@@ -45,23 +26,21 @@ def load_dnvs():
     dnvs['LoF'] = dnvs['LoF'].apply(lambda x: 1 if x == 'HC' else 0)
     dnvs = dnvs.drop('Extra', axis=1)
 
-    with open('data/SPID_to_vars.pkl', 'rb') as f:
-        SPID_to_vars = rick.load(f)
-    with open('data/var_to_spid.pkl', 'rb') as handle:
+    with open('data/var_to_spid_WES_v3.pkl', 'rb') as handle:
         var_to_spid = rick.load(handle)
     
     dnvs['spid'] = dnvs['id'].map(var_to_spid)
-    dnvs = dnvs.dropna(subset=['spid'])
+    dnvs = dnvs.dropna(subset=['spid']) # drop variants that didn't pass QC
 
-    master = '../Mastertables/SPARK.iWES_v2.mastertable.2023_01.tsv'
+    master = '../Mastertables/SPARK.iWES_v3.2024_08.sample_metadata.tsv'
     master = pd.read_csv(master, sep='\t')
     master = master[['spid', 'asd']]
     spid_to_asd = dict(zip(master['spid'], master['asd']))
     dnvs['asd'] = dnvs['spid'].map(spid_to_asd)
     dnvs = dnvs.dropna(subset=['asd'])
     
-    dnvs_sibs = dnvs[dnvs['asd'] == 1]
-    dnvs_pro = dnvs[dnvs['asd'] == 2]
+    dnvs_sibs = dnvs[dnvs['asd'] == False]
+    dnvs_pro = dnvs[dnvs['asd'] == True]
 
     gfmm_labels = pd.read_csv(
         '../PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', 
@@ -69,19 +48,24 @@ def load_dnvs():
         header=0
         )
     
+    wes_v3_spids = master['spid']
+    print(f"intersecting with {len(wes_v3_spids)} WES v3 spids")
+    gfmm_labels = gfmm_labels[gfmm_labels['subject_sp_id'].isin(wes_v3_spids)]
+    
     gfmm_labels = gfmm_labels.rename(columns={'subject_sp_id': 'spid'})
     gfmm_labels = gfmm_labels[['spid', 'mixed_pred']]
     spid_to_class = dict(zip(gfmm_labels['spid'], gfmm_labels['mixed_pred']))
     dnvs_pro['class'] = dnvs_pro['spid'].map(spid_to_class)
     dnvs_pro = dnvs_pro.dropna(subset=['class'])
 
-    sibling_list = '../PhenotypeValidations/data/WES_5392_siblings_spids.txt'
+    sibling_list = '/mnt/home/alitman/asd-pheno-classes/PhenotypeClasses/data/WES_5392_paired_siblings_sfid.txt'
     sibling_list = pd.read_csv(sibling_list, sep='\t', header=None)
+    sibling_list = sibling_list.drop_duplicates()
     sibling_list.columns = ['spid']
     dnvs_sibs = pd.merge(dnvs_sibs, sibling_list, how='inner', on='spid')
 
     # extract individuals with no DNVs
-    count_file = 'data/SPID_to_DNV_count.txt'
+    count_file = 'data/SPID_to_DNV_count_WES_v3.txt'
     counts = pd.read_csv(count_file, sep='\t', index_col=False)
     counts = counts.rename(columns={'SPID': 'spid'})
     zero = counts[counts['count'] == 0]
@@ -89,7 +73,7 @@ def load_dnvs():
     zero_pros = zero.merge(
         gfmm_labels[['spid', 'mixed_pred']], on='spid').drop('asd', axis=1)
     zero_sibs = zero.merge(sibling_list, on='spid').drop('asd', axis=1)
-
+    
     return dnvs_pro, dnvs_sibs, zero_pros, zero_sibs
 
 
@@ -248,3 +232,47 @@ def pad_lists(dict_of_lists):
     padded_dict = {k: lst + [np.nan] * (max_len - len(lst)) 
                    for k, lst in dict_of_lists.items()}
     return padded_dict
+
+
+def match_class_labels(gt_df, exp_df):
+    """
+    Match class labels from experimental run to ground truth based on overlap.
+
+    Parameters:
+    gt_df (pd.DataFrame): DataFrame with ground truth labels, must have a column named 'mixed_pred'.
+    exp_df (pd.DataFrame): DataFrame with experimental labels, must have a column named 'mixed_pred'.
+
+    Returns:
+    pd.DataFrame: A new DataFrame with experimental labels reassigned based on overlap with ground truth.
+    """
+    
+    # Check if the required column exists
+    if 'mixed_pred' not in gt_df.columns or 'mixed_pred' not in exp_df.columns:
+        raise ValueError("Both DataFrames must contain a 'mixed_pred' column.")
+    
+    # Get unique class labels
+    gt_classes = gt_df['mixed_pred'].unique()
+    exp_classes = exp_df['mixed_pred'].unique()
+
+    # Initialize a dictionary to store overlaps
+    overlap_dict = {exp_class: {gt_class: 0 for gt_class in gt_classes} for exp_class in exp_classes}
+
+    # Calculate overlap between experimental and ground truth classes
+    for exp_class in np.arange(len(exp_classes)):
+        for gt_class in np.arange(len(gt_classes)):
+            overlap = len(gt_df[gt_df['mixed_pred'] == gt_class].index.intersection(exp_df[exp_df['mixed_pred'] == exp_class].index))
+            overlap_dict[exp_class][gt_class] = overlap
+
+    # Create a mapping for experimental classes to ground truth classes based on max overlap
+    label_mapping = {}
+    for exp_class, overlaps in overlap_dict.items():
+        # Find the ground truth class with the maximum overlap
+        max_gt_class = max(overlaps, key=overlaps.get)
+        label_mapping[exp_class] = max_gt_class
+
+    # Reassign experimental labels based on the mapping
+    exp_df['matched_labels'] = exp_df['mixed_pred'].map(label_mapping)
+    exp_df = exp_df.drop('mixed_pred', axis=1)
+    exp_df.rename(columns={'matched_labels': 'mixed_pred'}, inplace=True)
+
+    return exp_df

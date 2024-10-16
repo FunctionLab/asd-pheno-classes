@@ -14,14 +14,14 @@ with open('data/gene_ensembl_ID_to_name.pkl', 'rb') as f:
 
 
 def get_WES_trios():
-    wes_spids = '../Mastertables/SPARK.iWES_v2.mastertable.2023_01.tsv'
+    wes_spids = '../Mastertables/SPARK.iWES_v3.2024_08.sample_metadata.tsv'
     wes_spids = pd.read_csv(wes_spids, sep='\t')
     wes_spids = wes_spids[['father', 'mother', 'spid']]
     wes_spids = wes_spids[(wes_spids['father'] != '0') 
                           & (wes_spids['mother'] != '0')]
 
-    deepvar_dir = 'SFARI/SPARK/pub/iWES_v2/variants/deepvariant/gvcf/'
-    gatk_dir = 'SFARI/SPARK/pub/iWES_v2/variants/gatk/gvcf/'
+    deepvar_dir = '/iWES_v3/variants/deepvariant/gvcf/'
+    gatk_dir = '/iWES_v3/variants/gatk/gvcf/'
     wes_spids.columns = ['FID', 'MID', 'SPID']
     ids = wes_spids
     # check if all SPIDs are in the deepvar dir in the form of {SPID}.gvcf.gz
@@ -62,44 +62,37 @@ def get_WES_trios():
                 ids = ids[ids['SPID'] != spid]
         
     ids.to_csv(
-        'data/processed_spark_trios_WES2.txt', 
+        'data/processed_spark_trios_WES_v3.txt', 
         sep='\t', 
         header=False, index=False
         )
 
 
 def get_paired_sibs():
-    file = '../Mastertables/SPARK.iWES_v2.mastertable.2023_01.tsv'
+    file = '../Mastertables/SPARK.iWES_v3.2024_08.sample_metadata.tsv'
     wes = pd.read_csv(file, sep='\t')
-    sibs = wes[wes['asd'] == 1]
+    wes = wes[wes['age_m'] < 216]
+    sibs = wes[wes['asd'] == False]
     spids_for_model = pd.read_csv(
         '../PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', 
         index_col=0)
+    
     probands = spids_for_model.index.tolist()
     sibling_spids = []
     for i, row in wes.iterrows():
         if row['spid'] in probands:
-            fid = row['father']
-            mid = row['mother']
-            # get all siblings with FID/MID
-            if fid == '0' and mid == '0':
-                continue
-            if fid == '0':
-                siblings = sibs[sibs['mother'] == mid]['spid'].tolist()
-            elif mid == '0':
-                siblings = sibs[sibs['father'] == fid]['spid'].tolist()
-            else:
-                siblings = sibs[(sibs['father'] == fid) & 
-                                (sibs['mother'] == mid)]['spid'].tolist()
+            sfid = row['sfid']
+            siblings = sibs[sibs['sfid'] == sfid]['spid'].tolist()
             sibling_spids.extend(siblings)
     sibling_spids = list(set(sibling_spids))
-    with open('../PhenotypeClasses/data/WES_5392_siblings_spids.txt', 'w') as f:
+    
+    with open('../PhenotypeClasses/data/WES_5392_paired_siblings_sfid.txt', 'w') as f:
         for item in sibling_spids:
             f.write("%s\n" % item)
 
 
 def process_DNVs():
-    data_dir = 'data/WES_V2_data/calling_denovos_data/output/'
+    data_dir = '/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/output/'
     subdirs = os.listdir(data_dir)
     var_to_spid = defaultdict(list) # dictionary with variant ID as key and list of SPIDs as value
     SPID_to_vars = defaultdict(list) # dictionary with SPID as key and list of variant IDs as value
@@ -164,12 +157,12 @@ def process_DNVs():
     spid_to_count.columns = ['count']
     spid_to_count.index.name = 'SPID'
     spid_to_count = spid_to_count.reset_index()
-    spid_to_count.to_csv('data/SPID_to_DNV_count.txt', 
+    spid_to_count.to_csv('data/SPID_to_DNV_count_WES_v3.txt', 
                          sep='\t', index=False)
 
-    with open('data/var_to_spid.pkl', 'wb') as f:
+    with open('data/var_to_spid_WES_v3.pkl', 'wb') as f:
         rick.dump(var_to_spid, f)
-    with open('data/SPID_to_vars.pkl', 'wb') as f2:
+    with open('data/SPID_to_vars_WES_v3.pkl', 'wb') as f2:
         rick.dump(SPID_to_vars, f2)
 
 
@@ -183,7 +176,7 @@ def fetch_rare_vars_with_hail():
     rare_variants_ht = gnomad_v4.filter(gnomad_v4.freq[0].AF < 0.01)
 
     rare_variants_ht = rare_variants_ht.annotate(
-        variant_id = hl.str("chr") + hl.str(rare_variants_ht.locus.contig) + \
+        variant_id = hl.str(rare_variants_ht.locus.contig) + \
                     "_" + \
                     hl.str(rare_variants_ht.locus.position) + "_" + 
                     hl.str(rare_variants_ht.alleles[0]) + "_" + 
@@ -194,20 +187,23 @@ def fetch_rare_vars_with_hail():
                                                AF=rare_variants_ht.freq[0].AF)
     rare_variants_ht = rare_variants_ht.key_by('variant_id')
 
-    output_tsv_path = 'data/rare_variants.tsv.bgz'
+    output_tsv_path = 'data/rare_variants_fixed.tsv.bgz'
     rare_variants_ht.export(output_tsv_path)
     hl.stop()
 
 
 def combine_inherited_vep_files():
     rare_variants_df = pd.read_csv(
-        'data/rare_variants.tsv.bgz', sep='\t', compression='gzip'
+        'data/rare_variants.tsv.bgz', 
+        sep='\t', 
+        compression='gzip'
         )
+
     variant_to_af = dict(
         zip(rare_variants_df['variant_id'], rare_variants_df['AF']))
 
     # directory with data filtered for repeats + centromeres
-    directory = 'inherited_vep_predictions_plugins_filtered/' 
+    directory = 'data/inherited_vep_predictions_plugins_filtered/' 
     files = [f for f in os.listdir(directory) if f.endswith('.vcf')]
     spids = [f.split('.')[0] for f in files]
 
@@ -224,11 +220,11 @@ def combine_inherited_vep_files():
         'protein_altering_variant']
 
     gfmm_labels = pd.read_csv(
-        '../PhenotypeValidations/data/SPARK_SSC_combined_cohort_phenotypes.csv', 
+        '../PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', 
         index_col=False, header=0)
     gfmm_ids = gfmm_labels.iloc[:, 0].tolist()
 
-    sibling_list = '../PhenotypeValidations/data/WES_5392_siblings_spids.txt'
+    sibling_list = 'data/WES_5392_paired_siblings_sfid.txt'
     sibling_list = pd.read_csv(sibling_list, sep='\t', header=None)
     sibling_list.columns = ['spid']
     sibling_list = sibling_list['spid'].tolist()
@@ -280,10 +276,10 @@ def combine_inherited_vep_files():
         spid_to_num_missense[spids[i]] = missense_counts
         
     with open(
-        'data/spid_to_num_lof_rare_inherited_gnomad_only.pkl', 'wb'
+        'data/spid_to_num_lof_rare_inherited_gnomad_wes_v3.pkl', 'wb'
         ) as f:
         rick.dump(spid_to_num_ptvs, f)
     with open(
-        'data/spid_to_num_missense_rare_inherited_gnomad_only.pkl', 'wb'
+        'data/spid_to_num_missense_rare_inherited_gnomad_wes_v3.pkl', 'wb'
         ) as f:
         rick.dump(spid_to_num_missense, f)

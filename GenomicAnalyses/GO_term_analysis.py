@@ -52,6 +52,8 @@ def get_impacted_genes_per_class():
         genes.extend(lof_gene_vars_for_class['name'].unique())
        
         class_to_gene_set[class_id] = list(set(genes))
+        print(class_id, len(class_to_gene_set[class_id]))
+        print(class_to_gene_set[class_id])
 
     # build a dataframe with the gene sets
     padded_class_to_gene_set = pad_lists(class_to_gene_set)
@@ -66,15 +68,15 @@ def get_impacted_genes_per_class():
 
 
 def GO_term_analysis(num_top_terms=3):
-    # read go term files
-    class0_biol_processes = pd.read_csv('data/class0_top_pathways.csv') # bio processes
-    class0_mol_functions = pd.read_csv('data/class0_top_mol_functions.csv') # mol functions
-    class1_biol_processes = pd.read_csv('data/class1_top_pathways.csv')
-    class1_mol_functions = pd.read_csv('data/class1_top_mol_functions.csv')
-    class2_biol_processes = pd.read_csv('data/class2_top_pathways.csv')
-    class2_mol_functions = pd.read_csv('data/class2_top_mol_functions.csv')
-    class3_biol_processes = pd.read_csv('data/class3_top_pathways.csv')
-    class3_mol_functions = pd.read_csv('data/class3_top_mol_functions.csv')
+    # go term files - WES v3
+    class0_biol_processes = pd.read_csv('data/class0_bio_processes.csv')
+    class0_mol_functions = pd.read_csv('data/class0_mol_functions.csv')
+    class1_biol_processes = pd.read_csv('data/class1_bio_processes.csv')
+    class1_mol_functions = pd.read_csv('data/class1_mol_functions.csv')
+    class2_biol_processes = pd.read_csv('data/class2_bio_processes.csv')
+    class2_mol_functions = pd.read_csv('data/class2_mol_functions.csv')
+    class3_biol_processes = pd.read_csv('data/class3_bio_processes.csv')
+    class3_mol_functions = pd.read_csv('data/class3_mol_functions.csv')
 
     class0_biol_processes = class0_biol_processes.sort_values(
         by=['Fold Enrichment'], ascending=False)
@@ -136,7 +138,7 @@ def GO_term_analysis(num_top_terms=3):
     fig, (ax0, ax1, ax2, ax3) = plt.subplots(4,1,figsize=(14,16))
 
     # Calculate scaling factor for legend
-    max_bubble_size = class0_enrich['Enrichment FDR'].max() * 60
+    max_bubble_size = class0_enrich['Enrichment FDR'].max() * 32
 
     ax0.hlines(y=class0_enrich['Pathway'], xmin=0, 
                xmax=class0_enrich['Fold Enrichment']-1.4, 
@@ -169,7 +171,7 @@ def GO_term_analysis(num_top_terms=3):
                     color='black', 
                     s=class1_enrich['Enrichment FDR'] * max_bubble_size, 
                     data=class1_enrich, ax=ax1)
-    ax1.set_xlim([0,100])
+    ax1.set_xlim([0,110])
     ax1.set_title('Broadly Impacted', fontsize=22)
     ax1.tick_params(labelsize=18)
     for axis in ['top','bottom','left','right']:
