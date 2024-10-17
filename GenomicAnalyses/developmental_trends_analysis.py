@@ -185,12 +185,12 @@ def make_gene_trend_figure(fdr=0.05):
                         categories=order_of_variables, ordered=True)
     validation_subset = validation_subset.sort_values(['variable', 'cluster'])
     
-    colors = ['white', 'purple', '#27AAE1', '#39B54A', '#FBB040', '#EE2A7B']
+    colors = ['black', 'purple', '#27AAE1', '#39B54A', '#FBB040', '#EE2A7B']
     markers = ['x', 'o', 'o', 'o', 'o', 'o']
     validation_subset['marker'] = validation_subset['cluster'].map(
         {-2: 'x', -1: 'o', 0: 'o', 1: 'o', 2: 'o', 3: 'o'})
     validation_subset['color'] = validation_subset['cluster'].map(
-        {-2: 'white', -1: 'mediumorchid', 0: '#FBB040', 1: '#EE2A7B', 
+        {-2: 'black', -1: 'mediumorchid', 0: '#FBB040', 1: '#EE2A7B', 
         2: '#39B54A', 3: '#27AAE1'})
     validation_subset['Cluster'] = validation_subset['cluster'].map(
         {-2: 'Siblings', -1: 'All Probands', 0: 'Moderate Challenges', 
@@ -202,14 +202,14 @@ def make_gene_trend_figure(fdr=0.05):
     for _, row in validation_subset.iterrows():
         if row['value'] < -np.log10(fdr):
             plt.scatter(row['Cluster'], row['variable'], 
-                        s=row['Fold Enrichment']*230, c='black', linewidth=2.5, 
+                        s=row['Fold Enrichment']*230, c='white', linewidth=2.5, 
                         edgecolors=row['color'], alpha=0.9)
         else:
             plt.scatter(row['Cluster'], row['variable'], 
                         s=row['Fold Enrichment']*270, c=row['color'])
 
     for i in range(2, 14, 3): # add legend sizes
-        plt.scatter([], [], s=(i)*270, c='white', label=str(i))
+        plt.scatter([], [], s=(i)*270, c='dimgray', label=str(i))
     plt.legend(scatterpoints=1, labelspacing=2.6, title='Fold Enrichment', 
                title_fontsize=23, fontsize=18, loc='upper left', 
                bbox_to_anchor=(1, 1))
