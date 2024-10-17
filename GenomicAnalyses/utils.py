@@ -58,7 +58,7 @@ def load_dnvs():
     dnvs_pro['class'] = dnvs_pro['spid'].map(spid_to_class)
     dnvs_pro = dnvs_pro.dropna(subset=['class'])
 
-    sibling_list = '/mnt/home/alitman/asd-pheno-classes/PhenotypeClasses/data/WES_5392_paired_siblings_sfid.txt'
+    sibling_list = '../PhenotypeClasses/data/WES_5392_paired_siblings_sfid.txt'
     sibling_list = pd.read_csv(sibling_list, sep='\t', header=None)
     sibling_list = sibling_list.drop_duplicates()
     sibling_list.columns = ['spid']
