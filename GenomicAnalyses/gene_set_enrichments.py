@@ -625,12 +625,12 @@ def gene_set_bubble_plot_proband_baseline(fdr=0.1):
         background_class3 = (np.sum(class0) + np.sum(class1) + np.sum(class2))/(num_class0 + num_class1 + num_class2)
 
         background = np.sum(sibs)/num_sibs # sibling background
-        class0_fe = max((np.sum(class0)/num_class0)/background_class0, background_class0/(np.sum(class0)/num_class0))
-        class1_fe = max((np.sum(class1)/num_class1)/background_class1, background_class1/(np.sum(class1)/num_class1))
-        class2_fe = max((np.sum(class2)/num_class2)/background_class2, background_class2/(np.sum(class2)/num_class2))
-        class3_fe = max((np.sum(class3)/num_class3)/background_class3, background_class3/(np.sum(class3)/num_class3))
-        sibs_fe = max((np.sum(sibs)/num_sibs)/background_all, background_all/(np.sum(sibs)/num_sibs))
-
+        class0_fe = (np.sum(class0)/num_class0)/background_class0
+        class1_fe = (np.sum(class1)/num_class1)/background_class1
+        class2_fe = (np.sum(class2)/num_class2)/background_class2
+        class3_fe = (np.sum(class3)/num_class3)/background_class3
+        sibs_fe = (np.sum(sibs)/num_sibs)/background_all
+        
         class0_df = pd.DataFrame({'variable': gene_set, 'value': class0_pval,
                                   'Fold Enrichment': class0_fe, 'cluster': 0, 'vs.': 'all other probands',
                                   }, index=[0])
