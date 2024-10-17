@@ -134,22 +134,22 @@ def make_gene_trend_figure(fdr=0.05):
         all_pros_fe = (np.sum(all_pros_data)/all_spids)/background
 
         class0_df = pd.DataFrame({'variable': gene_set, 'value': class0_pval, 'unadjusted': uncorrected_pvals[0],
-                                  'Fold Enrichment': class0_fe, 'cluster': 0, 
+                                  'Fold Enrichment': class0_fe, 'cluster': 0, 'vs.': 'siblings',
                                   'trend': trend}, index=[0])
         class1_df = pd.DataFrame({'variable': gene_set, 'value': class1_pval, 'unadjusted': uncorrected_pvals[1], 
-                                  'Fold Enrichment': class1_fe, 'cluster': 1, 
+                                  'Fold Enrichment': class1_fe, 'cluster': 1, 'vs.': 'siblings',
                                   'trend': trend}, index=[0])
         class2_df = pd.DataFrame({'variable': gene_set, 'value': class2_pval, 'unadjusted': uncorrected_pvals[2], 
-                                  'Fold Enrichment': class2_fe, 'cluster': 2, 
+                                  'Fold Enrichment': class2_fe, 'cluster': 2, 'vs.': 'siblings',
                                   'trend': trend}, index=[0])
         class3_df = pd.DataFrame({'variable': gene_set, 'value': class3_pval, 'unadjusted': uncorrected_pvals[3], 
-                                  'Fold Enrichment': class3_fe, 'cluster': 3, 
+                                  'Fold Enrichment': class3_fe, 'cluster': 3, 'vs.': 'siblings',
                                   'trend': trend}, index=[0])
         all_pros_df = pd.DataFrame({'variable': gene_set, 'value': all_pros_pval, 'unadjusted': uncorrected_pvals[5], 
-                                    'Fold Enrichment': all_pros_fe, 'cluster': -1, 
+                                    'Fold Enrichment': all_pros_fe, 'cluster': -1, 'vs.': 'siblings',
                                     'trend': trend}, index=[0])
         sibs_df = pd.DataFrame({'variable': gene_set, 'value': sibs_pval, 'unadjusted': uncorrected_pvals[4], 
-                                'Fold Enrichment': sibs_fe, 'cluster': -2, 
+                                'Fold Enrichment': sibs_fe, 'cluster': -2, 'vs.': 'all other probands',
                                 'trend': trend}, index=[0])
         validation_subset = pd.concat([validation_subset, sibs_df, all_pros_df, 
                                        class0_df, class1_df, class2_df, class3_df], 
