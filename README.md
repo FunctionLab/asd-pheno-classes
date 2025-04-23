@@ -1,4 +1,4 @@
-# Decomposition of phenotypic heterogeneity in autism reveals distinct and coherent genetic programs
+# Decomposition of phenotypic heterogeneity in autism reveals underlying genetic programs
 
 ## Repo Contents
 
