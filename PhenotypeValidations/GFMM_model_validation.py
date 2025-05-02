@@ -420,7 +420,6 @@ def lmr_likelihood_ratio_test(n_iter=50):
 if __name__ == "__main__":
     # plot figure
     plot_main_indicators()
-    exit()
 
     # compute statistical metrics
     compute_LL()
