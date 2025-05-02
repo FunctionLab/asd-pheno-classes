@@ -115,6 +115,8 @@ We used the following software packages, which are publicly available for instal
 - Ensembl VEP tool (release 111.0)
 - LOFTEE (v.1.0.4)
 - AlphaMissense (VEP plugin)
+- DeepVariant (v1.1.0)
+- GATK HaplotypeCaller (v4.1.2.0)
 
 ### **Data Availability Statement**
 
