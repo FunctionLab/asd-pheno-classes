@@ -627,7 +627,7 @@ def get_correlation(spark_labels, ssc_labels):
     features_to_exclude = features_to_exclude['feature'].unique()
 
     # read in feature_to_category mapping
-    features_to_category = pd.read_csv('/mnt/home/alitman/ceph/SPARK_Phenotype_Dataset/feature_to_category_mapping.csv', index_col=None)
+    features_to_category = pd.read_csv('data/feature_to_category_mapping.csv', index_col=None)
     feature_to_category = dict(zip(features_to_category['feature'], features_to_category['category']))
 
     df = df_enriched_depleted.copy()
@@ -1715,7 +1715,7 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
     bhdf = bhdf.set_index('subject_sp_id',drop=True)[dev_milestones]
 
     # subset to paired sibs
-    sibling_list = '/mnt/home/alitman/asd-pheno-classes/PhenotypeClasses/data/WES_5392_paired_siblings_sfid.txt'
+    sibling_list = '../PhenotypeClasses/data/WES_5392_paired_siblings_sfid.txt'
     paired_sibs = pd.read_csv(sibling_list, sep='\t', header=None, index_col=0)
     sib_data = pd.merge(bhdf, paired_sibs, left_index=True, right_index=True)
     sib_bh_data = sib_data[dev_milestones].dropna().astype(float)
