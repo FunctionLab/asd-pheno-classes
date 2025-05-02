@@ -1,17 +1,17 @@
 #!/bin/bash
 #SBATCH -N1 --exclusive
-#SBATCH -t 0-12:0
-#SBATCH --mail-user=aviya@princeton.edu
+#SBATCH -t 1-00:0
+#SBATCH --mail-user=EMAIL_ADDRESS
 #SBATCH --mail-type=END,FAIL
 
 # Directory containing VCF files
-input_dir="/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/output/"
+input_dir="/path/to/variant/calls/"
 
 # Output directory for compressed files
-output_dir="/mnt/home/alitman/ceph/WES_v3_data/compressed_vcfs_filtered/"
+output_dir="compressed_vcfs_filtered/"
 
 # Output directory for merged file
-merged_output="/mnt/home/alitman/ceph/WES_v3_data/DNV_calling/DNV_calls_WES_v3_merged_filtered.vcf.gz"
+merged_output="DNV_calls_WES_v3_merged_filtered.vcf.gz"
 
 # Create output directory for compressed files
 mkdir -p "$output_dir"
