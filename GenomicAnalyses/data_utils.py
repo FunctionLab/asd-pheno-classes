@@ -92,7 +92,7 @@ def get_paired_sibs():
 
 
 def process_DNVs():
-    data_dir = '/mnt/home/alitman/ceph/WES_V2_data/calling_denovos_data/output/'
+    data_dir = '/path/to/variant/calls/'
     subdirs = os.listdir(data_dir)
     var_to_spid = defaultdict(list) # dictionary with variant ID as key and list of SPIDs as value
     SPID_to_vars = defaultdict(list) # dictionary with SPID as key and list of variant IDs as value
