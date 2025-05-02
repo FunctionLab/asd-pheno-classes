@@ -58,7 +58,7 @@ def main_clinical_validation(only_sibs=False):
         sep='\t', 
         index_col=0
         )
-    sibling_list = '/mnt/home/alitman/asd-pheno-classes/PhenotypeClasses/data/WES_5392_paired_siblings_sfid.txt'
+    sibling_list = '../PhenotypeClasses/data/WES_5392_paired_siblings_sfid.txt'
     paired_sibs = pd.read_csv(
         sibling_list, sep='\t', header=None, index_col=0
         )
@@ -634,7 +634,7 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
     bhdf = bhdf.set_index('subject_sp_id', drop=True)[dev_milestones]
 
     # subset to paired sibs
-    sibling_list = '/mnt/home/alitman/asd-pheno-classes/PhenotypeClasses/data/WES_5392_paired_siblings_sfid.txt'
+    sibling_list = '../PhenotypeClasses/data/WES_5392_paired_siblings_sfid.txt'
     paired_sibs = pd.read_csv(sibling_list, sep='\t', header=None, index_col=0)
     sib_data = pd.merge(bhdf, paired_sibs, left_index=True, right_index=True)
     sib_bh_data = sib_data[dev_milestones].dropna().astype(float)
@@ -1000,7 +1000,7 @@ def hypothesis_testing_BMS_features():
         sep='\t', 
         index_col=0
         )
-    sibling_list = '/mnt/home/alitman/asd-pheno-classes/PhenotypeClasses/data/WES_5392_paired_siblings_sfid.txt'
+    sibling_list = '../PhenotypeClasses/data/WES_5392_paired_siblings_sfid.txt'
     paired_sibs = pd.read_csv(
         sibling_list, sep='\t', header=None, index_col=0
         )
