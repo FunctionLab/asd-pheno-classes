@@ -73,19 +73,19 @@ def c_aic(model, X, Y=None):
 
 
 def awe(model, X, Y=None):
-        """Approximate weight of evidence. (Banfield & Raftery (1993))
+    """Approximate weight of evidence. (Banfield & Raftery (1993))
 
-        Parameters
-        ----------
-        X : array-like of shape (n_samples, n_features)
-        Y : array-like of shape (n_samples, n_features_structural), default=None
+    Parameters
+    ----------
+    X : array-like of shape (n_samples, n_features)
+    Y : array-like of shape (n_samples, n_features_structural), default=None
 
-        Returns
-        -------
-        awe : float
-        """
-        n = X.shape[0]
-        return -2 * model.score(X, Y) * n + model.n_parameters * (np.log(n) + 1.5)
+    Returns
+    -------
+    awe : float
+    """
+    n = X.shape[0]
+    return -2 * model.score(X, Y) * n + model.n_parameters * (np.log(n) + 1.5)
 
 
 def get_cross_cohort_SPARK_data():
@@ -215,10 +215,8 @@ def generate_ssc_data():
     
     # merge data
     finaldf = pd.concat([core_descriptive, bh, scq_raw, scq, rbsr_raw, rbsr_scores, cbcl], axis=1, join='inner')
-    #finaldf = finaldf.loc[:, finaldf.isna().sum()/finaldf.shape[0] < 0.1]
     finaldf = finaldf.dropna(axis=0)
     finaldf = finaldf.astype('float32')
-    #print(finaldf.shape); exit()
 
     return finaldf
 
