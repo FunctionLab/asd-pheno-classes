@@ -95,10 +95,9 @@ def process_DNVs():
     data_dir = '/path/to/variant/calls/'
     subdirs = os.listdir(data_dir)
     var_to_spid = defaultdict(list) # dictionary with variant ID as key and list of SPIDs as value
-    SPID_to_vars = defaultdict(list) # dictionary with SPID as key and list of variant IDs as value
+    spid_to_vars = defaultdict(list) # dictionary with SPID as key and list of variant IDs as value
     spid_to_count = defaultdict(int) # dictionary with SPID as key and number of DNVs as value
     spids = []
-    missing = 0
     for subdir in subdirs:
         if os.path.exists(
             f'{data_dir}{subdir}/{subdir}.glnexus.family.combined_intersection_filtered_gq_20_depth_10.vcf'):
@@ -113,14 +112,10 @@ def process_DNVs():
                     var_id = row[2]
                     spid = str(subdir)
                     var_to_spid[var_id].append(spid)
-                    SPID_to_vars[spid].append(var_id)
+                    spid_to_vars[spid].append(var_id)
                     spid_to_count[spid] += 1
             except pd.errors.EmptyDataError:
                 spid_to_count[subdir] = 0                
-        else:
-            print(f'{subdir} missing!')
-            missing += 1
-    print(f'Number of missing SPIDs: {missing}')
 
     # get mean+3SD of counts
     counts = []
@@ -131,24 +126,24 @@ def process_DNVs():
     print(f'Mean: {mean}')
     print(f'SD: {sd}')
     threshold = mean + 3*sd
-    # FILTER: remove SPIDs with more than 3SD DNVs above the mean
+    # filter: remove SPIDs with more than 3SD DNVs above the mean
     spid_to_count = {k: v for k, v in spid_to_count.items() 
                      if v <= threshold}
-    SPID_to_vars = {k: v for k, v in SPID_to_vars.items() 
+    spid_to_vars = {k: v for k, v in spid_to_vars.items() 
                     if k in spid_to_count.keys()}
 
-    # iterate through SPID_to_vars and remove non-singleton variants
-    for spid, vars in SPID_to_vars.items():
+    # iterate through spid_to_vars and remove non-singletons
+    for spid, vars in spid_to_vars.items():
         for var in vars:
             spids = var_to_spid[var]
             if len(spids) > 1:
-                SPID_to_vars[spid].remove(var)
-    for spid, vars in SPID_to_vars.items():
+                spid_to_vars[spid].remove(var)
+    for spid, vars in spid_to_vars.items():
         spid_to_count[spid] = len(vars)
 
     # update var_to_spid to only include singletons
     var_to_spid = {}
-    for spid, vars in SPID_to_vars.items():
+    for spid, vars in spid_to_vars.items():
         for var in vars:
             var_to_spid[var] = spid
     
@@ -163,7 +158,7 @@ def process_DNVs():
     with open('data/var_to_spid_WES_v3.pkl', 'wb') as f:
         rick.dump(var_to_spid, f)
     with open('data/SPID_to_vars_WES_v3.pkl', 'wb') as f2:
-        rick.dump(SPID_to_vars, f2)
+        rick.dump(spid_to_vars, f2)
 
 
 def fetch_rare_vars_with_hail():
