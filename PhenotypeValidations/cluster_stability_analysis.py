@@ -43,13 +43,11 @@ def run_mixture_model_on_phenotypes(iterations=2000, ncomp=4):
             categorical=categorical_columns
         )
 
-        # seed = np.random.randint(1000)
         model = StepMix(
             n_components=ncomp, 
             measurement=mixed_descriptor,
             structural='covariate',
             n_steps=1,
-            # random_state=seed
             n_init=1
             )
 
