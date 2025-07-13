@@ -23,6 +23,30 @@ def cohens_d(group1, group2):
     return d
 
 
+def compute_fold_enrichment(group1, group2):
+    """
+    Compute fold enrichment between two groups for a specific event.
+
+    Returns:
+    float: The fold enrichment of the event in Group 1 compared to Group 2.
+    """
+
+    group1_event_count = np.sum(group1)
+    group1_total = len(group1)
+    group1_proportion = group1_event_count / group1_total
+
+    group2_event_count = np.sum(group2)
+    group2_total = len(group2)
+    group2_proportion = group2_event_count / group2_total
+
+    if group2_proportion == 0:
+        return float('inf')
+    
+    fold_enrichment = group1_proportion / group2_proportion
+
+    return fold_enrichment
+
+
 def adjust_pvalues(p_values, method):
     return multipletests(p_values, method=method)[1]
 
@@ -290,6 +314,50 @@ def split_columns(feature_subset):
             binary_columns_subset.append(feature)
 
     return continuous_columns_subset, binary_columns_subset, categorical_columns_subset
+
+
+def draw_lines_and_stars(ax, pairs, y_positions, star_labels, line_color='black', star_size=26, line_width=2):
+    """
+    Draws lines and stars between specified pairs of x-values on a given axes.
+    
+    Parameters:
+    - ax: The axes on which to draw.
+    - pairs: A list of tuples where each tuple contains the x indices of the pair to connect.
+    - y_positions: A list of y positions for the stars above the lines.
+    - star_labels: A list of labels (e.g., '*', '**', '***') to place at the y positions.
+    - line_color: Color of the lines (default is black).
+    - star_size: Size of the star annotations (default is 26).
+    - line_width: Width of the lines (default is 2).
+    """
+    for (x1, x2), y_pos, label in zip(pairs, y_positions, star_labels):
+        ax.plot([x1, x2], [y_pos, y_pos], color=line_color, linewidth=line_width)
+        if label == 'ns':
+            ax.annotate(label, xy=((x1 + x2) / 2, y_pos*1.01), ha='center', size=20)
+        else:
+            ax.annotate(label, xy=((x1 + x2) / 2, y_pos*0.98), ha='center', size=star_size, fontweight='bold')
+
+
+def get_star_labels(pvalues, thresholds):
+    """
+    Generate star labels for p-values based on given thresholds.
+
+    Parameters:
+    - pvalues: List of p-values to evaluate.
+    - thresholds: Dictionary mapping thresholds to star labels.
+
+    Returns:
+    - List of star labels corresponding to the p-values.
+    """
+    star_labels = []
+    for pvalue in pvalues:
+        for threshold, label in thresholds.items():
+            if pvalue < threshold:
+                star_labels.append(label)
+                break
+        else:
+            star_labels.append('ns')
+    return star_labels
+
 
 
 def get_feature_enrichments(mixed_data, summarize=False):
