@@ -5,7 +5,7 @@ import seaborn as sns
 from statsmodels.stats.multitest import multipletests
 from scipy.stats import binomtest, ttest_ind
 
-from utils import split_columns
+from utils import split_columns, cohens_d, compute_fold_enrichment, draw_lines_and_stars, get_star_labels
 
 
 def main_clinical_validation(only_sibs=False):
@@ -265,30 +265,6 @@ def get_feature_enrichments_with_sibs(mixed_data, name, only_sibs=False):
     return feature_sig_norm_high
     
 
-def compute_fold_enrichment(group1, group2):
-    """
-    Compute fold enrichment between two groups for a specific event.
-
-    Returns:
-    float: The fold enrichment of the event in Group 1 compared to Group 2.
-    """
-
-    group1_event_count = np.sum(group1)
-    group1_total = len(group1)
-    group1_proportion = group1_event_count / group1_total
-
-    group2_event_count = np.sum(group2)
-    group2_total = len(group2)
-    group2_proportion = group2_event_count / group2_total
-
-    if group2_proportion == 0:
-        return float('inf')
-    
-    fold_enrichment = group1_proportion / group2_proportion
-
-    return fold_enrichment
-
-
 def individual_registration_validation(gfmm_labels):
     file = '../SPARK_collection_v9_2022-12-12/individuals_registration_2022-12-12.csv'
     data = pd.read_csv(file, index_col=0)
@@ -506,72 +482,6 @@ def individual_registration_validation(gfmm_labels):
     supp_table.to_csv('../supp_tables/Supp_Table_group_comp_individual_registration_validation.csv', index=False)
 
 
-def draw_lines_and_stars(ax, pairs, y_positions, star_labels, line_color='black', star_size=26, line_width=2):
-    """
-    Draws lines and stars between specified pairs of x-values on a given axes.
-    
-    Parameters:
-    - ax: The axes on which to draw.
-    - pairs: A list of tuples where each tuple contains the x indices of the pair to connect.
-    - y_positions: A list of y positions for the stars above the lines.
-    - star_labels: A list of labels (e.g., '*', '**', '***') to place at the y positions.
-    - line_color: Color of the lines (default is black).
-    - star_size: Size of the star annotations (default is 26).
-    - line_width: Width of the lines (default is 2).
-    """
-    for (x1, x2), y_pos, label in zip(pairs, y_positions, star_labels):
-        # Draw a line between the two x-values
-        ax.plot([x1, x2], [y_pos, y_pos], color=line_color, linewidth=line_width)
-        # Annotate with stars at the specified y position
-        if label == 'ns':
-            ax.annotate(label, xy=((x1 + x2) / 2, y_pos*1.01), ha='center', size=20)
-        else:
-            ax.annotate(label, xy=((x1 + x2) / 2, y_pos*0.98), ha='center', size=star_size, fontweight='bold')
-
-
-def get_star_labels(pvalues, thresholds):
-    """
-    Generate star labels for p-values based on given thresholds.
-
-    Parameters:
-    - pvalues: List of p-values to evaluate.
-    - thresholds: Dictionary mapping thresholds to star labels.
-
-    Returns:
-    - List of star labels corresponding to the p-values.
-    """
-    star_labels = []
-    for pvalue in pvalues:
-        # Determine the appropriate star label for each p-value
-        for threshold, label in thresholds.items():
-            if pvalue < threshold:
-                star_labels.append(label)
-                break
-        else:
-            # If no threshold is met, default to 'ns'
-            star_labels.append('ns')
-    return star_labels
-
-
-def cohens_d(group1, group2):
-    """
-    Compute Cohen's d between two groups.
-    
-    Parameters:
-    group1 (array-like): Values from the first group.
-    group2 (array-like): Values from the second group.
-    
-    Returns:
-    float: Cohen's d effect size.
-    """
-    group1, group2 = np.array(group1), np.array(group2)
-    mean1, mean2 = np.mean(group1), np.mean(group2)
-    std1, std2 = np.std(group1, ddof=1), np.std(group2, ddof=1)
-    pooled_std = np.sqrt(((std1 ** 2) + (std2 ** 2)) / 2)
-    d = (mean1 - mean2) / pooled_std
-    return d
-
-
 def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
     # get sibling data for background history
     BASE_PHENO_DIR = '../SPARK_collection_v9_2022-12-12'
@@ -712,7 +622,7 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
     comparisons += (('class0', 'siblings'), ('class1', 'siblings'), ('class2', 'siblings'), ('class3', 'siblings'))
 
     # compute pvals, cohen's d
-   class_pairs = [
+    class_pairs = [
         (1, 0),  # class1 > class0
         (2, 0),  # class2 > class0
         (1, 3),  # class1 > class3
