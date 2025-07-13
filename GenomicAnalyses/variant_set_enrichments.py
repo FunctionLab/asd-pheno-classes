@@ -6,54 +6,7 @@ from statsmodels.stats.multitest import multipletests
 import pickle as rick
 import scipy.stats as st
 
-from utils import load_dnvs, get_gene_sets
-
-
-def get_star_labels(pvalues, thresholds):
-    """
-    Generate star labels for p-values based on given thresholds.
-
-    Parameters:
-    - pvalues: List of p-values to evaluate.
-    - thresholds: Dictionary mapping thresholds to star labels.
-
-    Returns:
-    - List of star labels corresponding to the p-values.
-    """
-    star_labels = []
-    for pvalue in pvalues:
-        # Determine the appropriate star label for each p-value
-        for threshold, label in thresholds.items():
-            if pvalue < threshold:
-                star_labels.append(label)
-                break
-        else:
-            # If no threshold is met, default to 'ns'
-            star_labels.append('ns')
-    return star_labels
-
-
-def draw_lines_and_stars(ax, pairs, y_positions, star_labels, line_color='black', star_size=19, line_width=1.5, scaling=1):
-    """
-    Draws lines and stars between specified pairs of x-values on a given axes.
-    
-    Parameters:
-    - ax: The axes on which to draw.
-    - pairs: A list of tuples where each tuple contains the x indices of the pair to connect.
-    - y_positions: A list of y positions for the stars above the lines.
-    - star_labels: A list of labels (e.g., '*', '**', '***') to place at the y positions.
-    - line_color: Color of the lines (default is black).
-    - star_size: Size of the star annotations (default is 20).
-    - line_width: Width of the lines (default is 2).
-    """
-    for (x1, x2), y_pos, label in zip(pairs, y_positions, star_labels):
-        # Draw a line between the two x-values
-        ax.plot([x1, x2], [y_pos, y_pos], color=line_color, linewidth=line_width)
-        # Annotate with stars at the specified y position
-        if label == 'ns':
-            ax.annotate(label, xy=((x1 + x2) / 2, y_pos*1.002), ha='center', size=16)
-        else:
-            ax.annotate(label, xy=((x1 + x2) / 2, y_pos*scaling), ha='center', size=star_size, fontweight='bold')
+from utils import load_dnvs, get_gene_sets, get_star_labels, draw_lines_and_stars
 
 
 def compute_variant_set_proportions():
