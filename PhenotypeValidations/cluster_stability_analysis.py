@@ -106,14 +106,13 @@ def run_mixture_model_on_phenotypes(iterations=2000, ncomp=4):
     overlaps.to_csv(f'data/stability_analysis_overlaps.csv', index=False)
 
 
-def plot_correlations():
+def plot_correlations(top_x = 100):
     category_correlations = pd.read_csv('data/stability_analysis_category_correlations.csv')
     overall_model_correlations = pd.read_csv('data/stability_analysis_overall_model_correlations.csv')
     ranked_ll = pd.read_csv('data/stability_analysis_ranked_LL.csv')
     overlaps = pd.read_csv('data/stability_analysis_overlaps.csv')
 
-    # get indices of top 100 models with highest log likelihood
-    top_x = 100
+    # get indices of top models with highest log likelihood
     log_likelihoods = np.array(ranked_ll['0'])
     ranked_indices = np.argsort(log_likelihoods)[::-1]
     category_correlations = [category_correlations.iloc[i] for i in ranked_indices[:top_x]]
@@ -130,19 +129,18 @@ def plot_correlations():
             0.95, len(category_correlations[category])-1, loc=np.mean(category_correlations[category]), scale=st.sem(category_correlations[category])
             )
 
-    # Extract the mean correlation and CIs into lists
+    # extract the mean correlation and CIs into lists
     means = [np.mean(category_correlations[category]) for category in category_correlations.columns]
     ci_lower = [ci[0] for ci in category_to_ci.values()]
     ci_upper = [ci[1] for ci in category_to_ci.values()]
 
-    # Calculate the error bars (distance from mean to upper bound)
+    # calculate the error bars (distance from mean to upper bound)
     ci_error_upper = [upper - mean for upper, mean in zip(ci_upper, means)]
     ci_error_lower = [mean - lower for lower, mean in zip(ci_lower, means)]
 
     # plot category correlations as horizontal barplot with 95% CI
     features_to_visualize = ['anxiety/mood', 'attention', 'disruptive behavior', 'self-injury', 'social/communication', 'restricted/repetitive', 'developmental'] 
     plt.style.use('seaborn-v0_8-whitegrid')
-    # plt.style.use('dark_background')
     fig, ax = plt.subplots(1, 1, figsize=(6, 6))
     sns.barplot(y=features_to_visualize, x=means, 
                 color='rosybrown', ax=ax, width=0.5)
@@ -179,13 +177,8 @@ def plot_correlations():
     ci_error_upper = [upper - mean for upper, mean in zip(ci_upper, means)]
     ci_error_lower = [mean - lower for lower, mean in zip(ci_lower, means)]
 
-    # Prepare annotations with mean ± CI
     annot = [f"{mean:.2f}±{(upper-lower)/2:.2f}" for mean, lower, upper in zip(means, ci_lower, ci_upper)]
-    
-    # replace 'nan' with 0.00 in annot
     annot = [x.replace('nan', '0.00') for x in annot]
-    
-    # reshape means, annot to be 4x4
     means = np.array(means).reshape(4, 4)
     annot = np.array(annot).reshape(4, 4)
 
