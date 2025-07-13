@@ -11,7 +11,7 @@ from utils import split_columns
 def main_clinical_validation(only_sibs=False):
     # load sample data and class labels
     mixed_data = pd.read_csv(
-        'data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', 
+        '../PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', 
         index_col=0, 
         header=0
         )
@@ -289,7 +289,7 @@ def compute_fold_enrichment(group1, group2):
     return fold_enrichment
 
 
-def individual_registration_validation():
+def individual_registration_validation(gfmm_labels):
     file = '../SPARK_collection_v9_2022-12-12/individuals_registration_2022-12-12.csv'
     data = pd.read_csv(file, index_col=0)
     vars_for_val = [
@@ -310,9 +310,6 @@ def individual_registration_validation():
         'language_level_at_enrollment'].replace(
             'No words/does not speak', 0)
 
-    gfmm_labels = pd.read_csv(
-        'data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', index_col=0, header=0
-        ) 
     sibling_list = '../PhenotypeClasses/data/WES_5392_paired_siblings_sfid.txt' 
     paired_sibs = pd.read_csv(sibling_list, sep='\t', header=None, index_col=0)
 
@@ -892,13 +889,7 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
     supp_table.to_csv(f'../supp_tables/Supp_Table_{ncomp}classes_pheno_comparisons.csv')
 
 
-def hypothesis_testing_BMS_features():
-    mixed_data = pd.read_csv(
-        'data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', 
-        index_col=0, 
-        header=0
-        )
-
+def hypothesis_testing_BMS_features(mixed_data):
     # get medical data for validation
     BASE_PHENO_DIR = '../SPARK_collection_v9_2022-12-12'
     bmsdf = pd.read_csv(
@@ -1147,12 +1138,12 @@ def hypothesis_testing_BMS_features():
 
 if __name__ == "__main__":
     gfmm_labels = pd.read_csv(
-        'data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', 
+        '../PhenotypeClasses/data/SPARK_5392_ninit_cohort_GFMM_labeled.csv', 
         index_col=0, 
         header=0
         )
-    
-    scq_and_developmental_milestones_validation(gfmm_labels, ncomp=4)
-    individual_registration_validation()
+
     main_clinical_validation(only_sibs=True)
-    hypothesis_testing_BMS_features()
+    scq_and_developmental_milestones_validation(gfmm_labels, ncomp=4)
+    individual_registration_validation(gfmm_labels)
+    hypothesis_testing_BMS_features(gfmm_labels)
