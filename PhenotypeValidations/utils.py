@@ -718,7 +718,6 @@ def get_correlation(spark_labels, ssc_labels):
 
     ssc_pval_classification_df, feature_sig_norm_high, feature_sig_norm_low, feature_vector, summary_df, fold_enrichments = get_feature_enrichments(ssc_labels, summarize=True)
     
-    summary_df = summary_df.fillna('NaN')
     summary_df = summary_df.replace(np.nan, 1)
     summary_df = summary_df.loc[~summary_df['feature'].isin(features_to_exclude)] # remove non-contributory features from SPARK
     ssc_feature_subset = summary_df['feature'].to_list()
@@ -1450,7 +1449,7 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments, ncomp):
 
     features_to_exclude = fold_enrichments.copy()
 
-    # Compute absolute values for fold enrichments for all classes
+    # compute absolute values for fold enrichments for all classes
     for cls in range(ncomp):
         features_to_exclude[f'class{cls}'] = features_to_exclude[f'class{cls}'].abs()
 
@@ -1471,7 +1470,7 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments, ncomp):
         'q39_imaginative_games', 'q40_cooperatively_games'
     ]
 
-    # Select features to exclude based on their presence in all classes
+    # select features to exclude based on their presence in all classes
     nan_condition = (features_to_exclude[f'class{cls}'].isna() for cls in range(ncomp))
     nan_features = features_to_exclude.loc[np.all(list(nan_condition), axis=0)]
     
@@ -1488,7 +1487,7 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments, ncomp):
     features_to_exclude = pd.concat([nan_features, low_features_continuous, low_features_binary])
     features_to_exclude = features_to_exclude['feature'].unique()
 
-    # Load feature-category mapping
+    # load feature-category mapping
     features_to_category = pd.read_csv(
         '../PhenotypeValidations/data/feature_to_category_mapping.csv',
         index_col=None
@@ -1505,7 +1504,7 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments, ncomp):
     df['feature_category'] = df['feature'].map(feature_to_category)
     df = df.dropna(subset=['feature_category']).replace('NaN', 1)
 
-    # Mark features as enriched or depleted based on p-value threshold
+    # mark features as enriched or depleted based on p-value threshold
     for cls in range(ncomp):
         df[f'class{cls}_enriched'] = df[f'class{cls}_enriched'].astype(float).apply(
             lambda x: 1 if x < 0.05 else 0
@@ -1514,7 +1513,7 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments, ncomp):
             lambda x: 1 if x < 0.05 else 0
         )
 
-    # Flip rows for specific features as per your requirement
+    # flip rows for specific features as per your requirement
     flip_rows = [
         'q02_conversation', 'q09_expressions_appropriate', 'q19_best_friend', 
         'q20_talk_friendly', 'q21_copy_you', 'q22_point_things',
@@ -1534,7 +1533,7 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments, ncomp):
 
     prop_df = pd.DataFrame()
 
-    # Calculate proportion of enriched and depleted features by category
+    # calculate proportion of enriched and depleted features by category
     for cls in range(ncomp):
         prop_df[f'class{cls}_enriched'] = df.groupby(['feature_category'])[f'class{cls}_enriched'].sum() / \
                                           df.groupby(['feature_category'])[f'class{cls}_enriched'].count()
@@ -1546,7 +1545,6 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments, ncomp):
     df = prop_df.drop([f'class{cls}_max' for cls in range(ncomp)], axis=1)
     df = df.loc[~df.index.isin(['somatic', 'other problems', 'thought problems'])]
 
-    # Prepare the proportions data
     proportions = pd.DataFrame(index=df.index)
     for cls in range(ncomp):
         proportions[f'class{cls}_enriched'] = df[f'class{cls}_enriched']
@@ -1625,7 +1623,7 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments, ncomp):
     plt.savefig(f'figures/GFMM_{ncomp}classes_variation_figure.png', dpi=600)
     plt.close()
 
-    # Prepare data for the main horizontal line plot
+    # prepare data for the main horizontal line plot
     prop_df = prop_df.drop(
         [
             f'class{cls}_enriched' for cls in range(ncomp)] +
@@ -1642,7 +1640,7 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments, ncomp):
     prop_df = prop_df.loc[features_to_visualize]
     prop_df.index = np.arange(len(prop_df))
 
-    # Create the main horizontal line plot
+    # plot
     fig, ax = plt.subplots(1, 1, figsize=(10, 6))
     palette = class_colors.values()
 
