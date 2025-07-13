@@ -146,7 +146,7 @@ def plot_main_indicators(num_iter=200):
 
 def compute_LL(ncomp=4, num_iter=200):
     datadf = pd.read_csv(
-        '../PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', 
+        '../PhenotypeClasses/data/spark_5392_cohort.txt', 
         sep='\t', 
         index_col=0
         )  
@@ -189,7 +189,7 @@ def compute_LL(ncomp=4, num_iter=200):
 
 def get_AWE(num_iter=50):
     datadf = pd.read_csv(
-        '../PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', 
+        '../PhenotypeClasses/data/spark_5392_cohort.txt', 
         sep='\t', 
         index_col=0
         )  
@@ -241,7 +241,7 @@ def get_AWE(num_iter=50):
 
 def get_class_sizes(num_iter=50):
     datadf = pd.read_csv(
-        '../PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', 
+        '../PhenotypeClasses/data/spark_5392_cohort.txt', 
         sep='\t', 
         index_col=0
         )  
@@ -301,7 +301,7 @@ def compute_main_indicators(num_iter=200):
     Compute AIC, BIC, SABIC, CAIC, and entropy for the GFMM model.
     '''
     datadf = pd.read_csv(
-        '../PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', 
+        '../PhenotypeClasses/data/spark_5392_cohort.txt', 
         sep='\t', 
         index_col=0
         )  
@@ -356,7 +356,7 @@ def compute_main_indicators(num_iter=200):
 
 def lmr_likelihood_ratio_test(n_iter=50):
     datadf = pd.read_csv(
-        '../PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', 
+        '../PhenotypeClasses/data/spark_5392_cohort.txt', 
         sep='\t', 
         index_col=0
         )  
