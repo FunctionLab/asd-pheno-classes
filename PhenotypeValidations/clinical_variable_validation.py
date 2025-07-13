@@ -167,7 +167,7 @@ def get_fold_enrichment(mixed_data, only_sibs=False):
         if len(unique) == 2:  
             total_in_sibs = len(sibs[feature])
             if only_sibs:
-                sibs_sum = int(np.sum(sibs[feature])) + 1 # add pseudocount to sibs
+                sibs_sum = int(np.sum(sibs[feature])) + 1 # add pseudocount
             else:
                 sibs_sum = int(np.sum(sibs[feature])) 
             total_in_class0 = len(class0[feature])
@@ -255,7 +255,7 @@ def get_feature_enrichments_with_sibs(mixed_data, name, only_sibs=False):
             feature_sig_df_high[feature] = [sf0, sf1, sf2, sf3]
             feature_vector.append(feature)
 
-    # multiple hypothesis correction with Benjamini-Hochberg
+    # multiple hypothesis correction
     shape = feature_sig_df_high.shape
     feature_sig_df_high = feature_sig_df_high.values.flatten()
     feature_sig_df_high = multipletests(feature_sig_df_high, method='fdr_bh')[1]
@@ -410,10 +410,8 @@ def individual_registration_validation(gfmm_labels):
 
             custom_pvalues = list(pvals)[:3]
             star_labels = get_star_labels(custom_pvalues, custom_thresholds)
-            pairs = [(0,1), (1, 3), (2, 0)]  # Pairs of x indices to connect
-            y_positions = [0.36, 0.39, 0.42]  # Y positions for stars
-
-            # Call the function to draw lines and stars
+            pairs = [(0,1), (1, 3), (2, 0)] 
+            y_positions = [0.36, 0.39, 0.42] 
             draw_lines_and_stars(ax, pairs, y_positions, star_labels, star_size=16)
 
         elif var == 'diagnosis_age':
@@ -430,7 +428,7 @@ def individual_registration_validation(gfmm_labels):
             pvals = [ttest_ind(classes[i], classes[j], equal_var=False, alternative='greater').pvalue for i, j in class_pairs]
             cohens_d_list = [cohens_d(classes[i], classes[j]) for i, j in class_pairs]
             
-            # multiple hypothesis correction with Benjamini-Hochberg
+            # multiple hypothesis correction
             uncorrected_pvals = pvals
             pvals = multipletests(pvals, method='fdr_bh')[1]
             supp_table = supp_table.append(pd.DataFrame(
@@ -448,29 +446,27 @@ def individual_registration_validation(gfmm_labels):
 
             custom_pvalues = list(pvals)[:3]
             star_labels = get_star_labels(custom_pvalues, custom_thresholds)
-            pairs = [(2,3), (2,0), (1,3)]  # Pairs of x indices to connect
-            y_positions = [220, 232, 250]  # Y positions for stars
-
-            # Call the function to draw lines and stars
+            pairs = [(2,3), (2,0), (1,3)] 
+            y_positions = [220, 232, 250]
             draw_lines_and_stars(ax, pairs, y_positions, star_labels, star_size=16)
 
-        ax.set_xlabel('')
-        if var == 'diagnosis_age':
-            ax.set_ylabel('Months', fontsize=16)
-        elif var == 'language_level_at_enrollment':
-            ax.set_ylabel('Level', fontsize=16)
-        elif var == 'cognitive_impairment_at_enrollment':
-            ax.set_ylabel('Proportion', fontsize=16)
-        else:
-            ax.set_ylabel('')
-        ax.set_title(f'{variable_names[i]}', fontsize=16)
-        for axis in ['top','bottom','left','right']:
-            ax.spines[axis].set_linewidth(1.5)
-            ax.spines[axis].set_color('black')
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.tick_params(axis='both', which='major', labelsize=14)
-        ax.set_xticklabels([])
+            ax.set_xlabel('')
+            if var == 'diagnosis_age':
+                ax.set_ylabel('Months', fontsize=16)
+            elif var == 'language_level_at_enrollment':
+                ax.set_ylabel('Level', fontsize=16)
+            elif var == 'cognitive_impairment_at_enrollment':
+                ax.set_ylabel('Proportion', fontsize=16)
+            else:
+                ax.set_ylabel('')
+            ax.set_title(f'{variable_names[i]}', fontsize=16)
+            for axis in ['top','bottom','left','right']:
+                ax.spines[axis].set_linewidth(1.5)
+                ax.spines[axis].set_color('black')
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.tick_params(axis='both', which='major', labelsize=14)
+            ax.set_xticklabels([])
 
         plt.tight_layout()
         plt.savefig(
@@ -508,16 +504,14 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
     plt.rcParams.update({'axes.titlepad': 20})
     fig, axs = plt.subplots(3, 1, figsize=(9, 17))
 
-    # Milestone: used_words_age_mos
+    # set milestone for reference
     milestone = 'used_words_age_mos'
     milestone_data = gfmm_labels[[milestone, 'mixed_pred']]
 
     class_names = ['Moderate Challenges', 'Broadly Impacted', 'Social/Behavioral', 'Mixed ASD with DD']
-    
-    # Dynamically get the classes based on ncomp
     classes = [milestone_data[milestone_data['mixed_pred'] == i][milestone].astype(float).to_list() for i in range(ncomp)]
 
-    # Hypothesis testing
+    # hypothesis testing
     comparisons = []
     pvals = [ttest_ind(cls, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue for cls in classes]
     cohens_d_list = [cohens_d(cls, sib_bh_data[milestone]) for cls in classes]
@@ -559,7 +553,7 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
     }
     palette = list(class_colors.values())[:ncomp+1]
 
-    # Boxplot
+    # plot
     sns.boxplot(data=[sib_bh_data[milestone].to_list()] + classes, 
                 showfliers=True, palette=['dimgray','#FBB040','#EE2A7B','#39B54A','#27AAE1'], 
                 whiskerprops=dict(color="black", linewidth=2), 
@@ -572,7 +566,6 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
     axs[0].set_xticklabels([])
     ymin, ymax = axs[0].get_ylim()
     axs[0].set_ylim([0, ymax*1.25])
-    # make bottom and left axes bold and remove top and right axes
     for axis in ['top','bottom','left','right']:
         axs[0].spines[axis].set_linewidth(1.5)
         axs[0].spines[axis].set_color('black')
@@ -604,18 +597,16 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
 
     custom_pvalues = list(pvals)[4:7]
     star_labels = get_star_labels(custom_pvalues, custom_thresholds)
-    pairs = [(1, 2), (1, 3), (2, 4)]  # Pairs of x indices to connect
-    y_positions = [98, 105, 112]  # Y positions for stars
-
-    # Call the function to draw lines and stars
+    pairs = [(1, 2), (1, 3), (2, 4)]
+    y_positions = [98, 105, 112]
     draw_lines_and_stars(axs[0], pairs, y_positions, star_labels)
 
-    # Milestone: walked_age_mos
+    # milestone: walked_age_mos
     milestone = 'walked_age_mos'
     milestone_data = gfmm_labels[[milestone, 'mixed_pred']]
     comparisons = []
 
-    # Repeat class assignment for ncomp
+    # repeat class assignment for ncomp
     classes = [milestone_data[milestone_data['mixed_pred'] == i][milestone].astype(float).to_list() for i in range(ncomp)]
     pvals = [ttest_ind(cls, sib_bh_data[milestone], equal_var=False, alternative='greater').pvalue for cls in classes]
     cohens_d_list = [cohens_d(cls, sib_bh_data[milestone]) for cls in classes]
@@ -636,7 +627,7 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
         comparisons.append((f'class{i}', f'class{j}'))
         cohens_d_list.append(cohens_d(classes[i], classes[j]))
     
-    # multiple hypothesis correction with Benjamini-Hochberg
+    # multiple hypothesis correction
     uncorrected_pvals = pvals
     pvals = multipletests(pvals, method='fdr_bh')[1]
     print(milestone)
@@ -659,14 +650,12 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
     axs[1].set_xticklabels([])
     ymin, ymax = axs[1].get_ylim()
     axs[1].set_ylim([0, ymax*1.25])
-    # make bottom and left axes bold and remove top and right axes
     for axis in ['top','bottom','left','right']:
         axs[1].spines[axis].set_linewidth(1.5)
         axs[1].spines[axis].set_color('black')
     axs[1].spines['top'].set_visible(False)
     axs[1].spines['right'].set_visible(False)
 
-    # plot significance stars
     y_values = [43, 43, 43, 43]
     for grpidx in range(ncomp):
         p_value = pvals[grpidx]
@@ -692,10 +681,8 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
 
     custom_pvalues = list(pvals)[4:7]
     star_labels = get_star_labels(custom_pvalues, custom_thresholds)
-    pairs = [(1, 2), (1, 3), (2, 4)]  # Pairs of x indices to connect
-    y_positions = [48, 51.5, 55]  # Y positions for stars
-
-    # Call the function to draw lines and stars
+    pairs = [(1, 2), (1, 3), (2, 4)]
+    y_positions = [48, 51.5, 55]
     draw_lines_and_stars(axs[1], pairs, y_positions, star_labels)
 
     # SCQ total score
@@ -727,13 +714,13 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
         (3, 2),  # class3 > class2
     ]
     
-    # Perform tests and store results
+    # perform tests and store results
     for i, j in class_pairs:
         pvals.append(ttest_ind(classes[i], classes[j], equal_var=False, alternative='greater').pvalue)
         comparisons.append((f'class{i}', f'class{j}'))
         cohens_d_list.append(cohens_d(classes[i], classes[j]))
     
-    # multiple hypothesis correction with Benjamini-Hochberg
+    # multiple hypothesis correction 
     uncorrected_pvals = pvals
     pvals = multipletests(pvals, method='fdr_bh')[1]
     print('SCQ total score')
@@ -754,14 +741,12 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
     axs[2].set_xticklabels([])
     ymin, ymax = axs[2].get_ylim()
     axs[2].set_ylim([0, ymax*1.25])
-    # make bottom and left axes bold and remove top and right axes
     for axis in ['top','bottom','left','right']:
         axs[2].spines[axis].set_linewidth(1.5)
         axs[2].spines[axis].set_color('black')
     axs[2].spines['top'].set_visible(False)
     axs[2].spines['right'].set_visible(False)
 
-    # plot significance stars
     y_values = [39, 39, 39, 39]
     for grpidx in range(ncomp):
         p_value = pvals[grpidx]
@@ -787,10 +772,8 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
 
     custom_pvalues = list(pvals)[4:7]
     star_labels = get_star_labels(custom_pvalues, custom_thresholds)
-    pairs = [(1, 2), (1, 3), (2, 4)]  # Pairs of x indices to connect
-    y_positions = [44, 47, 50]  # Y positions for stars
-
-    # Call the function to draw lines and stars
+    pairs = [(1, 2), (1, 3), (2, 4)]
+    y_positions = [44, 47, 50]
     draw_lines_and_stars(axs[2], pairs, y_positions, star_labels)
 
     plt.savefig(f'figures/{ncomp}classes_pheno_boxplots.png', bbox_inches='tight', dpi=600)
@@ -825,12 +808,6 @@ def hypothesis_testing_BMS_features(mixed_data):
     group = neurodev + mental_health + cooccurring
     subset_validation_data = bms_data[group]
 
-    # labels for diagnostic features
-    neuro_labels = ['Macrocephaly', 'Microcephaly', 'ID', 
-                    'Seizures/Epilepsy', 'Birth Defect', 'Language Delay']
-    mental_health_labels = ['Tics', 'OCD', 'Depression', 'Anxiety', 'ADHD']
-    cooccurring_labels = ['Feeding Disorder', 'Sleep Disorder', 'Motor Disorder']
-    
     # merge with class labels
     mixed_data = pd.merge(
         mixed_data, subset_validation_data, left_index=True, right_index=True
@@ -855,12 +832,12 @@ def hypothesis_testing_BMS_features(mixed_data):
     mixed_data = pd.concat([sibs, mixed_data])
     mixed_data['mixed_pred'] = mixed_data['mixed_pred'].replace(np.nan, -1)
 
-    class_names = ['Siblings', 'Moderate Challenges', 'Broadly Impacted', 'Social/Behavioral', 'Mixed ASD with DD']
+    class_names = ['Siblings', 'Moderate Challenges', 'Broadly Impacted', 
+                   'Social/Behavioral', 'Mixed ASD with DD']
     
     # compare each feature between classes
     supp_table = pd.DataFrame()
     for feature in neurodev + mental_health + cooccurring:
-        print(feature)
         classes = [mixed_data[mixed_data['mixed_pred'] == i][feature].astype(float) for i in range(-1, 4)]
         
         pvals = []
@@ -868,14 +845,13 @@ def hypothesis_testing_BMS_features(mixed_data):
 
         # first compare to siblings
         for i in range(1, 5):
-            # Count the number of successes in the class i
-            successes = int(sum(classes[i]))  # Assuming binary data: 1 for success, 0 for failure
-            total = int(len(classes[i]))      # Total trials in the class
+            successes = int(sum(classes[i]))
+            total = int(len(classes[i])) 
             
-            # Calculate the expected proportion (from classes[0])
+            # calculate the expected proportion (from classes[0])
             expected_proportion = sum(classes[0]) / len(classes[0])
             
-            # Perform a one-sided binomial test (alternative: greater)
+            # perform a one-sided binomial test
             pval = binomtest(successes, total, expected_proportion, alternative='greater').pvalue
             pvals.append(pval)
 
