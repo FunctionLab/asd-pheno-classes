@@ -709,452 +709,93 @@ def gene_set_bubble_plot_proband_baseline(fdr=0.1):
     plt.close()
 
 
-def compute_stats_class3_baseline():
-    # run function or load precomputed data
+def get_class_label_map():
+    return {
+        0: "Moderate Challenges",
+        1: "Broadly Impacted",
+        2: "Social/Behavioral",
+        3: "Mixed ASD with DD"
+    }
+
+
+def compute_stats_class_baseline(baseline_class: int, out_csv: str):
     gene_sets, gene_set_names = get_gene_sets()
     dnvs_pro, dnvs_sibs, zero_pro, zero_sibs = load_dnvs()
-    
-    # select LoF consequences
-    consequences = [
-        'stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 
-        'splice_donor_variant', 'start_lost', 'stop_lost', 
-        'transcript_ablation'
-        ]
-   
-    # annotate dnvs_pro and dnvs_sibs with consequence (binary)
-    dnvs_pro['consequence'] = dnvs_pro['Consequence'].apply(
-        lambda x: 1 if x in consequences else 0)
-    dnvs_sibs['consequence'] = dnvs_sibs['Consequence'].apply(
-        lambda x: 1 if x in consequences else 0)
-    
-    # for each gene set, annotate dnvs_pro and dnvs_sibs 
-    # with gene set membership (binary)
-    for i in range(len(gene_set_names)):
-        dnvs_pro[gene_set_names[i]] = dnvs_pro['name'].apply(
-            lambda x: 1 if x in gene_sets[i] else 0)
-        dnvs_sibs[gene_set_names[i]] = dnvs_sibs['name'].apply(
-            lambda x: 1 if x in gene_sets[i] else 0)
-    
-    # get number of participants in each class
-    num_class0 = dnvs_pro[dnvs_pro['class'] == 0]['spid'].nunique() + \
-        zero_pro[zero_pro['mixed_pred'] == 0]['spid'].nunique()
-    num_class1 = dnvs_pro[dnvs_pro['class'] == 1]['spid'].nunique() + \
-        zero_pro[zero_pro['mixed_pred'] == 1]['spid'].nunique()
-    num_class2 = dnvs_pro[dnvs_pro['class'] == 2]['spid'].nunique() + \
-        zero_pro[zero_pro['mixed_pred'] == 2]['spid'].nunique()
-    num_class3 = dnvs_pro[dnvs_pro['class'] == 3]['spid'].nunique() + \
-        zero_pro[zero_pro['mixed_pred'] == 3]['spid'].nunique()
-    num_sibs = dnvs_sibs['spid'].nunique() + zero_sibs['spid'].nunique()
-    all_spids = num_class0 + num_class1 + num_class2 + num_class3
+    class_labels = get_class_label_map()
 
-    # compute enrichments for each gene set
+    consequences = {
+        'stop_gained', 'frameshift_variant', 'splice_acceptor_variant',
+        'splice_donor_variant', 'start_lost', 'stop_lost', 'transcript_ablation'
+    }
+
+    for df in [dnvs_pro, dnvs_sibs]:
+        df['consequence'] = df['Consequence'].apply(lambda x: int(x in consequences))
+
+    for name, genes in zip(gene_set_names, gene_sets):
+        for df in [dnvs_pro, dnvs_sibs]:
+            df[name] = df['name'].apply(lambda x: int(x in genes))
+
+    class_sizes = {
+        i: dnvs_pro[dnvs_pro['class'] == i]['spid'].nunique()
+        + zero_pro[zero_pro['mixed_pred'] == i]['spid'].nunique()
+        for i in range(4)
+    }
+
     validation_subset = pd.DataFrame()
-    for gene_set in ['all_genes', 'lof_genes', 'fmrp_genes', 
-                      'asd_risk_genes', 'sfari_genes1', 'satterstrom', 
-                      'brain_expressed_genes'][::-1]:
-        dnvs_pro['gene_set&consequence'] = dnvs_pro[gene_set] * \
-                                           dnvs_pro['consequence'] * \
-                                           dnvs_pro['LoF'] 
-        dnvs_sibs['gene_set&consequence'] = dnvs_sibs[gene_set] * \
-                                            dnvs_sibs['consequence'] * \
-                                            dnvs_sibs['LoF']
-    
-        class0 = dnvs_pro[dnvs_pro['class'] == 0].groupby(
-            'spid')['gene_set&consequence'].sum().tolist()
-        zero_class0 = zero_pro[
-            zero_pro['mixed_pred'] == 0]['count'].astype(int).tolist()
-        class0 = class0 + zero_class0
-        class1 = dnvs_pro[dnvs_pro['class'] == 1].groupby(
-            'spid')['gene_set&consequence'].sum().tolist()
-        zero_class1 = zero_pro[zero_pro[
-            'mixed_pred'] == 1]['count'].astype(int).tolist()
-        class1 = class1 + zero_class1
-        class2 = dnvs_pro[dnvs_pro['class'] == 2].groupby(
-            'spid')['gene_set&consequence'].sum().tolist() 
-        zero_class2 = zero_pro[
-            zero_pro['mixed_pred'] == 2]['count'].astype(int).tolist()
-        class2 = class2 + zero_class2
-        class3 = dnvs_pro[dnvs_pro['class'] == 3].groupby(
-            'spid')['gene_set&consequence'].sum().tolist()
-        zero_class3 = zero_pro[
-            zero_pro['mixed_pred'] == 3]['count'].astype(int).tolist()
-        class3 = class3 + zero_class3
-        sibs = dnvs_sibs.groupby(
-            'spid')['gene_set&consequence'].sum().tolist()
-        sibs = sibs + zero_sibs['count'].astype(int).tolist()
-        all_pros_data = class0 + class1 + class2 + class3
 
-        # get p-values comparing each class to sibs using a t-test
-        sibs_rest_of_sample = class0 + class1 + class2 + class3
-        class0_pval = min(ttest_ind(
-            class0, class3, alternative='less')[1], ttest_ind(class0, class3, alternative='greater')[1])
-        class1_pval = min(ttest_ind(
-            class1, class3, alternative='greater')[1], ttest_ind(class1, class3, alternative='less')[1])
-        class2_pval = min(ttest_ind(
-            class2, class3, alternative='less')[1], ttest_ind(class2, class3, alternative='greater')[1])
-        
-        background = (np.sum(class3))/(num_class3)
+    for gene_set in reversed(gene_set_names):
+        dnvs_pro['gene_set&consequence'] = (
+            dnvs_pro[gene_set] * dnvs_pro['consequence'] * dnvs_pro['LoF']
+        )
+        dnvs_sibs['gene_set&consequence'] = (
+            dnvs_sibs[gene_set] * dnvs_sibs['consequence'] * dnvs_sibs['LoF']
+        )
 
-        class0_fe = max((np.sum(class0)/num_class0)/background, background/(np.sum(class0)/num_class0))
-        class1_fe = max((np.sum(class1)/num_class1)/background, background/(np.sum(class1)/num_class1))
-        class2_fe = max((np.sum(class2)/num_class2)/background, background/(np.sum(class2)/num_class2))
+        class_data = {
+            i: dnvs_pro[dnvs_pro['class'] == i]
+                .groupby('spid')['gene_set&consequence'].sum()
+                .tolist()
+            + zero_pro[zero_pro['mixed_pred'] == i]['count'].astype(int).tolist()
+            for i in range(4)
+        }
 
-        class0_df = pd.DataFrame({'variable': gene_set, 'value': class0_pval,
-                                  'Fold Enrichment': class0_fe, 'cluster': 'Moderate Challenges', 'vs.': 'Mixed ASD with DD',
-                                  }, index=[0])
-        class1_df = pd.DataFrame({'variable': gene_set, 'value': class1_pval,
-                                  'Fold Enrichment': class1_fe, 'cluster': 'Broadly Impacted', 'vs.': 'Mixed ASD with DD',
-                                  }, index=[0])
-        class2_df = pd.DataFrame({'variable': gene_set, 'value': class2_pval,
-                                  'Fold Enrichment': class2_fe, 'cluster': 'Social/Behavioral', 'vs.': 'Mixed ASD with DD',
-                                  }, index=[0])
-        validation_subset = pd.concat([validation_subset, 
-                                       class0_df, class1_df, class2_df], 
-                                       axis=0)
-    
-    # duplicate 'value' and rename to 'p' for one
-    validation_subset['p'] = validation_subset['value']
-    
-    # correct for multiple testing
-    validation_subset['value'] = -np.log10(multipletests(
-        validation_subset['value'], method='fdr_bh')[1])
+        # exclude baseline from comparison set
+        other_classes = [i for i in range(4) if i != baseline_class]
 
-    validation_subset.to_csv('../supp_tables/Supp_Table_gene_sets_class3_baseline.csv')
+        rows = []
+        baseline_data = class_data[baseline_class]
+        baseline_mean = np.sum(baseline_data) / class_sizes[baseline_class]
 
+        for i in other_classes:
+            comp_data = class_data[i]
+            pval = min(
+                ttest_ind(comp_data, baseline_data, alternative='less')[1],
+                ttest_ind(comp_data, baseline_data, alternative='greater')[1],
+            )
+            comp_mean = np.sum(comp_data) / class_sizes[i]
+            fold_enrichment = max(comp_mean / baseline_mean, baseline_mean / comp_mean)
+            row = {
+                'variable': gene_set,
+                'value': pval,
+                'Fold Enrichment': fold_enrichment,
+                'cluster': class_labels[i],
+                'vs.': class_labels[baseline_class],
+            }
+            rows.append(row)
 
-def compute_stats_class1_baseline():
-    # run function or load precomputed data
-    gene_sets, gene_set_names = get_gene_sets()
-    dnvs_pro, dnvs_sibs, zero_pro, zero_sibs = load_dnvs()
-    
-    # select LoF consequences
-    consequences = [
-        'stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 
-        'splice_donor_variant', 'start_lost', 'stop_lost', 
-        'transcript_ablation'
-        ]
-   
-    # annotate dnvs_pro and dnvs_sibs with consequence (binary)
-    dnvs_pro['consequence'] = dnvs_pro['Consequence'].apply(
-        lambda x: 1 if x in consequences else 0)
-    dnvs_sibs['consequence'] = dnvs_sibs['Consequence'].apply(
-        lambda x: 1 if x in consequences else 0)
-    
-    # for each gene set, annotate dnvs_pro and dnvs_sibs 
-    # with gene set membership (binary)
-    for i in range(len(gene_set_names)):
-        dnvs_pro[gene_set_names[i]] = dnvs_pro['name'].apply(
-            lambda x: 1 if x in gene_sets[i] else 0)
-        dnvs_sibs[gene_set_names[i]] = dnvs_sibs['name'].apply(
-            lambda x: 1 if x in gene_sets[i] else 0)
-    
-    # get number of participants in each class
-    num_class0 = dnvs_pro[dnvs_pro['class'] == 0]['spid'].nunique() + \
-        zero_pro[zero_pro['mixed_pred'] == 0]['spid'].nunique()
-    num_class1 = dnvs_pro[dnvs_pro['class'] == 1]['spid'].nunique() + \
-        zero_pro[zero_pro['mixed_pred'] == 1]['spid'].nunique()
-    num_class2 = dnvs_pro[dnvs_pro['class'] == 2]['spid'].nunique() + \
-        zero_pro[zero_pro['mixed_pred'] == 2]['spid'].nunique()
-    num_class3 = dnvs_pro[dnvs_pro['class'] == 3]['spid'].nunique() + \
-        zero_pro[zero_pro['mixed_pred'] == 3]['spid'].nunique()
-    num_sibs = dnvs_sibs['spid'].nunique() + zero_sibs['spid'].nunique()
-    all_spids = num_class0 + num_class1 + num_class2 + num_class3
+        validation_subset = pd.concat(
+            [validation_subset, pd.DataFrame(rows)], axis=0, ignore_index=True
+        )
 
-    # compute enrichments for each gene set
-    validation_subset = pd.DataFrame()
-    for gene_set in ['all_genes', 'lof_genes', 'fmrp_genes', 
-                      'asd_risk_genes', 'sfari_genes1', 'satterstrom', 
-                      'brain_expressed_genes'][::-1]:
-        dnvs_pro['gene_set&consequence'] = dnvs_pro[gene_set] * \
-                                           dnvs_pro['consequence'] * \
-                                           dnvs_pro['LoF'] 
-        dnvs_sibs['gene_set&consequence'] = dnvs_sibs[gene_set] * \
-                                            dnvs_sibs['consequence'] * \
-                                            dnvs_sibs['LoF']
-    
-        class0 = dnvs_pro[dnvs_pro['class'] == 0].groupby(
-            'spid')['gene_set&consequence'].sum().tolist()
-        zero_class0 = zero_pro[
-            zero_pro['mixed_pred'] == 0]['count'].astype(int).tolist()
-        class0 = class0 + zero_class0
-        class1 = dnvs_pro[dnvs_pro['class'] == 1].groupby(
-            'spid')['gene_set&consequence'].sum().tolist()
-        zero_class1 = zero_pro[zero_pro[
-            'mixed_pred'] == 1]['count'].astype(int).tolist()
-        class1 = class1 + zero_class1
-        class2 = dnvs_pro[dnvs_pro['class'] == 2].groupby(
-            'spid')['gene_set&consequence'].sum().tolist() 
-        zero_class2 = zero_pro[
-            zero_pro['mixed_pred'] == 2]['count'].astype(int).tolist()
-        class2 = class2 + zero_class2
-        class3 = dnvs_pro[dnvs_pro['class'] == 3].groupby(
-            'spid')['gene_set&consequence'].sum().tolist()
-        zero_class3 = zero_pro[
-            zero_pro['mixed_pred'] == 3]['count'].astype(int).tolist()
-        class3 = class3 + zero_class3
-        sibs = dnvs_sibs.groupby(
-            'spid')['gene_set&consequence'].sum().tolist()
-        sibs = sibs + zero_sibs['count'].astype(int).tolist()
-        all_pros_data = class0 + class1 + class2 + class3
-
-        # get p-values comparing each class to sibs using a t-test
-        sibs_rest_of_sample = class0 + class1 + class2 + class3
-        class0_pval = min(ttest_ind(
-            class0, class1, alternative='less')[1], ttest_ind(class0, class1, alternative='greater')[1])
-        class3_pval = min(ttest_ind(
-            class3, class1, alternative='less')[1], ttest_ind(class3, class1, alternative='greater')[1])
-        class2_pval = min(ttest_ind(
-            class2, class1, alternative='less')[1], ttest_ind(class2, class1, alternative='greater')[1])
-        
-        background = (np.sum(class1))/(num_class1)
-
-        class0_fe = max((np.sum(class0)/num_class0)/background, background/(np.sum(class0)/num_class0))
-        class2_fe = max((np.sum(class2)/num_class2)/background, background/(np.sum(class2)/num_class2))
-        class3_fe = max((np.sum(class3)/num_class3)/background, background/(np.sum(class3)/num_class3))
-
-        class0_df = pd.DataFrame({'variable': gene_set, 'value': class0_pval,
-                                  'Fold Enrichment': class0_fe, 'cluster': 'Moderate Challenges', 'vs.': 'Broadly Impacted',
-                                  }, index=[0])
-        class2_df = pd.DataFrame({'variable': gene_set, 'value': class2_pval,
-                                  'Fold Enrichment': class2_fe, 'cluster': 'Social/Behavioral', 'vs.': 'Broadly Impacted',
-                                  }, index=[0])
-        class3_df = pd.DataFrame({'variable': gene_set, 'value': class3_pval,
-                                    'Fold Enrichment': class3_fe, 'cluster': 'Mixed ASD with DD', 'vs.': 'Broadly Impacted',
-                                    }, index=[0])
-        validation_subset = pd.concat([validation_subset, 
-                                       class0_df, class2_df, class3_df], 
-                                       axis=0)
-    
-    # duplicate 'value' and rename to 'p' for one
+    # duplicate 'value' and rename to 'p'
     validation_subset['p'] = validation_subset['value']
 
     # correct for multiple testing
-    validation_subset['value'] = -np.log10(multipletests(
-        validation_subset['value'], method='fdr_bh')[1])
+    validation_subset['value'] = -np.log10(
+        multipletests(validation_subset['value'], method='fdr_bh')[1]
+    )
 
-    validation_subset.to_csv('../supp_tables/Supp_Table_gene_sets_class1_baseline.csv')
-
-
-def compute_stats_class2_baseline():
-    # run function or load precomputed data
-    gene_sets, gene_set_names = get_gene_sets()
-    dnvs_pro, dnvs_sibs, zero_pro, zero_sibs = load_dnvs()
-    
-    # select LoF consequences
-    consequences = [
-        'stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 
-        'splice_donor_variant', 'start_lost', 'stop_lost', 
-        'transcript_ablation'
-        ]
-   
-    # annotate dnvs_pro and dnvs_sibs with consequence (binary)
-    dnvs_pro['consequence'] = dnvs_pro['Consequence'].apply(
-        lambda x: 1 if x in consequences else 0)
-    dnvs_sibs['consequence'] = dnvs_sibs['Consequence'].apply(
-        lambda x: 1 if x in consequences else 0)
-    
-    # for each gene set, annotate dnvs_pro and dnvs_sibs 
-    # with gene set membership (binary)
-    for i in range(len(gene_set_names)):
-        dnvs_pro[gene_set_names[i]] = dnvs_pro['name'].apply(
-            lambda x: 1 if x in gene_sets[i] else 0)
-        dnvs_sibs[gene_set_names[i]] = dnvs_sibs['name'].apply(
-            lambda x: 1 if x in gene_sets[i] else 0)
-    
-    # get number of participants in each class
-    num_class0 = dnvs_pro[dnvs_pro['class'] == 0]['spid'].nunique() + \
-        zero_pro[zero_pro['mixed_pred'] == 0]['spid'].nunique()
-    num_class1 = dnvs_pro[dnvs_pro['class'] == 1]['spid'].nunique() + \
-        zero_pro[zero_pro['mixed_pred'] == 1]['spid'].nunique()
-    num_class2 = dnvs_pro[dnvs_pro['class'] == 2]['spid'].nunique() + \
-        zero_pro[zero_pro['mixed_pred'] == 2]['spid'].nunique()
-    num_class3 = dnvs_pro[dnvs_pro['class'] == 3]['spid'].nunique() + \
-        zero_pro[zero_pro['mixed_pred'] == 3]['spid'].nunique()
-    num_sibs = dnvs_sibs['spid'].nunique() + zero_sibs['spid'].nunique()
-    all_spids = num_class0 + num_class1 + num_class2 + num_class3
-
-    # compute enrichments for each gene set
-    validation_subset = pd.DataFrame()
-    for gene_set in ['all_genes', 'lof_genes', 'fmrp_genes', 
-                      'asd_risk_genes', 'sfari_genes1', 'satterstrom', 
-                      'brain_expressed_genes'][::-1]:
-        dnvs_pro['gene_set&consequence'] = dnvs_pro[gene_set] * \
-                                           dnvs_pro['consequence'] * \
-                                           dnvs_pro['LoF'] 
-        dnvs_sibs['gene_set&consequence'] = dnvs_sibs[gene_set] * \
-                                            dnvs_sibs['consequence'] * \
-                                            dnvs_sibs['LoF']
-    
-        class0 = dnvs_pro[dnvs_pro['class'] == 0].groupby(
-            'spid')['gene_set&consequence'].sum().tolist()
-        zero_class0 = zero_pro[
-            zero_pro['mixed_pred'] == 0]['count'].astype(int).tolist()
-        class0 = class0 + zero_class0
-        class1 = dnvs_pro[dnvs_pro['class'] == 1].groupby(
-            'spid')['gene_set&consequence'].sum().tolist()
-        zero_class1 = zero_pro[zero_pro[
-            'mixed_pred'] == 1]['count'].astype(int).tolist()
-        class1 = class1 + zero_class1
-        class2 = dnvs_pro[dnvs_pro['class'] == 2].groupby(
-            'spid')['gene_set&consequence'].sum().tolist() 
-        zero_class2 = zero_pro[
-            zero_pro['mixed_pred'] == 2]['count'].astype(int).tolist()
-        class2 = class2 + zero_class2
-        class3 = dnvs_pro[dnvs_pro['class'] == 3].groupby(
-            'spid')['gene_set&consequence'].sum().tolist()
-        zero_class3 = zero_pro[
-            zero_pro['mixed_pred'] == 3]['count'].astype(int).tolist()
-        class3 = class3 + zero_class3
-        sibs = dnvs_sibs.groupby(
-            'spid')['gene_set&consequence'].sum().tolist()
-        sibs = sibs + zero_sibs['count'].astype(int).tolist()
-        all_pros_data = class0 + class1 + class2 + class3
-
-        # get p-values comparing each class to sibs using a t-test
-        class0_pval = min(ttest_ind(
-            class0, class2, alternative='less')[1], ttest_ind(class0, class2, alternative='greater')[1])
-        class1_pval = min(ttest_ind(
-            class1, class2, alternative='greater')[1], ttest_ind(class1, class2, alternative='less')[1])
-        class3_pval = min(ttest_ind(
-            class3, class2, alternative='greater')[1], ttest_ind(class3, class2, alternative='less')[1])
-        
-        background = (np.sum(class2))/(num_class2)
-        class0_fe = max((np.sum(class0)/num_class0)/background, background/(np.sum(class0)/num_class0))
-        class1_fe = max((np.sum(class1)/num_class1)/background, background/(np.sum(class1)/num_class1))
-        class3_fe = max((np.sum(class3)/num_class3)/background, background/(np.sum(class3)/num_class3))
-
-        class0_df = pd.DataFrame({'variable': gene_set, 'value': class0_pval,
-                                  'Fold Enrichment': class0_fe, 'cluster': 'Moderate Challenges', 'vs.': 'Social/Behavioral',
-                                  }, index=[0])
-        class1_df = pd.DataFrame({'variable': gene_set, 'value': class1_pval,
-                                  'Fold Enrichment': class1_fe, 'cluster': 'Broadly Impacted', 'vs.': 'Social/Behavioral', 
-                                  }, index=[0])
-        class3_df = pd.DataFrame({'variable': gene_set, 'value': class3_pval,
-                                    'Fold Enrichment': class3_fe, 'cluster': 'Mixed ASD with DD', 'vs.': 'Social/Behavioral', 
-                                    }, index=[0])
-        validation_subset = pd.concat([validation_subset, 
-                                       class0_df, class1_df, class3_df], 
-                                       axis=0)
-    
-    # duplicate 'value' and rename to 'p' for one
-    validation_subset['p'] = validation_subset['value']
-    
-    # correct for multiple testing
-    validation_subset['value'] = -np.log10(multipletests(
-        validation_subset['value'], method='fdr_bh')[1])
-
-    validation_subset.to_csv('../supp_tables/Supp_Table_gene_sets_class2_baseline.csv')
-
-
-def compute_stats_class0_baseline():
-    # run function or load precomputed data
-    gene_sets, gene_set_names = get_gene_sets()
-    dnvs_pro, dnvs_sibs, zero_pro, zero_sibs = load_dnvs()
-    
-    # select LoF consequences
-    consequences = [
-        'stop_gained', 'frameshift_variant', 'splice_acceptor_variant', 
-        'splice_donor_variant', 'start_lost', 'stop_lost', 
-        'transcript_ablation'
-        ]
-   
-    # annotate dnvs_pro and dnvs_sibs with consequence (binary)
-    dnvs_pro['consequence'] = dnvs_pro['Consequence'].apply(
-        lambda x: 1 if x in consequences else 0)
-    dnvs_sibs['consequence'] = dnvs_sibs['Consequence'].apply(
-        lambda x: 1 if x in consequences else 0)
-    
-    # for each gene set, annotate dnvs_pro and dnvs_sibs 
-    # with gene set membership (binary)
-    for i in range(len(gene_set_names)):
-        dnvs_pro[gene_set_names[i]] = dnvs_pro['name'].apply(
-            lambda x: 1 if x in gene_sets[i] else 0)
-        dnvs_sibs[gene_set_names[i]] = dnvs_sibs['name'].apply(
-            lambda x: 1 if x in gene_sets[i] else 0)
-    
-    # get number of participants in each class
-    num_class0 = dnvs_pro[dnvs_pro['class'] == 0]['spid'].nunique() + \
-        zero_pro[zero_pro['mixed_pred'] == 0]['spid'].nunique()
-    num_class1 = dnvs_pro[dnvs_pro['class'] == 1]['spid'].nunique() + \
-        zero_pro[zero_pro['mixed_pred'] == 1]['spid'].nunique()
-    num_class2 = dnvs_pro[dnvs_pro['class'] == 2]['spid'].nunique() + \
-        zero_pro[zero_pro['mixed_pred'] == 2]['spid'].nunique()
-    num_class3 = dnvs_pro[dnvs_pro['class'] == 3]['spid'].nunique() + \
-        zero_pro[zero_pro['mixed_pred'] == 3]['spid'].nunique()
-    num_sibs = dnvs_sibs['spid'].nunique() + zero_sibs['spid'].nunique()
-    all_spids = num_class0 + num_class1 + num_class2 + num_class3
-
-    # compute enrichments for each gene set
-    validation_subset = pd.DataFrame()
-    for gene_set in ['all_genes', 'lof_genes', 'fmrp_genes', 
-                      'asd_risk_genes', 'sfari_genes1', 'satterstrom', 
-                      'brain_expressed_genes'][::-1]:
-        dnvs_pro['gene_set&consequence'] = dnvs_pro[gene_set] * \
-                                           dnvs_pro['consequence'] * \
-                                           dnvs_pro['LoF'] 
-        dnvs_sibs['gene_set&consequence'] = dnvs_sibs[gene_set] * \
-                                            dnvs_sibs['consequence'] * \
-                                            dnvs_sibs['LoF']
-    
-        class0 = dnvs_pro[dnvs_pro['class'] == 0].groupby(
-            'spid')['gene_set&consequence'].sum().tolist()
-        zero_class0 = zero_pro[
-            zero_pro['mixed_pred'] == 0]['count'].astype(int).tolist()
-        class0 = class0 + zero_class0
-        class1 = dnvs_pro[dnvs_pro['class'] == 1].groupby(
-            'spid')['gene_set&consequence'].sum().tolist()
-        zero_class1 = zero_pro[zero_pro[
-            'mixed_pred'] == 1]['count'].astype(int).tolist()
-        class1 = class1 + zero_class1
-        class2 = dnvs_pro[dnvs_pro['class'] == 2].groupby(
-            'spid')['gene_set&consequence'].sum().tolist() 
-        zero_class2 = zero_pro[
-            zero_pro['mixed_pred'] == 2]['count'].astype(int).tolist()
-        class2 = class2 + zero_class2
-        class3 = dnvs_pro[dnvs_pro['class'] == 3].groupby(
-            'spid')['gene_set&consequence'].sum().tolist()
-        zero_class3 = zero_pro[
-            zero_pro['mixed_pred'] == 3]['count'].astype(int).tolist()
-        class3 = class3 + zero_class3
-        sibs = dnvs_sibs.groupby(
-            'spid')['gene_set&consequence'].sum().tolist()
-        sibs = sibs + zero_sibs['count'].astype(int).tolist()
-        all_pros_data = class0 + class1 + class2 + class3
-
-        # get p-values comparing each class to sibs using a t-test
-        class1_pval = ttest_ind(
-            class1, class0, alternative='greater')[1]
-        class2_pval = ttest_ind(
-            class2, class0, alternative='greater')[1]
-        class3_pval = ttest_ind(
-            class3, class0, alternative='greater')[1]
-        
-        background = (np.sum(class0))/(num_class0)
-        class1_fe = (np.sum(class1)/num_class1)/background
-        class2_fe = (np.sum(class2)/num_class2)/background
-        class3_fe = (np.sum(class3)/num_class3)/background
-
-        class1_df = pd.DataFrame({'variable': gene_set, 'value': class1_pval,
-                                  'Fold Enrichment': class1_fe, 'cluster': 1, 
-                                  }, index=[0])
-        class2_df = pd.DataFrame({'variable': gene_set, 'value': class2_pval,
-                                  'Fold Enrichment': class2_fe, 'cluster': 2, 
-                                  }, index=[0])
-        class3_df = pd.DataFrame({'variable': gene_set, 'value': class3_pval,
-                                    'Fold Enrichment': class3_fe, 'cluster': 3, 
-                                    }, index=[0])
-        validation_subset = pd.concat([validation_subset, 
-                                       class1_df, class2_df, class3_df], 
-                                       axis=0)
-    
-    # duplicate 'value' and rename to 'p' for one
-    validation_subset['p'] = validation_subset['value']
-    
-    # correct for multiple testing
-    validation_subset['value'] = -np.log10(multipletests(
-        validation_subset['value'], method='fdr_bh')[1])
-
-    validation_subset.to_csv('../supp_tables/Supp_Table_gene_sets_class0_baseline.csv')
+    validation_subset.to_csv(out_csv, index=False)
 
 
 def create_supp_table():
@@ -1181,9 +822,7 @@ if __name__ == '__main__':
     volcano_missense()
     volcano_inherited()
     
-    compute_stats_class0_baseline()
-    compute_stats_class1_baseline()
-    compute_stats_class2_baseline()
-    compute_stats_class3_baseline()
+    for i in range(4):
+        compute_stats_class_baseline(baseline_class=i, out_csv=f'../supp_tables/Supp_Table_gene_sets_class{i}_baseline.csv')
 
     create_supp_table()
