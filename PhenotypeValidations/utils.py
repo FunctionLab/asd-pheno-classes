@@ -305,12 +305,10 @@ def get_feature_enrichments(mixed_data, summarize=False):
     class2 = mixed_data[mixed_data['mixed_pred'] == 2]
     class3 = mixed_data[mixed_data['mixed_pred'] == 3]
 
-    binary_features = []
     for feature in mixed_data.drop(['mixed_pred'],axis=1).columns:
 
         unique = mixed_data[feature].unique()
         if len(unique) == 2:  ## binary
-            binary_features.append(feature)
             background_prob = int(np.sum(mixed_data[feature]))
             total = len(mixed_data[feature])
             total_in_class0 = len(class0[feature])
@@ -569,18 +567,9 @@ def get_correlation(spark_labels, ssc_labels):
     # (1) features with no significant enrichments in any class
     # (2) features with all cohen's d values < 0.2 or FE < 1.5
     # get features where all classes is nan
-    binary_features = ['repeat_grade', 'q01_phrases', 'q02_conversation', 'q03_odd_phrase', 
-                       'q04_inappropriate_question', 'q05_pronouns_mixed', 'q06_invented_words',
-                       'q07_same_over', 'q08_particular_way', 'q09_expressions_appropriate', 
-                       'q10_hand_tool', 'q11_interest_preoccupy', 'q12_parts_object', 
-                       'q13_interests_intensity', 'q14_senses', 'q15_odd_ways', 
-                       'q16_complicated_movements', 'q17_injured_deliberately', 'q18_objects_carry', 
-                       'q19_best_friend', 'q20_talk_friendly', 'q21_copy_you', 'q22_point_things', 
-                       'q23_gestures_wanted', 'q24_nod_head', 'q25_shake_head', 'q26_look_directly', 
-                       'q27_smile_back', 'q28_things_interested', 'q29_share', 'q30_join_enjoyment', 
-                       'q31_comfort', 'q32_help_attention', 'q33_range_expressions', 'q34_copy_actions', 
-                       'q35_make_believe', 'q36_same_age', 'q37_respond_positively', 'q38_pay_attention', 
-                       'q39_imaginative_games', 'q40_cooperatively_games']
+    with open('../PhenotypeClasses/data/binary_columns.pkl', 'rb') as f:
+        binary_features = pickle.load(f)
+        
     # compute features to exclude
     nan_features = features_to_exclude.loc[(features_to_exclude['class0'].isna()) & 
                                             (features_to_exclude['class1'].isna()) & 
@@ -754,12 +743,10 @@ def get_feature_enrichments_3classes(mixed_data, summarize=False):
     class1 = mixed_data[mixed_data['mixed_pred'] == 1]
     class2 = mixed_data[mixed_data['mixed_pred'] == 2]
 
-    binary_features = []
     for feature in mixed_data.drop(['mixed_pred'],axis=1).columns:
 
         unique = mixed_data[feature].unique()
         if len(unique) == 2:  ## binary
-            binary_features.append(feature)
             background_prob = int(np.sum(mixed_data[feature]))
             total = len(mixed_data[feature])
             total_in_class0 = len(class0[feature])
@@ -935,12 +922,10 @@ def get_feature_enrichments_5classes(mixed_data, ncomp=5, summarize=False):
     class3 = mixed_data[mixed_data['mixed_pred'] == 3]
     class4 = mixed_data[mixed_data['mixed_pred'] == 4]
 
-    binary_features = []
     for feature in mixed_data.drop(['mixed_pred'],axis=1).columns:
 
         unique = mixed_data[feature].unique()
         if len(unique) == 2:  ## binary
-            binary_features.append(feature)
             background_prob = int(np.sum(mixed_data[feature]))
             total = len(mixed_data[feature])
             total_in_class0 = len(class0[feature])
@@ -1152,12 +1137,10 @@ def get_feature_enrichments_6classes(mixed_data, ncomp=6, summarize=False):
     class4 = mixed_data[mixed_data['mixed_pred'] == 4]
     class5 = mixed_data[mixed_data['mixed_pred'] == 5]
 
-    binary_features = []
     for feature in mixed_data.drop(['mixed_pred'],axis=1).columns:
 
         unique = mixed_data[feature].unique()
         if len(unique) == 2:  ## binary
-            binary_features.append(feature)
             background_prob = int(np.sum(mixed_data[feature]))
             total = len(mixed_data[feature])
             total_in_class0 = len(class0[feature])
@@ -1385,22 +1368,8 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments, ncomp):
     for cls in range(ncomp):
         features_to_exclude[f'class{cls}'] = features_to_exclude[f'class{cls}'].abs()
 
-    binary_features = [
-        'repeat_grade', 'q01_phrases', 'q02_conversation', 'q03_odd_phrase',
-        'q04_inappropriate_question', 'q05_pronouns_mixed', 'q06_invented_words',
-        'q07_same_over', 'q08_particular_way', 'q09_expressions_appropriate',
-        'q10_hand_tool', 'q11_interest_preoccupy', 'q12_parts_object',
-        'q13_interests_intensity', 'q14_senses', 'q15_odd_ways',
-        'q16_complicated_movements', 'q17_injured_deliberately',
-        'q18_objects_carry', 'q19_best_friend', 'q20_talk_friendly',
-        'q21_copy_you', 'q22_point_things', 'q23_gestures_wanted',
-        'q24_nod_head', 'q25_shake_head', 'q26_look_directly', 
-        'q27_smile_back', 'q28_things_interested', 'q29_share', 
-        'q30_join_enjoyment', 'q31_comfort', 'q32_help_attention', 
-        'q33_range_expressions', 'q34_copy_actions', 'q35_make_believe',
-        'q36_same_age', 'q37_respond_positively', 'q38_pay_attention', 
-        'q39_imaginative_games', 'q40_cooperatively_games'
-    ]
+    with open('../PhenotypeClasses/data/binary_columns.pkl', 'rb') as f:
+        binary_features = pickle.load(f)
 
     # select features to exclude based on their presence in all classes
     nan_condition = (features_to_exclude[f'class{cls}'].isna() for cls in range(ncomp))
