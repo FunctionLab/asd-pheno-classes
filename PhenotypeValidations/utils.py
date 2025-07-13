@@ -534,18 +534,16 @@ def match_class_labels(gt_df, exp_df):
     pd.DataFrame: A new DataFrame with experimental labels reassigned based on overlap with ground truth.
     """
     
-    # Check if the required column exists
     if 'mixed_pred' not in gt_df.columns or 'mixed_pred' not in exp_df.columns:
         raise ValueError("Both DataFrames must contain a 'mixed_pred' column.")
     
-    # Get unique class labels
     gt_classes = gt_df['mixed_pred'].unique()
     exp_classes = exp_df['mixed_pred'].unique()
 
-    # Initialize a dictionary to store overlaps
+    # initialize a dictionary to store overlaps
     overlap_dict = {exp_class: {gt_class: 0 for gt_class in gt_classes} for exp_class in exp_classes}
 
-    # Calculate overlap between experimental and ground truth classes
+    # calculate overlap between experimental and ground truth classes
     for exp_class in np.arange(len(exp_classes)):
         for gt_class in np.arange(len(gt_classes)):
             overlap = len(gt_df[gt_df['mixed_pred'] == gt_class].index.intersection(exp_df[exp_df['mixed_pred'] == exp_class].index))
@@ -553,41 +551,34 @@ def match_class_labels(gt_df, exp_df):
             overlap = overlap / exp_class_size
             overlap_dict[exp_class][gt_class] = overlap
 
-    # Create a mapping for experimental classes to ground truth classes based on max overlap
+    # create a mapping for experimental classes to ground truth classes based on max overlap
     label_mapping = {}
     assigned_gt_classes = {}
     
     for exp_class, overlaps in overlap_dict.items():
         max_gt_class = max(overlaps, key=overlaps.get)
         
-        # If the max_gt_class is already assigned to another exp_class
         if max_gt_class in assigned_gt_classes:
-            # Compare the overlaps of the conflicting classes
             other_exp_class = assigned_gt_classes[max_gt_class]
             if overlap_dict[other_exp_class][max_gt_class] < overlap_dict[exp_class][max_gt_class]:
-                # Assign max_gt_class to the current exp_class
                 label_mapping[exp_class] = max_gt_class
-                # The previous assignment gets unassigned
                 del label_mapping[other_exp_class]
             else:
-                # Keep the previous assignment and unassign the current exp_class
                 continue
         else:
             label_mapping[exp_class] = max_gt_class
         
-        # Track which experimental classes were assigned to ground truth
         assigned_gt_classes[max_gt_class] = exp_class
 
-    # Handle any unassigned experimental or ground truth classes
+    # handle any unassigned experimental or ground truth classes
     unassigned_exp_classes = set(exp_classes) - set(label_mapping.keys())
     unassigned_gt_classes = set(gt_classes) - set(label_mapping.values())
 
-    # Assign remaining experimental class to remaining unassigned ground truth class
     if unassigned_exp_classes and unassigned_gt_classes:
         for exp_class, gt_class in zip(unassigned_exp_classes, unassigned_gt_classes):
             label_mapping[exp_class] = gt_class
 
-    # Reassign experimental labels based on the mapping
+    # reassign experimental labels based on the mapping
     exp_df['matched_labels'] = exp_df['mixed_pred'].map(label_mapping)
     exp_df = exp_df.drop('mixed_pred', axis=1)
     exp_df.rename(columns={'matched_labels': 'mixed_pred'}, inplace=True)
