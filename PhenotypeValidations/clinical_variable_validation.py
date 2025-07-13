@@ -269,31 +269,21 @@ def compute_fold_enrichment(group1, group2):
     """
     Compute fold enrichment between two groups for a specific event.
 
-    Parameters:
-    group1 (pd.Series): Series containing binary or categorical data for Group 1.
-    group2 (pd.Series): Series containing binary or categorical data for Group 2.
-    event: The event or condition for which to compute the fold enrichment.
-           This could be a value in the binary/categorical data.
-
     Returns:
     float: The fold enrichment of the event in Group 1 compared to Group 2.
     """
 
-    # Proportion of the event in Group 1
     group1_event_count = np.sum(group1)
     group1_total = len(group1)
     group1_proportion = group1_event_count / group1_total
 
-    # Proportion of the event in Group 2
     group2_event_count = np.sum(group2)
     group2_total = len(group2)
     group2_proportion = group2_event_count / group2_total
 
-    # To avoid division by zero
     if group2_proportion == 0:
-        return float('inf')  # Fold enrichment is infinite if the event never occurs in Group 2
+        return float('inf')
     
-    # Calculate fold enrichment
     fold_enrichment = group1_proportion / group2_proportion
 
     return fold_enrichment
@@ -370,19 +360,18 @@ def individual_registration_validation():
         classes = [var_data[var_data['mixed_pred'] == i][var].astype(float).to_list() for i in range(4)]
         # Hypothesis testing between groups
         if var == 'language_level_at_enrollment':
-            pvals = [ttest_ind(classes[0], classes[1], equal_var=False, alternative='greater').pvalue,
-                    ttest_ind(classes[1], classes[3], equal_var=False, alternative='greater').pvalue,
-                    ttest_ind(classes[2], classes[0], equal_var=False, alternative='greater').pvalue,
-                    ttest_ind(classes[2], classes[3], equal_var=False, alternative='greater').pvalue,
-                    ttest_ind(classes[2], classes[1], equal_var=False, alternative='greater').pvalue,
-                    ttest_ind(classes[0], classes[3], equal_var=False, alternative='greater').pvalue]
-
-            fe_list = [compute_fold_enrichment(classes[0], classes[1]),
-                    compute_fold_enrichment(classes[1], classes[3]),
-                    compute_fold_enrichment(classes[2], classes[0]),
-                    compute_fold_enrichment(classes[2], classes[3]),
-                    compute_fold_enrichment(classes[2], classes[1]),
-                    compute_fold_enrichment(classes[0], classes[3])]
+            class_pairs = [
+                (0, 1),
+                (1, 3),
+                (2, 0),
+                (2, 3),
+                (2, 1),
+                (0, 3),
+            ]
+            
+            # Compute p-values and fold enrichments
+            pvals = [ttest_ind(classes[i], classes[j], equal_var=False, alternative='greater').pvalue for i, j in class_pairs]
+            fe_list = [compute_fold_enrichment(classes[i], classes[j]) for i, j in class_pairs]
             
             # multiple hypothesis correction with Benjamini-Hochberg
             uncorrected_pvals = pvals
@@ -402,59 +391,33 @@ def individual_registration_validation():
 
             custom_pvalues = list(pvals)[:3]
             star_labels = get_star_labels(custom_pvalues, custom_thresholds)
-            pairs = [(0,1), (1, 3), (2, 0)]  # Pairs of x indices to connect
-            y_positions = [3, 3.25, 3.5]  # Y positions for stars
+            pairs = [(0,1), (1, 3), (2, 0)] 
+            y_positions = [3, 3.25, 3.5]
 
-            # Call the function to draw lines and stars
+            # call the function to draw lines and stars
             draw_lines_and_stars(ax, pairs, y_positions, star_labels, star_size=16)
 
         elif var == 'cognitive_impairment_at_enrollment':
-            # Placeholder for p-values
             pvals = []
 
-            # Binomial test: classes[1] vs classes[0] (greater)
-            successes = int(sum(classes[1]))
-            total = len(classes[1])
-            expected_proportion = sum(classes[0]) / len(classes[0])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[1] vs classes[3] (greater)
-            successes = int(sum(classes[1]))
-            total = len(classes[1])
-            expected_proportion = sum(classes[3]) / len(classes[3])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[2] vs classes[0] (greater)
-            successes = int(sum(classes[2]))
-            total = len(classes[2])
-            expected_proportion = sum(classes[0]) / len(classes[0])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[1] vs classes[2] (greater)
-            successes = int(sum(classes[1]))
-            total = len(classes[1])
-            expected_proportion = sum(classes[2]) / len(classes[2])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[3] vs classes[0] (greater)
-            successes = int(sum(classes[3]))
-            total = len(classes[3])
-            expected_proportion = sum(classes[0]) / len(classes[0])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[3] vs classes[2] (greater)
-            successes = int(sum(classes[3]))
-            total = len(classes[3])
-            expected_proportion = sum(classes[2]) / len(classes[2])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # fold enrichment computation
-            fe_list = [compute_fold_enrichment(classes[1], classes[0]),
-                    compute_fold_enrichment(classes[1], classes[3]),
-                    compute_fold_enrichment(classes[2], classes[0]),
-                    compute_fold_enrichment(classes[1], classes[2]),
-                    compute_fold_enrichment(classes[3], classes[0]),
-                    compute_fold_enrichment(classes[3], classes[2])]
+            class_pairs = [
+                (1, 0),
+                (1, 3),
+                (2, 0),
+                (1, 2),
+                (3, 0),
+                (3, 2),
+            ]
+            
+            # binomial tests
+            for i, j in class_pairs:
+                successes = int(sum(classes[i]))
+                total = len(classes[i])
+                expected_proportion = sum(classes[j]) / len(classes[j])
+                pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
+            
+            # fold enrichment
+            fe_list = [compute_fold_enrichment(classes[i], classes[j]) for i, j in class_pairs]
             
             # multiple hypothesis correction with Benjamini-Hochberg
             uncorrected_pvals = pvals
@@ -481,18 +444,18 @@ def individual_registration_validation():
             draw_lines_and_stars(ax, pairs, y_positions, star_labels, star_size=16)
 
         elif var == 'diagnosis_age':
-            pvals = [ttest_ind(classes[2], classes[3], equal_var=False, alternative='greater').pvalue,
-                    ttest_ind(classes[2], classes[0], equal_var=False, alternative='greater').pvalue,
-                    ttest_ind(classes[1], classes[3], equal_var=False, alternative='greater').pvalue,
-                    ttest_ind(classes[2], classes[1], equal_var=False, alternative='greater').pvalue,
-                    ttest_ind(classes[0], classes[3], equal_var=False, alternative='greater').pvalue,
-                    ttest_ind(classes[0], classes[1], equal_var=False, alternative='greater').pvalue]
-            cohens_d_list = [cohens_d(classes[2], classes[3]),
-                    cohens_d(classes[2], classes[0]),
-                    cohens_d(classes[1], classes[3]),
-                    cohens_d(classes[2], classes[1]),
-                    cohens_d(classes[0], classes[3]),
-                    cohens_d(classes[0], classes[1])]
+            class_pairs = [
+                (2, 3),
+                (2, 0),
+                (1, 3),
+                (2, 1),
+                (0, 3),
+                (0, 1),
+            ]
+            
+            # compute p-values and Cohen's d
+            pvals = [ttest_ind(classes[i], classes[j], equal_var=False, alternative='greater').pvalue for i, j in class_pairs]
+            cohens_d_list = [cohens_d(classes[i], classes[j]) for i, j in class_pairs]
             
             # multiple hypothesis correction with Benjamini-Hochberg
             uncorrected_pvals = pvals
@@ -604,17 +567,10 @@ def cohens_d(group1, group2):
     Returns:
     float: Cohen's d effect size.
     """
-    # Convert to numpy arrays for easy manipulation
     group1, group2 = np.array(group1), np.array(group2)
-    
-    # Calculate the mean and standard deviation of each group
     mean1, mean2 = np.mean(group1), np.mean(group2)
     std1, std2 = np.std(group1, ddof=1), np.std(group2, ddof=1)
-    
-    # Calculate the pooled standard deviation
     pooled_std = np.sqrt(((std1 ** 2) + (std2 ** 2)) / 2)
-    
-    # Calculate Cohen's d
     d = (mean1 - mean2) / pooled_std
     return d
 
@@ -660,25 +616,19 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
     cohens_d_list = [cohens_d(cls, sib_bh_data[milestone]) for cls in classes]
     comparisons += [('class0', 'siblings'), ('class1', 'siblings'), ('class2', 'siblings'), ('class3', 'siblings')]
 
-    # compute pvals, cohen's d
-    pvals.append(ttest_ind(classes[1], classes[0], equal_var=False, alternative='greater').pvalue)
-    comparisons.append(('class1', 'class0'))
-    cohens_d_list.append(cohens_d(classes[1], classes[0]))
-    pvals.append(ttest_ind(classes[0], classes[2], equal_var=False, alternative='greater').pvalue)
-    comparisons.append(('class0', 'class2'))
-    cohens_d_list.append(cohens_d(classes[0], classes[2]))
-    pvals.append(ttest_ind(classes[3], classes[1], equal_var=False, alternative='greater').pvalue)
-    comparisons.append(('class3', 'class1'))
-    cohens_d_list.append(cohens_d(classes[3], classes[1]))
-    pvals.append(ttest_ind(classes[1], classes[2], equal_var=False, alternative='greater').pvalue)
-    comparisons.append(('class1', 'class2'))
-    cohens_d_list.append(cohens_d(classes[1], classes[2]))
-    pvals.append(ttest_ind(classes[3], classes[0], equal_var=False, alternative='greater').pvalue)
-    comparisons.append(('class3', 'class0'))
-    cohens_d_list.append(cohens_d(classes[3], classes[0]))
-    pvals.append(ttest_ind(classes[3], classes[2], equal_var=False, alternative='greater').pvalue)
-    comparisons.append(('class3', 'class2'))
-    cohens_d_list.append(cohens_d(classes[3], classes[2]))
+    class_pairs = [
+        (1, 0),  # class1 > class0
+        (0, 2),  # class0 > class2
+        (3, 1),  # class3 > class1
+        (1, 2),  # class1 > class2
+        (3, 0),  # class3 > class0
+        (3, 2),  # class3 > class2
+    ]
+    
+    for i, j in class_pairs:
+        pvals.append(ttest_ind(classes[i], classes[j], equal_var=False, alternative='greater').pvalue)
+        comparisons.append((f'class{i}', f'class{j}'))
+        cohens_d_list.append(cohens_d(classes[i], classes[j]))
     
     # multiple hypothesis correction with Benjamini-Hochberg
     uncorrected_pvals = pvals
@@ -765,24 +715,19 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
     comparisons += (('class0', 'siblings'), ('class1', 'siblings'), ('class2', 'siblings'), ('class3', 'siblings'))
 
     # compute pvals, cohen's d
-    pvals.append(ttest_ind(classes[1], classes[0], equal_var=False, alternative='greater').pvalue)
-    comparisons.append(('class1', 'class0'))
-    cohens_d_list.append(cohens_d(classes[1], classes[0]))
-    pvals.append(ttest_ind(classes[2], classes[0], equal_var=False, alternative='greater').pvalue)
-    comparisons.append(('class0', 'class2'))
-    cohens_d_list.append(cohens_d(classes[2], classes[0]))
-    pvals.append(ttest_ind(classes[1], classes[3], equal_var=False, alternative='greater').pvalue)
-    comparisons.append(('class3', 'class1'))
-    cohens_d_list.append(cohens_d(classes[1], classes[3]))
-    pvals.append(ttest_ind(classes[1], classes[2], equal_var=False, alternative='greater').pvalue)
-    comparisons.append(('class1', 'class2'))
-    cohens_d_list.append(cohens_d(classes[1], classes[2]))
-    pvals.append(ttest_ind(classes[3], classes[0], equal_var=False, alternative='greater').pvalue)
-    comparisons.append(('class3', 'class0'))
-    cohens_d_list.append(cohens_d(classes[3], classes[0]))
-    pvals.append(ttest_ind(classes[3], classes[2], equal_var=False, alternative='greater').pvalue)
-    comparisons.append(('class3', 'class2'))
-    cohens_d_list.append(cohens_d(classes[3], classes[2]))
+   class_pairs = [
+        (1, 0),  # class1 > class0
+        (2, 0),  # class2 > class0
+        (1, 3),  # class1 > class3
+        (1, 2),  # class1 > class2
+        (3, 0),  # class3 > class0
+        (3, 2),  # class3 > class2
+    ]
+    
+    for i, j in class_pairs:
+        pvals.append(ttest_ind(classes[i], classes[j], equal_var=False, alternative='greater').pvalue)
+        comparisons.append((f'class{i}', f'class{j}'))
+        cohens_d_list.append(cohens_d(classes[i], classes[j]))
     
     # multiple hypothesis correction with Benjamini-Hochberg
     uncorrected_pvals = pvals
@@ -866,24 +811,20 @@ def scq_and_developmental_milestones_validation(gfmm_labels, ncomp):
     pvals = [ttest_ind(cls, sib_scq_data, equal_var=False, alternative='greater').pvalue for cls in classes]
     cohens_d_list = [cohens_d(cls, sib_scq_data) for cls in classes]
     comparisons += (('siblings', 'class0'), ('siblings', 'class1'), ('siblings', 'class2'), ('siblings', 'class3'))
-    pvals.append(ttest_ind(classes[1], classes[0], equal_var=False, alternative='greater').pvalue)
-    comparisons.append(('class1', 'class0'))
-    cohens_d_list.append(cohens_d(classes[1], classes[0]))
-    pvals.append(ttest_ind(classes[2], classes[0], equal_var=False, alternative='greater').pvalue)
-    comparisons.append(('class2', 'class0'))
-    cohens_d_list.append(cohens_d(classes[2], classes[0]))
-    pvals.append(ttest_ind(classes[1], classes[3], equal_var=False, alternative='greater').pvalue)
-    comparisons.append(('class1', 'class3'))
-    cohens_d_list.append(cohens_d(classes[1], classes[3]))
-    pvals.append(ttest_ind(classes[1], classes[2], equal_var=False, alternative='greater').pvalue)
-    comparisons.append(('class1', 'class2'))
-    cohens_d_list.append(cohens_d(classes[1], classes[2]))
-    pvals.append(ttest_ind(classes[3], classes[0], equal_var=False, alternative='greater').pvalue)
-    comparisons.append(('class3', 'class0'))
-    cohens_d_list.append(cohens_d(classes[3], classes[0]))
-    pvals.append(ttest_ind(classes[3], classes[2], equal_var=False, alternative='greater').pvalue)
-    comparisons.append(('class3', 'class2'))
-    cohens_d_list.append(cohens_d(classes[3], classes[2]))
+    class_pairs = [
+        (1, 0),  # class1 > class0
+        (2, 0),  # class2 > class0
+        (1, 3),  # class1 > class3
+        (1, 2),  # class1 > class2
+        (3, 0),  # class3 > class0
+        (3, 2),  # class3 > class2
+    ]
+    
+    # Perform tests and store results
+    for i, j in class_pairs:
+        pvals.append(ttest_ind(classes[i], classes[j], equal_var=False, alternative='greater').pvalue)
+        comparisons.append((f'class{i}', f'class{j}'))
+        cohens_d_list.append(cohens_d(classes[i], classes[j]))
     
     # multiple hypothesis correction with Benjamini-Hochberg
     uncorrected_pvals = pvals
@@ -1042,106 +983,51 @@ def hypothesis_testing_BMS_features():
                             compute_fold_enrichment(classes[3], classes[0]),
                             compute_fold_enrichment(classes[4], classes[0])]
 
-        # each group > and < all other probands
-        # Binomial test: classes[1] vs concatenation of [classes[2], classes[3], classes[4]] (greater)
-        successes = int(sum(classes[1]))
-        total = len(classes[1])
-        combined_successes = sum(np.concatenate([classes[2], classes[3], classes[4]]))
-        combined_total = len(np.concatenate([classes[2], classes[3], classes[4]]))
-        expected_proportion = combined_successes / combined_total
-        pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-        # Binomial test: classes[1] vs concatenation of [classes[2], classes[3], classes[4]] (less)
-        pvals.append(binomtest(successes, total, expected_proportion, alternative='less').pvalue)
-
-        # Binomial test: classes[2] vs concatenation of [classes[1], classes[3], classes[4]] (greater)
-        successes = int(sum(classes[2]))
-        total = len(classes[2])
-        combined_successes = sum(np.concatenate([classes[1], classes[3], classes[4]]))
-        combined_total = len(np.concatenate([classes[1], classes[3], classes[4]]))
-        expected_proportion = combined_successes / combined_total
-        pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-        # Binomial test: classes[2] vs concatenation of [classes[1], classes[3], classes[4]] (less)
-        pvals.append(binomtest(successes, total, expected_proportion, alternative='less').pvalue)
-
-        # Binomial test: classes[3] vs concatenation of [classes[1], classes[2], classes[4]] (greater)
-        successes = int(sum(classes[3]))
-        total = len(classes[3])
-        combined_successes = sum(np.concatenate([classes[1], classes[2], classes[4]]))
-        combined_total = len(np.concatenate([classes[1], classes[2], classes[4]]))
-        expected_proportion = combined_successes / combined_total
-        pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-        # Binomial test: classes[3] vs concatenation of [classes[1], classes[2], classes[4]] (less)
-        pvals.append(binomtest(successes, total, expected_proportion, alternative='less').pvalue)
-
-        # Binomial test: classes[4] vs concatenation of [classes[1], classes[2], classes[3]] (greater)
-        successes = int(sum(classes[4]))
-        total = len(classes[4])
-        combined_successes = sum(np.concatenate([classes[1], classes[2], classes[3]]))
-        combined_total = len(np.concatenate([classes[1], classes[2], classes[3]]))
-        expected_proportion = combined_successes / combined_total
-        pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-        # Binomial test: classes[4] vs concatenation of [classes[1], classes[2], classes[3]] (less)
-        pvals.append(binomtest(successes, total, expected_proportion, alternative='less').pvalue)
-
-        fold_changes += [compute_fold_enrichment(classes[1], np.concatenate([classes[2],classes[3],classes[4]])),
-                            compute_fold_enrichment(np.concatenate([classes[2],classes[3],classes[4]]), classes[1]),
-                            compute_fold_enrichment(classes[2], np.concatenate([classes[1],classes[3],classes[4]])),
-                            compute_fold_enrichment(np.concatenate([classes[1],classes[3],classes[4]]), classes[2]),
-                            compute_fold_enrichment(classes[3], np.concatenate([classes[1],classes[2],classes[4]])),
-                            compute_fold_enrichment(np.concatenate([classes[1],classes[2],classes[4]]), classes[3]),
-                            compute_fold_enrichment(classes[4], np.concatenate([classes[1],classes[2],classes[3]])),
-                            compute_fold_enrichment(np.concatenate([classes[1],classes[2],classes[3]]), classes[4])]
-
+        binom_configs = [
+            (1, [2, 3, 4]),
+            (2, [1, 3, 4]),
+            (3, [1, 2, 4]),
+            (4, [1, 2, 3]),
+        ]
+        
+        # run binomial tests (greater and less) and compute fold enrichment
+        for test_idx, comp_idxs in binom_configs:
+            test_class = classes[test_idx]
+            comp_class = np.concatenate([classes[i] for i in comp_idxs])
+            
+            successes = int(np.sum(test_class))
+            total = len(test_class)
+            expected_proportion = np.sum(comp_class) / len(comp_class)
+            
+            # binomial tests (greater and less)
+            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
+            pvals.append(binomtest(successes, total, expected_proportion, alternative='less').pvalue)
+        
+            # fold enrichment (both directions)
+            fold_changes.append(compute_fold_enrichment(test_class, comp_class))
+            fold_changes.append(compute_fold_enrichment(comp_class, test_class))
+        
         # comparison between groups
         if feature in ['growth_macroceph', 'growth_microceph', 'dev_id', 'neuro_sz', 
                         'birth_defect', 'dev_motor', 'feeding_dx']:
-            # Binomial test: classes[2] vs classes[1] (greater)
-            successes = int(sum(classes[2]))
-            total = len(classes[2])
-            expected_proportion = sum(classes[1]) / len(classes[1])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[2] vs classes[3] (greater)
-            successes = int(sum(classes[2]))
-            total = len(classes[2])
-            expected_proportion = sum(classes[3]) / len(classes[3])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[2] vs classes[4] (greater)
-            successes = int(sum(classes[2]))
-            total = len(classes[2])
-            expected_proportion = sum(classes[4]) / len(classes[4])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[4] vs classes[3] (greater)
-            successes = int(sum(classes[4]))
-            total = len(classes[4])
-            expected_proportion = sum(classes[3]) / len(classes[3])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[4] vs classes[1] (greater)
-            successes = int(sum(classes[4]))
-            total = len(classes[4])
-            expected_proportion = sum(classes[1]) / len(classes[1])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[3] vs classes[1] (greater)
-            successes = int(sum(classes[3]))
-            total = len(classes[3])
-            expected_proportion = sum(classes[1]) / len(classes[1])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            fold_changes += [compute_fold_enrichment(classes[2], classes[1]),
-                            compute_fold_enrichment(classes[2], classes[3]),
-                            compute_fold_enrichment(classes[2], classes[4]),
-                            compute_fold_enrichment(classes[4], classes[3]),
-                            compute_fold_enrichment(classes[4], classes[1]),
-                            compute_fold_enrichment(classes[3], classes[1])]
-
+            class_pairs = [
+                (2, 1),
+                (2, 3),
+                (2, 4),
+                (4, 3),
+                (4, 1),
+                (3, 1),
+            ]
+            
+            # compute p-values and fold changes
+            for i, j in class_pairs:
+                successes = int(sum(classes[i]))
+                total = len(classes[i])
+                expected_proportion = sum(classes[j]) / len(classes[j])
+                
+                pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
+                fold_changes.append(compute_fold_enrichment(classes[i], classes[j]))
+            
             uncorrected_pvals = pvals
             pvals = multipletests(pvals, method='fdr_bh')[1]
             supp_table = supp_table.append(pd.DataFrame(
@@ -1151,49 +1037,24 @@ def hypothesis_testing_BMS_features():
                 ))
         
         elif feature in ['dev_lang_dis']:
-            # Binomial test: classes[2] vs classes[1] (greater)
-            successes = int(sum(classes[2]))
-            total = len(classes[2])
-            expected_proportion = sum(classes[1]) / len(classes[1])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[2] vs classes[3] (greater)
-            successes = int(sum(classes[2]))
-            total = len(classes[2])
-            expected_proportion = sum(classes[3]) / len(classes[3])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[4] vs classes[2] (greater)
-            successes = int(sum(classes[4]))
-            total = len(classes[4])
-            expected_proportion = sum(classes[2]) / len(classes[2])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[4] vs classes[3] (greater)
-            successes = int(sum(classes[4]))
-            total = len(classes[4])
-            expected_proportion = sum(classes[3]) / len(classes[3])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[4] vs classes[1] (greater)
-            successes = int(sum(classes[4]))
-            total = len(classes[4])
-            expected_proportion = sum(classes[1]) / len(classes[1])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[1] vs classes[3] (greater)
-            successes = int(sum(classes[1]))
-            total = len(classes[1])
-            expected_proportion = sum(classes[3]) / len(classes[3])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            fold_changes += [compute_fold_enrichment(classes[2], classes[1]),
-                            compute_fold_enrichment(classes[2], classes[3]),
-                            compute_fold_enrichment(classes[4], classes[2]),
-                            compute_fold_enrichment(classes[4], classes[3]),
-                            compute_fold_enrichment(classes[4], classes[1]),
-                            compute_fold_enrichment(classes[1], classes[3])]
-
+            class_pairs = [
+                (2, 1),
+                (2, 3),
+                (4, 2),
+                (4, 3),
+                (4, 1),
+                (1, 3),
+            ]
+            
+            # compute p-values and fold changes
+            for i, j in class_pairs:
+                successes = int(sum(classes[i]))
+                total = len(classes[i])
+                expected_proportion = sum(classes[j]) / len(classes[j])
+                
+                pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
+                fold_changes.append(compute_fold_enrichment(classes[i], classes[j]))
+            
             uncorrected_pvals = pvals
             pvals = multipletests(pvals, method='fdr_bh')[1]
             supp_table = supp_table.append(pd.DataFrame(
@@ -1203,49 +1064,24 @@ def hypothesis_testing_BMS_features():
                 ))
         
         elif feature in ['sleep_dx']:
-            # Binomial test: classes[2] vs classes[1] (greater)
-            successes = int(sum(classes[2]))
-            total = len(classes[2])
-            expected_proportion = sum(classes[1]) / len(classes[1])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[2] vs classes[3] (greater)
-            successes = int(sum(classes[2]))
-            total = len(classes[2])
-            expected_proportion = sum(classes[3]) / len(classes[3])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[2] vs classes[4] (greater)
-            successes = int(sum(classes[2]))
-            total = len(classes[2])
-            expected_proportion = sum(classes[4]) / len(classes[4])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[3] vs classes[4] (greater)
-            successes = int(sum(classes[3]))
-            total = len(classes[3])
-            expected_proportion = sum(classes[4]) / len(classes[4])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[4] vs classes[1] (greater)
-            successes = int(sum(classes[4]))
-            total = len(classes[4])
-            expected_proportion = sum(classes[1]) / len(classes[1])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[3] vs classes[1] (greater)
-            successes = int(sum(classes[3]))
-            total = len(classes[3])
-            expected_proportion = sum(classes[1]) / len(classes[1])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            fold_changes += [compute_fold_enrichment(classes[2], classes[1]),
-                            compute_fold_enrichment(classes[2], classes[3]),
-                            compute_fold_enrichment(classes[2], classes[4]),
-                            compute_fold_enrichment(classes[3], classes[4]),
-                            compute_fold_enrichment(classes[4], classes[1]),
-                            compute_fold_enrichment(classes[3], classes[1])]
-
+            class_pairs = [
+                (2, 1),
+                (2, 3),
+                (2, 4),
+                (3, 4),
+                (4, 1),
+                (3, 1),
+            ]
+            
+            # compute p-values and fold enrichments
+            for i, j in class_pairs:
+                successes = int(sum(classes[i]))
+                total = len(classes[i])
+                expected_proportion = sum(classes[j]) / len(classes[j])
+            
+                pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
+                fold_changes.append(compute_fold_enrichment(classes[i], classes[j]))
+            
             uncorrected_pvals = pvals
             pvals = multipletests(pvals, method='fdr_bh')[1]
             supp_table = supp_table.append(pd.DataFrame(
@@ -1255,48 +1091,23 @@ def hypothesis_testing_BMS_features():
                 ))
 
         elif feature in ['behav_adhd', 'mood_dep']:
-            successes = int(sum(classes[2]))
-            total = len(classes[2])
-            expected_proportion = sum(classes[1]) / len(classes[1])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[3] vs classes[2] (greater)
-            successes = int(sum(classes[3]))
-            total = len(classes[3])
-            expected_proportion = sum(classes[2]) / len(classes[2])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[2] vs classes[4] (greater)
-            successes = int(sum(classes[2]))
-            total = len(classes[2])
-            expected_proportion = sum(classes[4]) / len(classes[4])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[3] vs classes[4] (greater)
-            successes = int(sum(classes[3]))
-            total = len(classes[3])
-            expected_proportion = sum(classes[4]) / len(classes[4])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[1] vs classes[4] (greater)
-            successes = int(sum(classes[1]))
-            total = len(classes[1])
-            expected_proportion = sum(classes[4]) / len(classes[4])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[3] vs classes[1] (greater)
-            successes = int(sum(classes[3]))
-            total = len(classes[3])
-            expected_proportion = sum(classes[1]) / len(classes[1])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            fold_changes += [compute_fold_enrichment(classes[2], classes[1]),
-                            compute_fold_enrichment(classes[3], classes[2]),
-                            compute_fold_enrichment(classes[2], classes[4]),
-                            compute_fold_enrichment(classes[3], classes[4]),
-                            compute_fold_enrichment(classes[1], classes[4]),
-                            compute_fold_enrichment(classes[3], classes[1])]
-
+            class_pairs = [
+                (2, 1),
+                (3, 2),
+                (2, 4),
+                (3, 4),
+                (1, 4),
+                (3, 1),
+            ]
+            
+            for i, j in class_pairs:
+                successes = int(sum(classes[i]))
+                total = len(classes[i])
+                expected_proportion = sum(classes[j]) / len(classes[j])
+            
+                pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
+                fold_changes.append(compute_fold_enrichment(classes[i], classes[j]))
+            
             uncorrected_pvals = pvals
             pvals = multipletests(pvals, method='fdr_bh')[1]
             supp_table = supp_table.append(pd.DataFrame(
@@ -1306,49 +1117,23 @@ def hypothesis_testing_BMS_features():
                 ))
 
         elif feature in ['mood_anx', 'mood_ocd', 'tics']:
-            # Binomial test: classes[2] vs classes[1] (greater)
-            successes = int(sum(classes[2]))
-            total = len(classes[2])
-            expected_proportion = sum(classes[1]) / len(classes[1])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[2] vs classes[3] (greater)
-            successes = int(sum(classes[2]))
-            total = len(classes[2])
-            expected_proportion = sum(classes[3]) / len(classes[3])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[2] vs classes[4] (greater)
-            successes = int(sum(classes[2]))
-            total = len(classes[2])
-            expected_proportion = sum(classes[4]) / len(classes[4])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[3] vs classes[4] (greater)
-            successes = int(sum(classes[3]))
-            total = len(classes[3])
-            expected_proportion = sum(classes[4]) / len(classes[4])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[1] vs classes[4] (greater)
-            successes = int(sum(classes[1]))
-            total = len(classes[1])
-            expected_proportion = sum(classes[4]) / len(classes[4])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            # Binomial test: classes[3] vs classes[1] (greater)
-            successes = int(sum(classes[3]))
-            total = len(classes[3])
-            expected_proportion = sum(classes[1]) / len(classes[1])
-            pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
-
-            fold_changes += [compute_fold_enrichment(classes[2], classes[1]),
-                            compute_fold_enrichment(classes[2], classes[3]),
-                            compute_fold_enrichment(classes[2], classes[4]),
-                            compute_fold_enrichment(classes[3], classes[4]),
-                            compute_fold_enrichment(classes[1], classes[4]),
-                            compute_fold_enrichment(classes[3], classes[1])]
-
+            class_pairs = [
+                (2, 1),
+                (2, 3),
+                (2, 4),
+                (3, 4),
+                (1, 4),
+                (3, 1),
+            ]
+            
+            for i, j in class_pairs:
+                successes = int(sum(classes[i]))
+                total = len(classes[i])
+                expected_proportion = sum(classes[j]) / len(classes[j])
+            
+                pvals.append(binomtest(successes, total, expected_proportion, alternative='greater').pvalue)
+                fold_changes.append(compute_fold_enrichment(classes[i], classes[j]))
+            
             uncorrected_pvals = pvals
             pvals = multipletests(pvals, method='fdr_bh')[1]
             supp_table = supp_table.append(pd.DataFrame(
