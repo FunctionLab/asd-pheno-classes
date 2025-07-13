@@ -92,70 +92,39 @@ def gene_constraint_analysis():
         sibs = dnvs_sibs.groupby('spid')['gene_set&consequence'].sum().tolist()
         sibs = sibs + zero_sibs['count'].astype(int).tolist()
 
-        pvals.append(ttest_ind(class0, sibs, equal_var=False, 
-                                alternative='greater')[1])
-        pvals.append(ttest_ind(class1, sibs, equal_var=False, 
-                                alternative='greater')[1])
-        pvals.append(ttest_ind(class2, sibs, equal_var=False, 
-                                alternative='greater')[1])
-        pvals.append(ttest_ind(class3, sibs, equal_var=False, 
-                                alternative='greater')[1])
+        classes = [class0, class1, class2, class3]
+        nums = [num_class0, num_class1, num_class2, num_class3]
 
-        fold_changes.append((np.sum(class0)/num_class0) / (np.sum(sibs)/num_sibs))
-        fold_changes.append((np.sum(class1)/num_class1) / (np.sum(sibs)/num_sibs))
-        fold_changes.append((np.sum(class2)/num_class2) / (np.sum(sibs)/num_sibs))
-        fold_changes.append((np.sum(class3)/num_class3) / (np.sum(sibs)/num_sibs))
-
-        if gene_set == 'pli_higher': 
-            # cross-class multiple hypothesis testing
-            pvals.append(ttest_ind(class1, class0, equal_var=False,
-                                alternative='greater')[1])
-            pvals.append(ttest_ind(class1, class2, equal_var=False,
-                                alternative='greater')[1])
-            pvals.append(ttest_ind(class1, class3, equal_var=False,
-                                alternative='greater')[1])
-            pvals.append(ttest_ind(class0, class2, equal_var=False,
-                                alternative='greater')[1])
-            pvals.append(ttest_ind(class3, class2, equal_var=False,
-                                alternative='greater')[1])
-            pvals.append(ttest_ind(class0, class3, equal_var=False,     
-                                alternative='greater')[1])
-            
-            fold_changes.append((np.sum(class1)/num_class1) / (np.sum(class0)/num_class0))
-            fold_changes.append((np.sum(class1)/num_class1) / (np.sum(class2)/num_class2))
-            fold_changes.append((np.sum(class1)/num_class1) / (np.sum(class3)/num_class3))
-            fold_changes.append((np.sum(class0)/num_class0) / (np.sum(class2)/num_class2))
-            fold_changes.append((np.sum(class3)/num_class3) / (np.sum(class2)/num_class2))
-            fold_changes.append((np.sum(class0)/num_class0) / (np.sum(class3)/num_class3))
+        for cls_data, cls_size in zip(classes, nums):
+            pvals.append(ttest_ind(cls_data, sibs, equal_var=False, alternative='greater')[1])
+            fold_changes.append((np.sum(cls_data) / cls_size) / (np.sum(sibs) / num_sibs))
         
-        elif gene_set == 'pli_lower':
-            # cross-class multiple hypothesis testing
-            pvals.append(ttest_ind(class1, class0, equal_var=False,
-                                alternative='greater')[1])
-            pvals.append(ttest_ind(class0, class2, equal_var=False,
-                                alternative='greater')[1])
-            pvals.append(ttest_ind(class0, class3, equal_var=False,
-                                alternative='greater')[1])
-            pvals.append(ttest_ind(class1, class2, equal_var=False,
-                                alternative='greater')[1])
-            pvals.append(ttest_ind(class1, class3, equal_var=False,
-                                alternative='greater')[1])
-            pvals.append(ttest_ind(class3, class2, equal_var=False,
-                                alternative='greater')[1])
+        comparison_map = {
+            'pli_higher': [(1, 0), (1, 2), (1, 3), (0, 2), (3, 2), (0, 3)],
+            'pli_lower':  [(1, 0), (0, 2), (0, 3), (1, 2), (1, 3), (3, 2)]
+        }
 
-            fold_changes.append((np.sum(class1)/num_class1) / (np.sum(class0)/num_class0))
-            fold_changes.append((np.sum(class0)/num_class0) / (np.sum(class2)/num_class2))
-            fold_changes.append((np.sum(class0)/num_class0) / (np.sum(class3)/num_class3))
-            fold_changes.append((np.sum(class1)/num_class1) / (np.sum(class2)/num_class2))
-            fold_changes.append((np.sum(class1)/num_class1) / (np.sum(class3)/num_class3))
-            fold_changes.append((np.sum(class3)/num_class3) / (np.sum(class2)/num_class2))
+        # select pairs based on gene set
+        comparison_pairs = comparison_map.get(gene_set, [])
+
+        # class data and sizes
+        class_data = [class0, class1, class2, class3]
+        class_sizes = [num_class0, num_class1, num_class2, num_class3]
+
+        # compute p-values and fold changes
+        for i, j in comparison_pairs:
+            pvals.append(ttest_ind(class_data[i], class_data[j], equal_var=False, alternative='greater')[1])
+            fc = (np.sum(class_data[i]) / class_sizes[i]) / (np.sum(class_data[j]) / class_sizes[j])
+            fold_changes.append(fc)
         
         uncorrected_pvals = pvals
-        corrected = multipletests(pvals, method='fdr_bh')[1] # fdr correction
+        corrected = multipletests(pvals, method='fdr_bh')[1]
 
         if gene_set == 'pli_higher':
-            group1_names = [class_names[0], class_names[1], class_names[2], class_names[3], class_names[1], class_names[1], class_names[1], class_names[0], class_names[3], class_names[0]]
-            vs_names = ['siblings', 'siblings', 'siblings', 'siblings', class_names[0], class_names[2], class_names[3], class_names[2], class_names[2], class_names[3]]
+            group1_names = [class_names[0], class_names[1], class_names[2], class_names[3], class_names[1], 
+                            class_names[1], class_names[1], class_names[0], class_names[3], class_names[0]]
+            vs_names = ['siblings', 'siblings', 'siblings', 'siblings', class_names[0], class_names[2], 
+                        class_names[3], class_names[2], class_names[2], class_names[3]]
             for i in range(10):
                 supp_table = supp_table.append({
                     'variant type': 'dnLoF pLI ≥ 0.995',
@@ -166,8 +135,10 @@ def gene_constraint_analysis():
                     'fold change': fold_changes[i]
                 }, ignore_index=True)
         elif gene_set == 'pli_lower':
-            group1_names = [class_names[0], class_names[1], class_names[2], class_names[3], class_names[1], class_names[0], class_names[0], class_names[1], class_names[1], class_names[2]]
-            vs_names = ['siblings', 'siblings', 'siblings', 'siblings', class_names[0], class_names[2], class_names[3], class_names[2], class_names[3], class_names[3]]
+            group1_names = [class_names[0], class_names[1], class_names[2], class_names[3], class_names[1], 
+                            class_names[0], class_names[0], class_names[1], class_names[1], class_names[2]]
+            vs_names = ['siblings', 'siblings', 'siblings', 'siblings', class_names[0], class_names[2], 
+                        class_names[3], class_names[2], class_names[3], class_names[3]]
             for i in range(10):
                 supp_table = supp_table.append({
                     'variant type': 'dnLoF 0.5 ≤ pLI < 0.995',
@@ -183,45 +154,35 @@ def gene_constraint_analysis():
         print(pvals)
 
         # compute average dnLoF per offspring for each group
-        props.append(np.sum(sibs)/num_sibs)
-        props.append(np.sum(class0)/num_class0)
-        props.append(np.sum(class1)/num_class1)
-        props.append(np.sum(class2)/num_class2)
-        props.append(np.sum(class3)/num_class3)
-        
-        # compute standard errors for each group
-        stds.append(np.std(sibs)/np.sqrt(num_sibs))
-        stds.append(np.std(class0)/np.sqrt(num_class0))
-        stds.append(np.std(class1)/np.sqrt(num_class1))
-        stds.append(np.std(class2)/np.sqrt(num_class2))
-        stds.append(np.std(class3)/np.sqrt(num_class3))
+        groups = {
+            'sibs': (sibs, num_sibs),
+            'class0': (class0, num_class0),
+            'class1': (class1, num_class1),
+            'class2': (class2, num_class2),
+            'class3': (class3, num_class3),
+        }
 
-        # compute 95% confidence intervals
-        confidence_intervals.append(st.t.interval(
-            confidence=0.95, df=len(sibs)-1, loc=np.mean(sibs), scale=st.sem(sibs)))
-        confidence_intervals.append(st.t.interval(
-            confidence=0.95, df=len(class0)-1, loc=np.mean(class0), scale=st.sem(class0)))
-        confidence_intervals.append(st.t.interval(
-            confidence=0.95, df=len(class1)-1, loc=np.mean(class1), scale=st.sem(class1)))
-        confidence_intervals.append(st.t.interval(
-            confidence=0.95, df=len(class2)-1, loc=np.mean(class2), scale=st.sem(class2)))
-        confidence_intervals.append(st.t.interval(
-            confidence=0.95, df=len(class3)-1, loc=np.mean(class3), scale=st.sem(class3)))
+        for data, n in groups.values():
+            # mean proportion per group
+            props.append(np.sum(data) / n)
 
+            # standard error
+            stds.append(np.std(data) / np.sqrt(n))
+
+            # 95% confidence interval
+            confidence_intervals.append(
+                st.t.interval(confidence=0.95, df=len(data) - 1, loc=np.mean(data), scale=st.sem(data))
+            )
+            
         x_values = list(np.arange(len(props)))
         y_values = props
         colors = ['dimgray', '#FBB040', '#EE2A7B', '#39B54A', '#27AAE1']
         
-        #for i in range(len(x_values)):
-        #    ax.errorbar(x_values[i], y_values[i], yerr=stds[i], 
-        #                fmt='o', color=colors[i], markersize=20)
-        
         for i in range(len(x_values)):
-            lower_err = y_values[i] - confidence_intervals[i][0]  # Difference from lower bound
-            upper_err = confidence_intervals[i][1] - y_values[i]  # Difference from upper bound
+            lower_err = y_values[i] - confidence_intervals[i][0] 
+            upper_err = confidence_intervals[i][1] - y_values[i] 
             yerr = np.array([[lower_err], [upper_err]])
 
-            # Plot with error bars
             ax.errorbar(
                 x_values[i], y_values[i], yerr=yerr, 
                 fmt='o', color=colors[i], markersize=20)
