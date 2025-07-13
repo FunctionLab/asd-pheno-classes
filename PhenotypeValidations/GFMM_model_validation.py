@@ -140,7 +140,7 @@ def plot_main_indicators(num_iter=200):
     ax[1, 2].axvline(x=4, color='black', linestyle='--')
     
     plt.tight_layout()
-    plt.savefig(f'figures/GFMM_main_indicators_{num_iter}_iterations.png')
+    plt.savefig(f'figures/GFMM_main_indicators_{num_iter}_iterations.png', dpi=600)
     plt.close()
 
 
@@ -224,7 +224,7 @@ def get_AWE(num_iter=50):
         rick.dump(awe_dict, f)
     
     for n_components in grid['n_components']:
-        print(f"Mean AWE for {n_components} components: 
+        print(f"Mean AWE for {n_components} components: \
               {np.mean(awe_dict[n_components])}")
     
     # plot AWE
@@ -288,11 +288,11 @@ def get_class_sizes(num_iter=50):
         rick.dump(alcpp, f)
     
     for n_components in grid['n_components']:
-        print(f"Min smallest_n for {n_components} components: 
+        print(f"Min smallest_n for {n_components} components: \
               {np.min(smallest_n[n_components])}")
-        print(f"Min smallest_prop for {n_components} components: 
+        print(f"Min smallest_prop for {n_components} components: \
               {np.min(smallest_prop[n_components])}")
-        print(f"Mean ALCPP for {n_components} components: 
+        print(f"Mean ALCPP for {n_components} components: \
               {np.mean(alcpp[n_components])}")
 
 
@@ -426,4 +426,5 @@ if __name__ == "__main__":
     compute_main_indicators()
     lmr_likelihood_ratio_test()
     get_AWE()
-    get_class_sizes()  
+    get_class_sizes()
+    
