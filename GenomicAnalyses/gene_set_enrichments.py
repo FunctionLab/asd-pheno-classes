@@ -7,7 +7,7 @@ import pickle as rick
 from statsmodels.stats.multitest import multipletests
 import seaborn as sns
 
-from utils import load_dnvs, get_gene_sets
+from utils import load_dnvs, get_gene_sets, get_class_label_map
 
 
 def volcano_missense():
@@ -707,15 +707,6 @@ def gene_set_bubble_plot_proband_baseline(fdr=0.1):
         dpi=900
         )
     plt.close()
-
-
-def get_class_label_map():
-    return {
-        0: "Moderate Challenges",
-        1: "Broadly Impacted",
-        2: "Social/Behavioral",
-        3: "Mixed ASD with DD"
-    }
 
 
 def compute_stats_class_baseline(baseline_class: int, out_csv: str):
