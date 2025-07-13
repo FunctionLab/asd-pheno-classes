@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import pickle
 from stepmix.stepmix import StepMix
 from stepmix.utils import get_mixed_descriptor
 
@@ -94,22 +95,8 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments):
     features_to_exclude['class2'] = features_to_exclude['class2'].abs()
     features_to_exclude['class3'] = features_to_exclude['class3'].abs()
     
-    binary_features = [
-        'repeat_grade', 'q01_phrases', 'q02_conversation', 'q03_odd_phrase',
-        'q04_inappropriate_question', 'q05_pronouns_mixed', 'q06_invented_words',
-        'q07_same_over', 'q08_particular_way', 'q09_expressions_appropriate',
-        'q10_hand_tool', 'q11_interest_preoccupy', 'q12_parts_object',
-        'q13_interests_intensity', 'q14_senses', 'q15_odd_ways',
-        'q16_complicated_movements', 'q17_injured_deliberately',
-        'q18_objects_carry', 'q19_best_friend', 'q20_talk_friendly',
-        'q21_copy_you', 'q22_point_things', 'q23_gestures_wanted',
-        'q24_nod_head', 'q25_shake_head', 'q26_look_directly', 
-        'q27_smile_back', 'q28_things_interested', 'q29_share', 
-        'q30_join_enjoyment', 'q31_comfort', 'q32_help_attention', 
-        'q33_range_expressions', 'q34_copy_actions', 'q35_make_believe',
-        'q36_same_age', 'q37_respond_positively', 'q38_pay_attention', 
-        'q39_imaginative_games', 'q40_cooperatively_games'
-    ]
+    with open('data/binary_columns.pkl', 'rb') as f:
+        binary_features = pickle.load(f)
     
     nan_features = features_to_exclude.loc[
         (features_to_exclude['class0'].isna()) &
