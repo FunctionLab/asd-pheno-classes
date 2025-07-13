@@ -20,7 +20,7 @@ def subsample_SPARK(iterations=100, ncomp=4, frac=0.5):
     for i in range(iterations):
         print(f'Iteration {i}')
         datadf = pd.read_csv(
-            '../PhenotypeClasses/data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0
+            '../PhenotypeClasses/data/spark_5392_cohort.txt', sep='\t', index_col=0
             )
 
         datadf = datadf.round()
@@ -45,14 +45,12 @@ def subsample_SPARK(iterations=100, ncomp=4, frac=0.5):
             categorical=categorical_columns
         )
 
-        seed = np.random.randint(1000)
         model = StepMix(
             n_components=ncomp, 
             measurement=mixed_descriptor,
             structural='covariate',
             n_steps=1,
             n_init=20
-            # random_state=seed
             )
 
         # fit model and predict classes
@@ -109,12 +107,12 @@ def plot_correlations(frac=50):
             0.95, len(category_correlations[category])-1, loc=np.mean(category_correlations[category]), scale=st.sem(category_correlations[category])
             )
 
-    # Extract the mean correlation and CIs into lists
+    # extract the mean correlation and CIs into lists
     means = [np.mean(category_correlations[category]) for category in category_correlations.columns]
     ci_lower = [ci[0] for ci in category_to_ci.values()]
     ci_upper = [ci[1] for ci in category_to_ci.values()]
 
-    # Calculate the error bars (distance from mean to upper bound)
+    # calculate the error bars (distance from mean to upper bound)
     ci_error_upper = [upper - mean for upper, mean in zip(ci_upper, means)]
     ci_error_lower = [mean - lower for lower, mean in zip(ci_lower, means)]
 
@@ -158,8 +156,6 @@ def plot_correlations(frac=50):
     ci_upper = [ci[1] for ci in cis]
     ci_error_upper = [upper - mean for upper, mean in zip(ci_upper, means)]
     ci_error_lower = [mean - lower for lower, mean in zip(ci_lower, means)]
-
-    # Prepare annotations with mean ± CI
     annot = [f"{mean:.2f}±{(upper-lower)/2:.2f}" for mean, lower, upper in zip(means, ci_lower, ci_upper)]
 
     # replace 'nan' with 0.00 in annot
