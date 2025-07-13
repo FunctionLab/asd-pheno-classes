@@ -11,7 +11,7 @@ from utils import split_columns, get_feature_enrichments
 def run_mixture_model_on_phenotypes(ncomp=4, summarize=True):
     # load unlabeled individual by feature matrix
     datadf = pd.read_csv(
-        'data/spark_5392_unimputed_cohort.txt', sep='\t', index_col=0
+        'data/spark_5392_cohort.txt', sep='\t', index_col=0
         ) 
     datadf = datadf.round()
     age = datadf['age_at_eval_years']
