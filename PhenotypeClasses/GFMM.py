@@ -90,10 +90,8 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments):
     Generate figures to summarize phenotypes enriched and depleted in each class.
     """
     features_to_exclude = fold_enrichments.copy() 
-    features_to_exclude['class0'] = features_to_exclude['class0'].abs()
-    features_to_exclude['class1'] = features_to_exclude['class1'].abs()
-    features_to_exclude['class2'] = features_to_exclude['class2'].abs()
-    features_to_exclude['class3'] = features_to_exclude['class3'].abs()
+    for i in range(4):
+        features_to_exclude[f'class{i}'] = features_to_exclude[f'class{i}'].abs()
     
     with open('data/binary_columns.pkl', 'rb') as f:
         binary_features = pickle.load(f)
