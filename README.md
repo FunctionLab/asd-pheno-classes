@@ -5,7 +5,6 @@
 - [Preprocessing](https://github.com/FunctionLab/asd-pheno-classes/tree/main/PreprocessingScripts)
 - [Constructing Phenotype Classes](https://github.com/FunctionLab/asd-pheno-classes/tree/main/PhenotypeClasses)
 - [Phenotype Validation and Replication](https://github.com/FunctionLab/asd-pheno-classes/tree/main/PhenotypeValidations)
-- [Polygenic Scores](https://github.com/FunctionLab/asd-pheno-classes/tree/main/PolygenicScores)
 - [Rare Variant Genomic Analyses](https://github.com/FunctionLab/asd-pheno-classes/tree/main/GenomicAnalyses)
 
 
