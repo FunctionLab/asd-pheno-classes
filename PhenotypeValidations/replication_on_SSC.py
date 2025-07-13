@@ -194,7 +194,6 @@ def cross_cohort_replication(ncomp):
     _, _, _, _, summary_df, fold_enrichments = get_feature_enrichments(
         ssc_labels, summarize=True)
     
-    summary_df = summary_df.fillna('NaN')
     summary_df = summary_df.replace(np.nan, 1)
     summary_df = summary_df.loc[~summary_df['feature'].isin(
         features_to_exclude)] # remove non-contributory features
@@ -231,7 +230,6 @@ def cross_cohort_replication(ncomp):
         'class3_depleted'].apply(lambda x: 1 if x < 0.05 else 0)
     
     # create new dataframe with the proportions of significant features 
-    # in each category
     prop_df = pd.DataFrame()
     prop_df['class0_enriched'] = summary_df.groupby(['feature_category'])['class0_enriched'].sum() \
         /summary_df.groupby(['feature_category'])['class0_enriched'].count()
@@ -336,7 +334,7 @@ def cross_cohort_replication(ncomp):
 
 
 def run_spark_model(ncomp):
-    # get SPARK data (composite only for CBCL)
+    # get SPARK data (composite only CBCL)
     spark_data = get_cross_cohort_SPARK_data()
 
     # look for common features
@@ -355,9 +353,8 @@ def run_spark_model(ncomp):
     spark_data = spark_data[common_features]
     ssc_data = ssc_data[common_features]
 
-    # train model on SPARK data only
+    # train model on SPARK data
     Z_p = spark_data[['sex', 'age_at_eval_years']]
-
     X = spark_data.drop(['sex', 'age_at_eval_years'], axis=1)
     
     continuous_columns, binary_columns, categorical_columns = split_columns(
@@ -370,9 +367,12 @@ def run_spark_model(ncomp):
         categorical=categorical_columns
     )
 
-    model = StepMix(n_components=ncomp, measurement=mixed_descriptor,
+    model = StepMix(n_components=ncomp, 
+                    measurement=mixed_descriptor,
                     structural='covariate',
-                    n_steps=1, n_init=200)
+                    n_steps=1, 
+                    n_init=200
+                   )
 
     model.fit(mixed_data, Z_p)
     mixed_data['mixed_pred'] = model.predict(mixed_data, Z_p)
