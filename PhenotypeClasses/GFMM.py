@@ -174,9 +174,9 @@ def generate_summary_table(df_enriched_depleted, fold_enrichments):
         prop_df[f'class{cls}_depleted'] = df.groupby(['feature_category'])[f'class{cls}_depleted'].sum() / \
                                           df.groupby(['feature_category'])[f'class{cls}_depleted'].count()
         prop_df[f'class{cls}_depleted'] = -prop_df[f'class{cls}_depleted']
-        prop_df[f'class{cls}_max'] = prop_df[[f'class{cls}_enriched', f'class{cls}_depleted']].sum(axis=1)
+        prop_df[f'class{cls}_sum'] = prop_df[[f'class{cls}_enriched', f'class{cls}_depleted']].sum(axis=1)
     
-    df = prop_df.drop([f'class{cls}_max' for cls in range(4)], axis=1)
+    df = prop_df.drop([f'class{cls}_sum' for cls in range(4)], axis=1)
     df = df.loc[~df.index.isin(['somatic', 'other problems', 'thought problems'])]
 
     proportions = pd.DataFrame(index=df.index)
