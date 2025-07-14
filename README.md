@@ -32,6 +32,8 @@ conda activate asd_env
 conda list # verify the installation
 ```
 
+Then, retrieve StepMix 1.2.5 from PyPI.
+
 # Installation guide
 
 We recommend cloning the repository to retrieve all scripts, executables, and supplementary data files (e.g. gene sets):
@@ -107,10 +109,10 @@ The scripts should be run in the following order to correctly reproduce the resu
 
 We used the following software packages, which are publicly available for installation and use:
 
-- HAT (downloaded from github on 10/11/22).
-- plink v1.9.
-- ShinyGO 0.80.
-- StepMix 1.2.5 was retrieved from PyPI.
+- HAT (downloaded from github on 10/11/22)
+- plink v1.9
+- ShinyGO 0.80
+- StepMix 1.2.5 (retrieved from PyPI)
 - Ensembl VEP tool (release 111.0)
 - LOFTEE (v.1.0.4)
 - AlphaMissense (VEP plugin)
@@ -120,3 +122,7 @@ We used the following software packages, which are publicly available for instal
 ### **Data Availability Statement**
 
 In order to abide by the informed consents that individuals with autism and their family members signed when agreeing to participate in a SFARI cohort (SSC and SPARK), researchers must be approved by SFARI Base (https://base.sfari.org).
+
+## Questions
+
+Please direct any questions or requests to `aviya@princeton.edu` and `nsauerwald@flatironinstitute.org`.
