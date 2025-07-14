@@ -64,6 +64,8 @@ The scripts should be run in the following order to correctly reproduce the resu
   2) Execute `PhenotypeClasses/GFMM.py` to train and apply the model to the probands by phenotypes matrix, and obtain a label for each proband. Please allow some time for this script to run - we train 200 models with different initializations, but this should not take more than a couple of hours to run. This script produces:
   
       - A file with phenotypes and proband labels in `PhenotypeClasses/data/`.
+
+          - ***Please note that in our analyses, class IDs correspond as follows: 0 -> Moderate challenges, 1 -> Broadly affected, 2 -> Social/behavioral, 3 -> Mixed ASD with DD. Class ID assignment is arbitrary and therefore, any trained model is likely to assign IDs in a different order.
     
       - A pie chart of class proportions (in `PhenotypeClasses/figures/`).
       
