@@ -281,8 +281,6 @@ def get_feature_enrichments(mixed_data, summarize=False):
         df_binary = df_binary.applymap(lambda x: 1 if x < 0.05 else 0)
         df_binary = df_binary * fold_enrichments
         df_binary = df_binary.groupby(lambda x:x.split('_')[0], axis=1).sum()
-        df_binary = df_binary.drop([col for col in df_binary.columns if 'depleted' in col], axis=1)
-        df_binary.columns = [col.split('_')[0] for col in df_binary.columns]
         df_binary = df_binary.replace(0, np.nan)
         df_binary = df_binary.drop('mixed_pred', axis=0)
         fold_enrichments = df_binary.copy()
