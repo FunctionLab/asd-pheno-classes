@@ -622,9 +622,9 @@ def match_class_labels(gt_df, exp_df):
     return exp_df
 
 
-def get_correlation(spark_labels, ssc_labels):
+def get_correlation(spark_labels, other_spark_labels):
     # get feature enrichments
-    classification_df, feature_sig_norm_high, feature_sig_norm_low, feature_vector, df_enriched_depleted, fold_enrichments = get_feature_enrichments(spark_labels, summarize=True)
+    _, _, _, _, df_enriched_depleted, fold_enrichments = get_feature_enrichments(spark_labels, summarize=True)
     
     features_to_exclude = fold_enrichments.copy() # Fold enrichments + Cohen's d values filtered by significance
     # take abs value of cohen's d
@@ -645,11 +645,15 @@ def get_correlation(spark_labels, ssc_labels):
                                             (features_to_exclude['class2'].isna()) & 
                                             (features_to_exclude['class3'].isna())]
     low_features_continuous = features_to_exclude.loc[~features_to_exclude['feature'].isin(binary_features)]
-    low_features_continuous = features_to_exclude.loc[(features_to_exclude['class0'] < 0.2) & (features_to_exclude['class1'] < 0.2) 
-                                            & (features_to_exclude['class2'] < 0.2) & (features_to_exclude['class3'] < 0.2)] 
+    low_features_continuous = features_to_exclude.loc[(features_to_exclude['class0'] < 0.2) & 
+                                                      (features_to_exclude['class1'] < 0.2) & 
+                                                      (features_to_exclude['class2'] < 0.2) & 
+                                                      (features_to_exclude['class3'] < 0.2)] 
     low_features_binary = features_to_exclude.loc[features_to_exclude['feature'].isin(binary_features)]
-    low_features_binary = low_features_binary.loc[(low_features_binary['class0'] < 1.5) & (low_features_binary['class1'] < 1.5)
-                                            & (low_features_binary['class2'] < 1.5) & (low_features_binary['class3'] < 1.5)]
+    low_features_binary = low_features_binary.loc[(low_features_binary['class0'] < 1.5) & 
+                                                  (low_features_binary['class1'] < 1.5)& 
+                                                  (low_features_binary['class2'] < 1.5) & 
+                                                  (low_features_binary['class3'] < 1.5)]
     features_to_exclude = pd.concat([nan_features, low_features_continuous, low_features_binary])
     features_to_exclude = features_to_exclude['feature'].unique()
 
@@ -723,27 +727,11 @@ def get_correlation(spark_labels, ssc_labels):
     spark_prop_df = prop_df.loc[features_to_visualize]
     spark_prop_df.index = np.arange(len(spark_prop_df))
 
-    # analyze SSC predictions
-    feature_to_pval = dict()
-    feature_sig_df_high = pd.DataFrame()
-    feature_sig_df_low = pd.DataFrame()
-    feature_vector = list()
-
     # rename ssc_pred to mixed_pred
-    ssc_labels = ssc_labels.rename({'ssc_pred': 'mixed_pred'}, axis=1)
-
-    ## extract values for classes
-    class0 = ssc_labels[ssc_labels['mixed_pred'] == 0]
-    class1 = ssc_labels[ssc_labels['mixed_pred'] == 1]
-    class2 = ssc_labels[ssc_labels['mixed_pred'] == 2]
-    class3 = ssc_labels[ssc_labels['mixed_pred'] == 3]
-
-    ssc_pval_classification_df, feature_sig_norm_high, feature_sig_norm_low, feature_vector, summary_df, fold_enrichments = get_feature_enrichments(ssc_labels, summarize=True)
+    _, _, _, _, summary_df, fold_enrichments = get_feature_enrichments(other_spark_labels, summarize=True)
     
     summary_df = summary_df.replace(np.nan, 1)
-    summary_df = summary_df.loc[~summary_df['feature'].isin(features_to_exclude)] # remove non-contributory features
-    ssc_feature_subset = summary_df['feature'].to_list()
-    
+    summary_df = summary_df.loc[~summary_df['feature'].isin(features_to_exclude)] # remove non-contributory features    
     summary_df['feature_category'] = summary_df['feature'].map(feature_to_category)
     summary_df = summary_df.dropna(subset=['feature_category'])
 
@@ -754,6 +742,11 @@ def get_correlation(spark_labels, ssc_labels):
         summary_df[f'class{cls}_depleted'] = summary_df[f'class{cls}_depleted'].astype(float).apply(
             lambda x: 1 if x < 0.05 else 0
         )
+    
+    for row in flip_rows: # flip enriched and depleted columns for rc features
+        for cls in range(4):
+            summary_df.loc[df['feature'] == row, [f'class{cls}_enriched', f'class{cls}_depleted']] = \
+            summary_df.loc[df['feature'] == row, [f'class{cls}_depleted', f'class{cls}_enriched']].values
 
     # create new dataframe with the proportions of significant features in each category
     prop_df = pd.DataFrame()
@@ -773,28 +766,26 @@ def get_correlation(spark_labels, ssc_labels):
     prop_df = prop_df.loc[features_to_visualize]
     prop_df.index = np.arange(len(prop_df))
     
-    # CORRELATION BETWEEN SPARK AND SSC GROUPS
+    # compute correlation between SPARK and permuted model
     plot_df = prop_df.T
     plot_df['cluster'] = np.arange(4)
     polar = plot_df.groupby('cluster').mean().reset_index()
     polar = pd.melt(polar, id_vars=['cluster'])
-    polar.rename(columns={'value': 'ssc_value'}, inplace=True)
+    polar.rename(columns={'value': 'other_spark_value'}, inplace=True)
     
-    # plot comparison between SPARK and SSC
+    # plot comparison
     spark_df = spark_prop_df.T
     spark_df['cluster'] = np.arange(4)
     spark = spark_df.groupby('cluster').mean().reset_index()
     spark = pd.melt(spark, id_vars=['cluster'])
     spark.rename(columns={'value': 'spark_value'}, inplace=True)
 
-    # merge spark and ssc dataframes
     polar = pd.merge(polar, spark, on=['cluster', 'variable'], how='inner')
-
-    r, p = pearsonr(polar['ssc_value'], polar['spark_value'])
+    r, _ = pearsonr(polar['other_spark_value'], polar['spark_value'])
 
     category_correlations = []
-    for i, feature in enumerate(features_to_visualize):
-        category_correlations.append(pearsonr(polar.loc[polar["variable"] == i, "ssc_value"], \
+    for i, _ in enumerate(features_to_visualize):
+        category_correlations.append(pearsonr(polar.loc[polar["variable"] == i, "other_spark_value"], \
                                            polar.loc[polar["variable"] == i, "spark_value"])[0])
 
     return r, category_correlations
